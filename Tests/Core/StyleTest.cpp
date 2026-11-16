@@ -195,3 +195,26 @@ HX_TEST(Hss, TransitionsMoveValuesOverTime)
     // Easing curves: ends fixed, ease-in slow at first.
     HX_CHECK(Near(Ease(Easing::EaseIn, 0), 0) && Near(Ease(Easing::EaseIn, 1), 1) && Ease(Easing::EaseIn, 0.25f) < 0.25f && Ease(Easing::EaseOut, 0.25f) > 0.25f);
 }
+
+HX_TEST(Hss, TextPropertiesAndTheirInheritance)
+{
+    Fixture f(R"(
+#outer { -helix-font-definition: url("Fonts/Body.ttf"); -helix-font-family: "Segoe UI", Arial; -helix-font-style: bold;
+         -helix-text-align: middle-center; white-space: nowrap; letter-spacing: 2px; text-overflow: ellipsis; }
+#inner { -helix-font-style: italic; }
+)");
+    f.styles.Update(f.root, 0);
+    ElementHandle outer = f.Add(f.root, "Element", "outer");
+    ElementHandle inner = f.Add(outer, "Label", "inner");
+    f.styles.Update(f.root, 0);
+    const ComputedStyle& o = f.styles.Computed(outer);
+    const ComputedStyle& i = f.styles.Computed(inner);
+    HX_CHECK(AtomName(o.fontDefinition) == "Fonts/Body.ttf" && o.fontFamilyCount == 2 && AtomName(o.fontFamilies[0]) == "Segoe UI" &&
+             AtomName(o.fontFamilies[1]) == "Arial");
+    HX_CHECK(o.fontStyle == FontStyle::Bold && o.textAlign == TextAnchor::MiddleCenter && o.whiteSpace == WhiteSpace::NoWrap &&
+             o.textOverflow == TextOverflow::Ellipsis && o.letterSpacing == Length::Px(2));
+    // Inherited: the font, the families, the alignment, white space and spacing; not text-overflow.
+    HX_CHECK(i.fontDefinition == o.fontDefinition && i.fontFamilyCount == 2 && i.fontFamilies[1] == o.fontFamilies[1] && i.fontStyle == FontStyle::Italic);
+    HX_CHECK(i.textAlign == TextAnchor::MiddleCenter && i.whiteSpace == WhiteSpace::NoWrap && i.letterSpacing == Length::Px(2) &&
+             i.textOverflow == TextOverflow::Clip);
+}

@@ -17,6 +17,7 @@
 #include <Helix/Testing/Test.h>
 #include <Helix/UI/Engine/UIView.h>
 
+#include <Support/FontWriter.h>
 #include <UIShadersAssembly.h>
 
 #include <cstdio>
@@ -207,7 +208,7 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         folder.Folder("Styles");
         folder.Write("Styles/page.hss", kSheet);
         folder.Open();
-        HX_REQUIRE(Shader::Find("Hidden/UI/Flat") != nullptr);
+        HX_REQUIRE(Shader::Find("Hidden/UI/Default") != nullptr);
         rhi::TextureHandle color =
             device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
         rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
@@ -269,5 +270,79 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         device.Destroy(depth);
     });
     // Where there is no device (node, a phone without a window) nothing ran.
+    std::printf("    %u devices\n", devices);
+}
+
+namespace
+{
+    // a and b: squares from 50 to 450 units wide and 500 tall (at 20 pixels: 1 to 9 pixels, 10 above the baseline);
+    // ascender 800 (16 pixels).
+    StringView BodyFont(Array<u8>& bytes)
+    {
+        using namespace font::testing;
+        FontSpec s;
+        s.glyphs.Resize(4);
+        for (u32 g = 1; g < 3; g++)
+            s.glyphs[g].contours.Push(Square(50, 0, 450, 500));
+        s.glyphs[3].advance = 250;
+        s.cmap = {{'a', 1}, {'b', 2}, {' ', 3}};
+        s.names = {{String("1"), String("Body Test")}, {String("2"), String("Regular")}};
+        bytes = BuildFont(s);
+        return StringView(reinterpret_cast<const char*>(bytes.Data()), bytes.Size());
+    }
+}
+
+HX_TEST(UIView, LabelsDrawTheirTextOnEveryDevice)
+{
+    HX_REQUIRE(RegisterModules());
+    constexpr u32 width = 64, height = 32;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        Array<u8> font;
+        folder.Folder("Fonts");
+        folder.Write("Fonts/Body.ttf", BodyFont(font));
+        folder.Write("text.hxml", R"(<HXML><Style src="text.hss"/><Label class="t" text="ab ab"/></HXML>)");
+        folder.Write("text.hss", R"(.t { -helix-font-definition: url("Fonts/Body.ttf"); font-size: 20px; color: #ffffff; margin: 4px; })");
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        auto* asset = ScriptableObject::CreateInstanceByName("ClearPipelineAsset");
+        HX_REQUIRE(asset != nullptr);
+        GraphicsSettings::SetDefaultRenderPipeline(asset);
+        GameObject* cameraObject = GameObject::Create("Camera");
+        Camera* camera = cameraObject->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0, 0, 0, 1));
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        HX_REQUIRE(view != nullptr);
+        view->SetSource(LoadAt<UITemplate>("text.hxml"));
+        view->Update();
+        HX_CHECK(view->errors().Empty());
+        ElementHandle label = view->panel()->tree().FirstChild(view->panel()->root());
+        const TextInfo* text = view->panel()->TextOf(label);
+        HX_REQUIRE(text != nullptr && text->characterCount == 5 && text->quads.Size() == 4);
+        HX_CHECK(text->characterInfo[0].font != nullptr && text->characterInfo[0].font->GetFace().Family() == "Body Test");
+        // Stretched across the root inside its 4 pixel margin, as tall as its line (ascender 16 and descender 4).
+        Rect r = view->panel()->layout().WorldRect(label);
+        HX_CHECK(r.x == 4 && r.y == 4 && r.width == 56 && r.height > 19.9f && r.height < 20.1f);
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        // Inside the first a (x 5 to 13, y 10 to 20 on the screen), between the letters, above them.
+        HX_CHECK(NearColor(Pixel(pixels, width, 9, 15), Rgba(255, 255, 255), 8) && NearColor(Pixel(pixels, width, 14, 15), Rgba(0, 0, 0), 8));
+        HX_CHECK(NearColor(Pixel(pixels, width, 9, 6), Rgba(0, 0, 0), 8) && NearColor(Pixel(pixels, width, 19, 15), Rgba(255, 255, 255), 8));
+        HX_CHECK(engine::testing::MatchGolden("UIViewText", pixels.Data(), width, height, 8));
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
     std::printf("    %u devices\n", devices);
 }

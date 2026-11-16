@@ -17,6 +17,8 @@ namespace helix::ui
         Resource,
         // The names of properties (transition-property).
         PropertyName,
+        // A quoted string or a word (font families), as an atom.
+        Name,
     };
 
     struct PropertyInfo
@@ -33,6 +35,8 @@ namespace helix::ui
         void (*set)(ComputedStyle& style, Span<const StyleValue> values);
         // The value of a single valued property (what transitions animate).
         StyleValue (*get)(const ComputedStyle& style);
+        // How a list valued property is inherited (null: through get and set).
+        void (*copy)(ComputedStyle& to, const ComputedStyle& from) = nullptr;
     };
 
     Span<const PropertyInfo> Properties();

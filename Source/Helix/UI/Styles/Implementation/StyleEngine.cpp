@@ -305,7 +305,9 @@ namespace helix::ui
             for (PropertyId id = 0; id < Properties().Size(); id++)
             {
                 const PropertyInfo& p = Property(id);
-                if (p.inherited)
+                if (p.inherited && p.copy)
+                    p.copy(style, *parent);
+                else if (p.inherited)
                 {
                     StyleValue v = p.get(*parent);
                     p.set(style, Span<const StyleValue>(&v, 1));

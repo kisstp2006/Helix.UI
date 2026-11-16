@@ -91,6 +91,42 @@ namespace helix::ui
         EaseInOut,
     };
 
+    enum class FontStyle : u8
+    {
+        Normal,
+        Bold,
+        Italic,
+        BoldAndItalic,
+    };
+
+    // Where text sits in its element's content box.
+    enum class TextAnchor : u8
+    {
+        UpperLeft,
+        UpperCenter,
+        UpperRight,
+        MiddleLeft,
+        MiddleCenter,
+        MiddleRight,
+        LowerLeft,
+        LowerCenter,
+        LowerRight,
+    };
+
+    enum class WhiteSpace : u8
+    {
+        Normal,
+        NoWrap,
+        Pre,
+        PreWrap,
+    };
+
+    enum class TextOverflow : u8
+    {
+        Clip,
+        Ellipsis,
+    };
+
     // A transition of one property (kNoAtom: every property).
     struct TransitionSpec
     {
@@ -123,6 +159,16 @@ namespace helix::ui
         Overflow overflow = Overflow::Visible;
         Length fontSize = Length::Px(12);
         Atom backgroundImage = kNoAtom;
+        // Text: a font asset (url or resource), the machine's font families after it, and how the text is set.
+        static constexpr u32 kMaxFontFamilies = 6;
+        Atom fontDefinition = kNoAtom;
+        Atom fontFamilies[kMaxFontFamilies] = {};
+        u8 fontFamilyCount = 0;
+        FontStyle fontStyle = FontStyle::Normal;
+        TextAnchor textAlign = TextAnchor::UpperLeft;
+        WhiteSpace whiteSpace = WhiteSpace::Normal;
+        TextOverflow textOverflow = TextOverflow::Clip;
+        Length letterSpacing = Length::Px(0), wordSpacing = Length::Px(0), paragraphSpacing = Length::Px(0);
         TransitionSpec transitions[kMaxTransitions];
         u8 transitionCount = 0;
     };

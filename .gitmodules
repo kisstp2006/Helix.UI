@@ -52,3 +52,6 @@
 [submodule "External/Helix.Engine"]
 	path = External/Helix.Engine
 	url = https://github.com/kisstp2006/Helix.Engine
+[submodule "External/Helix.Font"]
+	path = External/Helix.Font
+	url = https://github.com/kisstp2006/Helix.Font

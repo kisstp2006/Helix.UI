@@ -33,6 +33,11 @@ namespace helix::ui
         const StringView kVisibility[] = {"visible", "hidden"};
         const StringView kOverflow[] = {"visible", "hidden"};
         const StringView kEasings[] = {"ease", "linear", "ease-in", "ease-out", "ease-in-out"};
+        const StringView kFontStyles[] = {"normal", "bold", "italic", "bold-and-italic"};
+        const StringView kTextAnchors[] = {"upper-left", "upper-center", "upper-right", "middle-left", "middle-center",
+                                           "middle-right", "lower-left", "lower-center", "lower-right"};
+        const StringView kWhiteSpaces[] = {"normal", "nowrap", "pre", "pre-wrap"};
+        const StringView kTextOverflows[] = {"clip", "ellipsis"};
 
         template <usize N>
         Span<const StringView> Words(const StringView (&words)[N])
@@ -144,6 +149,38 @@ namespace helix::ui
                  r.resource = s.backgroundImage;
                  return r;
              }},
+            {"-helix-font-definition", ValueType::Resource, true, true, false, {},
+             [](S& s, V v) { s.fontDefinition = v.Empty() ? kNoAtom : v[0].resource; },
+             [](const S& s) {
+                 StyleValue r;
+                 r.kind = StyleValue::Kind::Resource;
+                 r.resource = s.fontDefinition;
+                 return r;
+             }},
+            {"-helix-font-family", ValueType::Name, true, true, true, {},
+             [](S& s, V v) {
+                 s.fontFamilyCount = u8(v.Size() < ComputedStyle::kMaxFontFamilies ? v.Size() : ComputedStyle::kMaxFontFamilies);
+                 for (u32 i = 0; i < s.fontFamilyCount; i++)
+                     s.fontFamilies[i] = v[i].resource;
+             },
+             [](const S&) { return StyleValue(); },
+             [](S& to, const S& from) {
+                 to.fontFamilyCount = from.fontFamilyCount;
+                 for (u32 i = 0; i < from.fontFamilyCount; i++)
+                     to.fontFamilies[i] = from.fontFamilies[i];
+             }},
+            {"-helix-font-style", ValueType::Enum, true, true, false, Words(kFontStyles), [](S& s, V v) { s.fontStyle = FontStyle(K(v)); },
+             [](const S& s) { return Key(u32(s.fontStyle)); }},
+            {"-helix-text-align", ValueType::Enum, true, false, false, Words(kTextAnchors), [](S& s, V v) { s.textAlign = TextAnchor(K(v)); },
+             [](const S& s) { return Key(u32(s.textAlign)); }},
+            {"white-space", ValueType::Enum, true, true, false, Words(kWhiteSpaces), [](S& s, V v) { s.whiteSpace = WhiteSpace(K(v)); },
+             [](const S& s) { return Key(u32(s.whiteSpace)); }},
+            {"text-overflow", ValueType::Enum, false, false, false, Words(kTextOverflows), [](S& s, V v) { s.textOverflow = TextOverflow(K(v)); },
+             [](const S& s) { return Key(u32(s.textOverflow)); }},
+            {"letter-spacing", ValueType::Length, true, true, false, {}, [](S& s, V v) { s.letterSpacing = L(v); }, [](const S& s) { return Len(s.letterSpacing); }},
+            {"word-spacing", ValueType::Length, true, true, false, {}, [](S& s, V v) { s.wordSpacing = L(v); }, [](const S& s) { return Len(s.wordSpacing); }},
+            {"-helix-paragraph-spacing", ValueType::Length, true, true, false, {}, [](S& s, V v) { s.paragraphSpacing = L(v); },
+             [](const S& s) { return Len(s.paragraphSpacing); }},
             {"transition-property", ValueType::PropertyName, false, false, true, {},
              [](S& s, V v) {
                  s.transitionCount = u8(v.Size() < ComputedStyle::kMaxTransitions ? v.Size() : ComputedStyle::kMaxTransitions);

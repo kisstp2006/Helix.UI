@@ -18,6 +18,7 @@ namespace helix::ui
             parent_.Push(kNone), firstChild_.Push(kNone), lastChild_.Push(kNone), next_.Push(kNone), previous_.Push(kNone);
             childCount_.Push(0);
             type_.Push(kNoAtom), name_.Push(kNoAtom);
+            text_.Emplace();
             classes_.Emplace();
             states_.Push(PseudoStates::None);
             dirty_.Push(Dirty::None);
@@ -27,6 +28,7 @@ namespace helix::ui
         childCount_[i] = 0;
         type_[i] = type;
         name_[i] = kNoAtom;
+        text_[i].Clear();
         classes_[i].Clear();
         states_[i] = PseudoStates::None;
         dirty_[i] = Dirty::Style | Dirty::Layout;
@@ -171,6 +173,15 @@ namespace helix::ui
         for (u32 at = previous_[e.index]; at != kNone; at = previous_[at])
             k++;
         return k;
+    }
+
+    void ElementTree::SetText(ElementHandle e, StringView text)
+    {
+        if (!IsAlive(e) || text_[e.index].View() == text)
+            return;
+        text_[e.index] = String(text);
+        textVersion_++;
+        MarkLayoutDirty(e);
     }
 
     void ElementTree::SetName(ElementHandle e, Atom name)

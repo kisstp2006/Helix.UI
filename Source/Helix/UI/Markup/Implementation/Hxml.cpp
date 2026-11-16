@@ -13,9 +13,27 @@ namespace helix::ui
                 auto* t = new HashMap<Atom, ElementType>();
                 for (StringView name : {StringView("Element"), StringView("TemplateContainer")})
                     t->Set(Intern(name), ElementType{Intern(name), nullptr});
+                // A label: its text from the text attribute or the element's content.
+                t->Set(Intern("Label"), ElementType{Intern("Label"), [](ElementTree& tree, ElementHandle e, StringView name, StringView value) {
+                           if (name != StringView("text"))
+                               return false;
+                           tree.SetText(e, value);
+                           return true;
+                       }});
                 return t;
             }();
             return *types;
+        }
+
+        // Text content without the white space around it (lines of markup indent it).
+        StringView Trimmed(StringView s)
+        {
+            auto space = [](char c) { return c == 32 || c == 10 || c == 13 || c == 9; };
+            while (!s.Empty() && space(s[0]))
+                s = s.Substr(1);
+            while (!s.Empty() && space(s[s.Size() - 1]))
+                s = s.Substr(0, s.Size() - 1);
+            return s;
         }
 
         void Convert(const XmlNode& x, HxmlNode& out)
@@ -160,6 +178,9 @@ namespace helix::ui
                 for (const Override& o : overrides)
                     if (o.element == nameAtom && nameAtom != kNoAtom && !n.Attribute(AtomName(o.attribute)))
                         Attribute(n, e, o.attribute, o.value.View());
+                // Text content (a label's text) when no text attribute gave one.
+                if (!n.text.Empty() && tree.Text(e).Empty() && type->attributes && !n.Attribute("text"))
+                    type->attributes(tree, e, "text", Trimmed(n.text.View()));
                 for (const HxmlNode& c : n.children)
                     Node(c, e, templates, overrides);
             }

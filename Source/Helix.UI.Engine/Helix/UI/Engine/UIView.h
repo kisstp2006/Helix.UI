@@ -48,10 +48,12 @@ namespace helix::ui
 
         // The views that draw, in drawing order (for the drawer).
         static Span<UIView* const> Views();
-        // The quads of the last Update in a mesh (null before the first).
+        // The quads of the last Update in a mesh (null before the first), a submesh per batch.
         engine::Mesh* mesh() const;
+        Span<const PanelBatch> batches() const { return Span<const PanelBatch>(batches_.Data(), batches_.Size()); }
 
     private:
+        class TextHost;
         void Build();
         bool SourcesChanged();
 
@@ -59,6 +61,7 @@ namespace helix::ui
         HX_FIELD(SerializeField, Name = "m_SortingOrder") i32 sortingOrder_ = 0;
         HX_FIELD(SerializeField, Name = "m_WatchFiles") bool watchFiles_ = false;
 
+        std::unique_ptr<PanelTextHost> host_;
         std::unique_ptr<Panel> panel_;
         Array<HxmlError> errors_;
         // The files the last build read (the markup first) and their bytes, for watchFiles.
@@ -70,7 +73,9 @@ namespace helix::ui
         Array<Watched> watched_;
         f64 lastWatch_ = 0;
         bool built_ = false;
-        Array<PanelVertex> quads_;
+        Array<PanelVertex> vertices_;
+        Array<u32> indices_;
+        Array<PanelBatch> batches_;
         engine::PPtr<engine::Mesh> mesh_;
     };
 }

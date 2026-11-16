@@ -10,8 +10,10 @@
 #include <Helix/Engine/Rendering/Pipeline/ScriptableRenderContext.h>
 #include <Helix/Engine/Screen/Screen.h>
 #include <Helix/Engine/Shader/Shader.h>
+#include <Helix/Engine/Texture/Texture.h>
 #include <Helix/Engine/Time/Time.h>
 #include <Helix/Platform/Time/Time.h>
+#include <Helix/UI/Engine/FontAsset.h>
 
 #include <cstring>
 #include <utility>
@@ -25,17 +27,67 @@ namespace helix::ui
         // How often watched files are read again (seconds).
         constexpr f64 kWatchInterval = 0.5;
 
+        // The fonts every view falls back to after its styles' fonts: families of the platform (the first one the
+        // machine has is the default font).
+#if defined(_WIN32)
+        constexpr const char* kDefaultFamilies[] = {"Segoe UI", "Arial", "Segoe UI Emoji", "Segoe UI Symbol", "Microsoft YaHei", "Yu Gothic", "Malgun Gothic",
+                                                    "Nirmala UI"};
+#elif defined(__ANDROID__)
+        constexpr const char* kDefaultFamilies[] = {"Roboto", "Noto Sans", "Noto Color Emoji", "Noto Sans CJK SC"};
+#else
+        constexpr const char* kDefaultFamilies[] = {"DejaVu Sans", "Liberation Sans", "Noto Sans", "Noto Color Emoji", "Noto Sans CJK SC"};
+#endif
+
+        struct MaterialEntry
+        {
+            engine::PPtr<engine::Texture2D> texture;
+            engine::PPtr<engine::Material> material;
+        };
+
         struct Views
         {
             Array<UIView*> list;
             u32 drawer = 0;
-            engine::PPtr<engine::Material> material;
+            // One material per texture (the first without one).
+            Array<MaterialEntry> materials;
+            bool missingShader = false;
         };
 
         Views& V()
         {
             static Views* v = new Views();
             return *v;
+        }
+
+        engine::Material* MaterialFor(engine::Texture2D* texture)
+        {
+            Views& v = V();
+            for (usize i = 0; i < v.materials.Size(); i++)
+            {
+                MaterialEntry& e = v.materials[i];
+                if (e.texture.Get() == texture && e.material.Get())
+                    return e.material.Get();
+            }
+            engine::Shader* shader = engine::Shader::Find("Hidden/UI/Default");
+            if (!shader)
+            {
+                if (!v.missingShader)
+                    HX_LOG_WARNING(UILog, "The shader Hidden/UI/Default is not loaded: the UI is not drawn.");
+                v.missingShader = true;
+                return nullptr;
+            }
+            engine::Material* m = engine::Material::Create(shader);
+            m->hideFlags = engine::HideFlags::DontSave;
+            if (texture)
+                m->SetTexture("_MainTex", texture);
+            // Entries of destroyed textures make room.
+            for (usize i = 0; i < v.materials.Size();)
+                if (!v.materials[i].material.Get() || (!v.materials[i].texture.Get() && i > 0))
+                    v.materials.RemoveAt(i);
+                else
+                    i++;
+            v.materials.Push({engine::PPtr<engine::Texture2D>(texture), engine::PPtr<engine::Material>(m)});
+            return m;
         }
 
         // The folder part of a path (with its slash), empty for a file at the root.
@@ -53,7 +105,6 @@ namespace helix::ui
             if (src.StartsWith("/"))
                 return String(src.Substr(1));
             String out(FolderOf(base));
-            // "../" goes up a folder.
             while (src.StartsWith("../"))
             {
                 src = src.Substr(3);
@@ -106,16 +157,6 @@ namespace helix::ui
             Views& v = V();
             if (!camera || camera->cameraType() != engine::CameraType::Game || camera->targetTexture() || v.list.Empty())
                 return;
-            engine::Material* material = v.material.Get();
-            if (!material)
-            {
-                engine::Shader* shader = engine::Shader::Find("Hidden/UI/Flat");
-                if (!shader)
-                    return;
-                material = engine::Material::Create(shader);
-                material->hideFlags = engine::HideFlags::DontSave;
-                v.material = engine::PPtr<engine::Material>(material);
-            }
             f32 w = f32(camera->pixelWidth()), h = f32(camera->pixelHeight());
             engine::CommandBuffer cmd;
             cmd.SetName("UI");
@@ -127,9 +168,22 @@ namespace helix::ui
             for (usize i = 1; i < order.Size(); i++)
                 for (usize j = i; j > 0 && order[j - 1]->sortingOrder() > order[j]->sortingOrder(); j--)
                     std::swap(order[j - 1], order[j]);
+            bool any = false;
             for (UIView* view : order)
-                if (engine::Mesh* mesh = view->mesh(); mesh && mesh->vertexCount() > 0)
-                    cmd.DrawMesh(mesh, Matrix4x4::identity, material);
+            {
+                engine::Mesh* mesh = view->mesh();
+                if (!mesh || mesh->vertexCount() == 0)
+                    continue;
+                Span<const PanelBatch> batches = view->batches();
+                for (u32 b = 0; b < batches.Size(); b++)
+                    if (engine::Material* m = MaterialFor(batches[b].texture))
+                    {
+                        cmd.DrawMesh(mesh, Matrix4x4::identity, m, i32(b));
+                        any = true;
+                    }
+            }
+            if (!any)
+                return;
             context.ExecuteCommandBuffer(cmd);
             context.Submit();
         }
@@ -158,12 +212,81 @@ namespace helix::ui
             }
         }
 
-        // The asset loaders of the markup and the sheets are there once the module is loaded.
+        // The asset loaders of the markup, the sheets and the fonts are there once the module is loaded.
         struct LoaderRegistrar
         {
-            LoaderRegistrar() { RegisterUIAssetLoaders(); }
+            LoaderRegistrar()
+            {
+                RegisterUIAssetLoaders();
+                RegisterFontAssetLoader();
+            }
         } registrar;
     }
+
+    // The view's fonts: a style's font definition (a font asset found like the markup's files), then its families and
+    // the platform's default families as fonts of the machine.
+    class UIView::TextHost final : public PanelTextHost
+    {
+    public:
+        explicit TextHost(UIView& view) : view_(view) {}
+
+        TextFont* Font(const ComputedStyle& style, Array<TextFont*>& fallbacks) override
+        {
+            TextFont* primary = nullptr;
+            if (style.fontDefinition != kNoAtom)
+                if (FontAsset* a = Definition(style.fontDefinition))
+                    primary = a->textFont();
+            auto add = [&](FontAsset* a) {
+                TextFont* f = a ? a->textFont() : nullptr;
+                if (!f)
+                    return;
+                if (!primary)
+                    primary = f;
+                else if (f != primary)
+                    fallbacks.Push(f);
+            };
+            for (u32 i = 0; i < style.fontFamilyCount; i++)
+                add(FontAsset::CreateFontAsset(AtomName(style.fontFamilies[i])));
+            for (const char* family : kDefaultFamilies)
+                add(FontAsset::CreateFontAsset(family));
+            return primary;
+        }
+
+        engine::Texture2D* Texture(const TextQuad& quad) override
+        {
+            FontAsset* a = FontAsset::Of(quad.font);
+            return a ? a->AtlasTexture(quad.page, quad.colorGlyph) : nullptr;
+        }
+
+        void Forget() { definitions_.Clear(); }
+
+    private:
+        FontAsset* Definition(Atom path)
+        {
+            for (const Entry& e : definitions_)
+                if (e.path == path)
+                    return e.asset.Get();
+            FontAsset* asset = nullptr;
+            if (UITemplate* t = view_.source())
+            {
+                String resolved = Resolve(t->path(), AtomName(path));
+                if (const engine::AssetEntry* e = engine::FindAssetAtPath(resolved.View()))
+                    asset = ScriptObjectAs<FontAsset>(engine::LoadAsset(e->guid));
+                if (!asset)
+                    HX_LOG_WARNING(UILog, "{}: no font asset at {}", t->path(), resolved.View());
+            }
+            definitions_.Push({path, engine::PPtr<FontAsset>(asset)});
+            return asset;
+        }
+
+        struct Entry
+        {
+            Atom path;
+            engine::PPtr<FontAsset> asset;
+        };
+        UIView& view_;
+        Array<Entry> definitions_;
+    };
 
     UIView::UIView(const UIView& other)
         : engine::GameBehaviour(other), source_(other.source_), sortingOrder_(other.sortingOrder_), watchFiles_(other.watchFiles_)
@@ -189,7 +312,9 @@ namespace helix::ui
 
     void UIView::OnEnable()
     {
+        host_ = std::make_unique<TextHost>(*this);
         panel_ = std::make_unique<Panel>();
+        panel_->SetTextHost(host_.get());
         built_ = false;
         AddView(this);
     }
@@ -198,7 +323,9 @@ namespace helix::ui
     {
         RemoveView(this);
         panel_.reset();
+        host_.reset();
         watched_.Clear();
+        batches_.Clear();
     }
 
     void UIView::Build()
@@ -206,6 +333,7 @@ namespace helix::ui
         built_ = true;
         errors_.Clear();
         watched_.Clear();
+        static_cast<TextHost*>(host_.get())->Forget();
         UITemplate* t = source_.Get();
         if (!t)
         {
@@ -279,7 +407,7 @@ namespace helix::ui
         if (!built_)
             Build();
         panel_->Update(engine::Time::deltaTime(), f32(engine::Screen::width()), f32(engine::Screen::height()));
-        panel_->Quads(quads_);
+        panel_->Draw(vertices_, indices_, batches_);
 
         engine::Mesh* m = mesh_.Get();
         if (!m)
@@ -289,24 +417,29 @@ namespace helix::ui
             m->MarkDynamic();
             mesh_ = engine::PPtr<engine::Mesh>(m);
         }
-        usize n = quads_.Size();
+        usize n = vertices_.Size();
         Array<Vector3> positions;
         Array<Color> colors;
-        Array<i32> triangles;
+        Array<Vector2> uvs;
+        Array<Vector4> parameters;
         positions.Reserve(n);
         colors.Reserve(n);
-        triangles.Reserve(n / 4 * 6);
-        for (const PanelVertex& q : quads_)
+        uvs.Reserve(n);
+        parameters.Reserve(n);
+        for (const PanelVertex& q : vertices_)
         {
             positions.Push(Vector3(q.x, q.y, 0));
             colors.Push(q.color);
+            uvs.Push(Vector2(q.u, q.v));
+            parameters.Push(Vector4(q.kind, q.edge, q.scale, q.unused));
         }
-        for (i32 i = 0; i < i32(n); i += 4)
-            for (i32 k : {0, 1, 2, 0, 2, 3})
-                triangles.Push(i + k);
         m->Clear();
         m->SetVertices(Span<const Vector3>(positions.Data(), positions.Size()));
         m->SetColors(Span<const Color>(colors.Data(), colors.Size()));
-        m->SetTriangles(Span<const i32>(triangles.Data(), triangles.Size()));
+        m->SetUVs(0, Span<const Vector2>(uvs.Data(), uvs.Size()));
+        m->SetUVs(1, Span<const Vector4>(parameters.Data(), parameters.Size()));
+        m->SetSubMeshCount(i32(batches_.Size() > 0 ? batches_.Size() : 1));
+        for (u32 b = 0; b < batches_.Size(); b++)
+            m->SetTriangles(Span<const i32>(reinterpret_cast<const i32*>(indices_.Data()) + batches_[b].firstIndex, batches_[b].indexCount), i32(b));
     }
 }

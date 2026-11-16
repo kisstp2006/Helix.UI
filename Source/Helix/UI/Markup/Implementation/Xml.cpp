@@ -227,6 +227,16 @@ namespace helix::ui
                         SkipMisc();
                         continue;
                     }
+                    // Character data as written (rich text tags in a label's text).
+                    if (At("<![CDATA["))
+                    {
+                        usize end = text_.Find("]]>", at_ + 9);
+                        if (end == StringView::npos)
+                            return Fail("<![CDATA[ is not closed");
+                        text.Append(text_.Substr(at_ + 9, end - at_ - 9));
+                        Advance(end + 3 - at_);
+                        continue;
+                    }
                     if (At("</"))
                     {
                         Advance(2);

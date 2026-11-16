@@ -367,6 +367,15 @@ namespace helix::ui
                 }
                 error = Format("'{}' is not url() or resource()", k.text);
                 return false;
+            case ValueType::Name:
+                if (k.kind != Tok::String && k.kind != Tok::Ident)
+                {
+                    error = Format("'{}' is not a name (quote names with spaces)", k.text);
+                    return false;
+                }
+                v.kind = StyleValue::Kind::Resource;
+                v.resource = Intern(k.text);
+                break;
             case ValueType::PropertyName:
                 if (k.kind != Tok::Ident)
                 {

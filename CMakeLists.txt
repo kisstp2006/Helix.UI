@@ -10,12 +10,24 @@ helix_require(Platform)
 helix_require(Profiler)
 helix_require(Jobs)
 helix_require(Math)
+helix_require(Font)
 
-# The UI core: the element tree, the layout, the style sheets and the markup, without the engine.
-helix_add_library(helix_ui ALIAS UI PUBLIC_DEPS Helix::Core Helix::Math PRIVATE_DEPS Helix::Jobs)
+# The UI core: the element tree, the layout, the style sheets, the markup and the text, without the engine.
+helix_add_library(helix_ui ALIAS UI PUBLIC_DEPS Helix::Core Helix::Math Helix::Font PRIVATE_DEPS Helix::Jobs Helix::Platform)
 
-helix_add_test_suite(helix_ui_tests EXCLUDE "/Tests/Engine/" DEPS Helix::UI Helix::Jobs)
-helix_add_benchmark_suite(helix_ui_bench DEPS Helix::UI Helix::Jobs)
+helix_add_test_suite(helix_ui_tests EXCLUDE "/Tests/Engine/" DEPS Helix::UI Helix::Jobs Helix::Platform)
+if(TARGET helix_ui_tests)
+    # The official bidi and line break tests of the Unicode data.
+    target_compile_definitions(helix_ui_tests PRIVATE "HELIX_UI_UNICODE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Unicode\"")
+    # In node the tests read the Unicode files from the disk itself.
+    if(HELIX_PLATFORM STREQUAL "web")
+        target_link_options(helix_ui_tests PRIVATE -sNODERAWFS=1)
+    endif()
+    # Fonts built in code with Helix.Font's test writers.
+    helix_dependency_dir(font_dir Font)
+    target_include_directories(helix_ui_tests PRIVATE "${font_dir}/Tests")
+endif()
+helix_add_benchmark_suite(helix_ui_bench DEPS Helix::UI Helix::Jobs Helix::Platform)
 
 # The UI in the engine: a native module (HelixUI) with the UI's assets and views, a shared library beside the engine's
 # (a static one linked into the app on the Web).
@@ -35,8 +47,14 @@ if(HELIX_PLATFORM STREQUAL "web")
     add_library(helix_ui_engine STATIC ${ui_engine_cpp} ${ui_engine_headers})
     target_link_libraries(helix_ui_engine PUBLIC Helix::UI Helix::Engine)
 else()
-    add_library(helix_ui_engine SHARED ${ui_engine_cpp} ${ui_engine_headers})
-    target_link_libraries(helix_ui_engine PUBLIC Helix::UI Helix::EngineShared)
+    # The UI core and Helix.Font built into the module against the shared engine, which holds Core, Platform, Jobs and
+    # Image once for every module (static copies of them would be second instances of their state).
+    get_target_property(ui_core_sources helix_ui SOURCES)
+    get_target_property(font_sources helix_font SOURCES)
+    get_target_property(font_root helix_font SOURCE_DIR)
+    add_library(helix_ui_engine SHARED ${ui_engine_cpp} ${ui_engine_headers} ${ui_core_sources} ${font_sources})
+    target_include_directories(helix_ui_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${font_root}/Source" PRIVATE "${font_root}/ThirdParty")
+    target_link_libraries(helix_ui_engine PUBLIC Helix::EngineShared)
     set_target_properties(helix_ui_engine PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
                                                      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
@@ -46,7 +64,8 @@ target_include_directories(helix_ui_engine PUBLIC "${ui_engine_source}")
 helix_apply_options(helix_ui_engine)
 
 # The headers whose tagged types C# sees, and the engine's they name.
-set(ui_bound_headers "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/UIView.h")
+set(ui_bound_headers "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h"
+    "${ui_engine_source}/Helix/UI/Engine/UIView.h")
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
     "${engine_source}/Helix/Engine/GameObject/GameObject.h" "${engine_source}/Helix/Engine/Script/GameBehaviour.h"
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"
@@ -91,6 +110,7 @@ if(TARGET helix_ui_engine_tests)
         DEPENDS "${ui_shaders_dll}" "${HELIX_EMBED_FILE}"
         COMMENT "Embedding the UI's shaders")
     target_sources(helix_ui_engine_tests PRIVATE "${tests_generated}/UIShadersAssembly.h")
-    target_include_directories(helix_ui_engine_tests PRIVATE "${tests_generated}" "${engine_dir}/Tests")
+    helix_dependency_dir(font_tests_root Font)
+    target_include_directories(helix_ui_engine_tests PRIVATE "${tests_generated}" "${engine_dir}/Tests" "${font_tests_root}/Tests")
     target_compile_definitions(helix_ui_engine_tests PRIVATE "HELIX_ENGINE_GOLDEN_DIR=\"${tests_dir}/Golden\"")
 endif()

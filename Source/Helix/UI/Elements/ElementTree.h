@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Helix/Core/Strings/String.h>
+
 #include <Helix/Core/Basics/Span.h>
 #include <Helix/Core/Containers/Array.h>
 #include <Helix/UI/Core/Atoms.h>
@@ -78,6 +80,11 @@ namespace helix::ui
 
         Atom Type(ElementHandle e) const { return IsAlive(e) ? type_[e.index] : kNoAtom; }
         Atom Name(ElementHandle e) const { return IsAlive(e) ? name_[e.index] : kNoAtom; }
+        // The element's text (labels and other text elements); a change marks its layout dirty.
+        StringView Text(ElementHandle e) const { return IsAlive(e) ? text_[e.index].View() : StringView(); }
+        void SetText(ElementHandle e, StringView text);
+        // Bumped by every SetText that changes a text.
+        u32 TextVersion() const { return textVersion_; }
         void SetName(ElementHandle e, Atom name);
         Span<const Atom> Classes(ElementHandle e) const;
         bool HasClass(ElementHandle e, Atom c) const;
@@ -147,6 +154,8 @@ namespace helix::ui
         Array<u8> live_;
         Array<u32> parent_, firstChild_, lastChild_, next_, previous_, childCount_;
         Array<Atom> type_, name_;
+        Array<String> text_;
+        u32 textVersion_ = 0;
         Array<Array<Atom>> classes_;
         Array<PseudoStates> states_;
         Array<Dirty> dirty_;

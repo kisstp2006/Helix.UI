@@ -167,3 +167,31 @@ HX_TEST(Hxml, TypesFromTheRegistryAndReportedMistakes)
     Array<HxmlError> rootErrors;
     HX_CHECK(!HxmlDocument::Parse("<Element/>", wrong, rootErrors) && rootErrors.Size() == 1 && rootErrors[0].message.View().Contains("<HXML>"));
 }
+
+HX_TEST(Hxml, LabelsTakeTheirText)
+{
+    HxmlDocument doc;
+    Array<HxmlError> errors;
+    HX_REQUIRE(HxmlDocument::Parse(R"(<HXML><Label name="a" text="Hello"/><Label name="b">
+        Second line
+    </Label><Element name="c"/></HXML>)", doc, errors));
+    ElementTree tree;
+    LayoutEngine layout(tree);
+    StyleEngine styles(tree, layout);
+    ElementHandle root = tree.Create(Intern("Element"));
+    Instantiate(doc, tree, styles, root, nullptr, errors);
+    HX_CHECK(errors.Empty());
+    HX_REQUIRE(tree.ChildCount(root) == 3);
+    u32 version = tree.TextVersion();
+    HX_CHECK(tree.Text(tree.ChildAt(root, 0)) == "Hello" && tree.Text(tree.ChildAt(root, 1)) == "Second line" && tree.Text(tree.ChildAt(root, 2)).Empty());
+    tree.SetText(tree.ChildAt(root, 0), "Changed");
+    HX_CHECK(tree.TextVersion() == version + 1 && tree.Text(tree.ChildAt(root, 0)) == "Changed");
+}
+
+HX_TEST(Xml, CharacterDataKeepsTags)
+{
+    XmlError error;
+    auto root = ParseXml("<Label><![CDATA[<b>bold</b> & more]]></Label>", error);
+    HX_REQUIRE(root != nullptr);
+    HX_CHECK(root->text == "<b>bold</b> & more" && root->children.Empty());
+}
