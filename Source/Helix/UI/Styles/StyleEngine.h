@@ -1,0 +1,79 @@
+#pragma once
+
+#include <Helix/UI/Layout/Layout.h>
+#include <Helix/UI/Styles/StyleSheet.h>
+
+#include <memory>
+
+// Computes the styles of an element tree: the sheets attached to an element apply to it and its descendants (a closer
+// sheet wins over an outer one at the same specificity), then its inline style. Inherited properties come from the
+// parent, var() takes the custom properties of the element and its ancestors. Only elements whose style is dirty are
+// computed again. A changed value of a property with a transition moves there over time. The layout inputs go to the
+// layout engine when they change.
+namespace helix::ui
+{
+    class StyleEngine
+    {
+    public:
+        StyleEngine(ElementTree& tree, LayoutEngine& layout) : tree_(tree), layout_(layout) {}
+
+        // A sheet for an element's subtree (the engine keeps the shared pointer).
+        void AddStyleSheet(ElementHandle owner, std::shared_ptr<const StyleSheet> sheet);
+        void RemoveStyleSheet(ElementHandle owner, const StyleSheet* sheet);
+        void ClearStyleSheets(ElementHandle owner);
+        // An element's inline style (declarations, as in a style attribute); errors are returned.
+        void SetInlineStyle(ElementHandle e, StringView declarations, Array<StyleError>* errors = nullptr);
+
+        // Computes the dirty styles under root and advances the transitions by dt seconds.
+        void Update(ElementHandle root, f32 dt);
+
+        // The style as shown now (transitions included).
+        const ComputedStyle& Computed(ElementHandle e) const;
+        // Whether a transition is still running (something to draw again).
+        bool Animating() const { return animating_ > 0; }
+        // How many elements the last Update computed.
+        u32 LastComputed() const { return computed_; }
+
+    private:
+        struct Running
+        {
+            PropertyId property;
+            StyleValue from, to;
+            f32 elapsed, duration, delay;
+            Easing easing;
+        };
+
+        struct Slot
+        {
+            u32 generation = ~0u;
+            bool computedOnce = false;
+            // The cascade's result and what is shown (the result with the running transitions).
+            ComputedStyle target, shown;
+            Array<Declaration> inlineStyle;
+            Array<Running> running;
+            // The custom properties declared on the element (name, text).
+            Array<Atom> varNames;
+            Array<String> varValues;
+            Array<std::shared_ptr<const StyleSheet>> sheets;
+        };
+
+        Slot& At(ElementHandle e);
+        void Compute(ElementHandle e, const ComputedStyle* parent);
+        bool Matches(const Selector& s, ElementHandle e) const;
+        bool MatchFrom(const Selector& s, u32 part, ElementHandle e) const;
+        bool MatchPart(const SelectorPart& p, ElementHandle e) const;
+        void Apply(ComputedStyle& style, const Declaration& d, ElementHandle e);
+        StringView Variable(ElementHandle e, Atom name) const;
+        void StartTransitions(Slot& s, const ComputedStyle& before);
+        void Animate(ElementHandle e, Slot& s, f32 dt);
+
+        ElementTree& tree_;
+        LayoutEngine& layout_;
+        Array<Slot> slots_;
+        // The sheets in effect while walking the tree (outer first) and the ancestor filter's counters.
+        Array<const StyleSheet*> active_;
+        u16 bloom_[4096] = {};
+        u32 computed_ = 0;
+        u32 animating_ = 0;
+    };
+}
