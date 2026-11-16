@@ -134,19 +134,19 @@ HX_TEST(UIMesh, ImagesFitCropStretchOrSlice)
     const f32 none[4] = {0, 0, 0, 0};
 
     UIMesh m;
-    image.scaleMode = UIScaleMode::ScaleToFit;
+    image.sizeMode = UISizeMode::Contain;
     m.Image(Rect(0, 0, 100, 100), image, Vector4(), none, 1);
     HX_CHECK(RectIs(QuadBounds(m, 0), 0, 25, 100, 50));
 
     m.Clear();
-    image.scaleMode = UIScaleMode::ScaleAndCrop;
+    image.sizeMode = UISizeMode::Cover;
     m.Image(Rect(0, 0, 100, 100), image, Vector4(), none, 1);
     HX_CHECK(RectIs(QuadBounds(m, 0), 0, 0, 100, 100));
     // The middle half of the width.
     HX_CHECK(Near(m.Vertices()[0].uvLocal.x, 0.25f) && Near(m.Vertices()[1].uvLocal.x, 0.75f));
 
     m.Clear();
-    image.scaleMode = UIScaleMode::StretchToFill;
+    image.sizeMode = UISizeMode::Length;
     const f32 borders[4] = {5, 5, 5, 5};
     m.Image(Rect(0, 0, 100, 100), image, Vector4(10, 10, 10, 10), borders, 1);
     // Inside the borders, its place in the whole box.
@@ -192,7 +192,8 @@ HX_TEST(UIMesh, VerticesCarryTheirClip)
     m.Shape(Box(), 1);
     const UIVertex& flat = m.Vertices()[0];
     HX_CHECK(KindOf(flat) == UIVertexKind::Flat);
-    HX_CHECK(Near(flat.clipRect.x, 50) && Near(flat.clipRect.y, 0) && Near(flat.clipRect.z, 100) && Near(flat.clipRect.w, 30));
+    // Its place in the clip and the clip's size.
+    HX_CHECK(Near(flat.clipRect.x, -50) && Near(flat.clipRect.y, 0) && Near(flat.clipRect.z, 50) && Near(flat.clipRect.w, 30));
     HX_CHECK(Near(flat.size.z, 6));
     HX_CHECK(Near(m.Vertices()[4].size.z, 6) && Near(m.Vertices()[4].size.x, 100));
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Helix/UI/Layout/Layout.h>
-#include <Helix/UI/Styles/StyleSheet.h>
+#include <Helix/UI/Styles/StyleSheetData.h>
 
 #include <memory>
 
@@ -18,15 +18,20 @@ namespace helix::ui
         StyleEngine(ElementTree& tree, LayoutEngine& layout) : tree_(tree), layout_(layout) {}
 
         // A sheet for an element's subtree (the engine keeps the shared pointer).
-        void AddStyleSheet(ElementHandle owner, std::shared_ptr<const StyleSheet> sheet);
-        void RemoveStyleSheet(ElementHandle owner, const StyleSheet* sheet);
+        void AddStyleSheet(ElementHandle owner, std::shared_ptr<const StyleSheetData> sheet);
+        void RemoveStyleSheet(ElementHandle owner, const StyleSheetData* sheet);
         void ClearStyleSheets(ElementHandle owner);
+        void InsertStyleSheet(ElementHandle owner, u32 index, std::shared_ptr<const StyleSheetData> sheet);
+        // The sheets added to an element, in order (empty for a gone element).
+        Span<const std::shared_ptr<const StyleSheetData>> StyleSheets(ElementHandle owner) const;
         // An element's inline style (declarations, as in a style attribute); errors are returned.
         void SetInlineStyle(ElementHandle e, StringView declarations, Array<StyleError>* errors = nullptr);
         // One property of the inline style, as scripts set it: its value's text (false with the reason when it is no
         // value of the property), `initial`, or gone (the sheets decide again).
         bool SetInlineProperty(ElementHandle e, PropertyId property, StringView value, String* error = nullptr);
         void SetInlineInitial(ElementHandle e, PropertyId property);
+        // One property of the inline style as values (what scripts set that has no text: a texture's object).
+        void SetInlineValues(ElementHandle e, PropertyId property, Span<const StyleValue> values);
         void ClearInlineProperty(ElementHandle e, PropertyId property);
         // The inline values of a property (false when the inline style does not set it; `initial` gives no values).
         bool InlineProperty(ElementHandle e, PropertyId property, Array<StyleValue>& out, bool* initial = nullptr) const;
@@ -41,13 +46,22 @@ namespace helix::ui
         // How many elements the last Update computed.
         u32 LastComputed() const { return computed_; }
 
+        // A custom property (--name) the element's rules or inline style declare, its var() replaced: its text
+        // (false when it declares none of the name). The names it declares.
+        bool CustomProperty(ElementHandle e, StringView name, String& out) const;
+        void CustomPropertyNames(ElementHandle e, Array<Atom>& out) const;
+        // The elements the last Update computed that have custom properties (or lost their last ones).
+        Span<const ElementHandle> CustomResolved() const { return Span<const ElementHandle>(customResolved_.Data(), customResolved_.Size()); }
+
     private:
         struct Running
         {
-            PropertyId property;
-            StyleValue from, to;
-            f32 elapsed, duration, delay;
-            Easing easing;
+            PropertyId property = kNoProperty;
+            // Every value of the property (several for translate, scale, a shadow, ...).
+            StyleValue from[kMaxValues], to[kMaxValues];
+            u32 count = 1;
+            f32 elapsed = 0, duration = 0, delay = 0;
+            Easing easing = Easing::Ease;
         };
 
         struct Slot
@@ -61,7 +75,9 @@ namespace helix::ui
             // The custom properties declared on the element (name, text).
             Array<Atom> varNames;
             Array<String> varValues;
-            Array<std::shared_ptr<const StyleSheet>> sheets;
+            Array<std::shared_ptr<const StyleSheetData>> sheets;
+            // It had custom properties when last computed.
+            bool hadCustom = false;
         };
 
         Slot& At(ElementHandle e);
@@ -71,6 +87,7 @@ namespace helix::ui
         bool MatchPart(const SelectorPart& p, ElementHandle e) const;
         void Apply(ComputedStyle& style, const Declaration& d, ElementHandle e);
         StringView Variable(ElementHandle e, Atom name) const;
+        bool Substitute(ElementHandle e, StringView raw, String& text) const;
         void StartTransitions(Slot& s, const ComputedStyle& before);
         void Animate(ElementHandle e, Slot& s, f32 dt);
 
@@ -78,9 +95,10 @@ namespace helix::ui
         LayoutEngine& layout_;
         Array<Slot> slots_;
         // The sheets in effect while walking the tree (outer first) and the ancestor filter's counters.
-        Array<const StyleSheet*> active_;
+        Array<const StyleSheetData*> active_;
         u16 bloom_[4096] = {};
         u32 computed_ = 0;
         u32 animating_ = 0;
+        Array<ElementHandle> customResolved_;
     };
 }

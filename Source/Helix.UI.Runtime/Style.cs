@@ -252,6 +252,10 @@ namespace HelixEngine.UI
             [typeof(FontStyle)] = new[] { "normal", "bold", "italic", "bold-and-italic" },
             [typeof(TextAnchor)] = new[] { "upper-left", "upper-center", "upper-right", "middle-left", "middle-center", "middle-right", "lower-left",
                                            "lower-center", "lower-right" },
+            [typeof(TextOverflowPosition)] = new[] { "end", "start", "middle" },
+            [typeof(OverflowClipBox)] = new[] { "padding-box", "content-box" },
+            [typeof(Repeat)] = new[] { "no-repeat", "space", "round", "repeat" },
+            [typeof(BackgroundPositionKeyword)] = new[] { "center", "top", "bottom", "left", "right" },
         };
 
         public static string Of<T>(T value) where T : struct, IConvertible => s_Words[typeof(T)][Convert.ToInt32(value)];
@@ -326,6 +330,21 @@ namespace HelixEngine.UI
         StyleEnum<WhiteSpace> whiteSpace { get; set; }
         StyleLength width { get; set; }
         StyleLength wordSpacing { get; set; }
+        StyleTranslate translate { get; set; }
+        StyleRotate rotate { get; set; }
+        StyleScale scale { get; set; }
+        StyleTransformOrigin transformOrigin { get; set; }
+        StyleBackground backgroundImage { get; set; }
+        StyleBackgroundPosition backgroundPositionX { get; set; }
+        StyleBackgroundPosition backgroundPositionY { get; set; }
+        StyleBackgroundRepeat backgroundRepeat { get; set; }
+        StyleBackgroundSize backgroundSize { get; set; }
+        StyleTextShadow textShadow { get; set; }
+        StyleCursor cursor { get; set; }
+        StyleColor helixTextOutlineColor { get; set; }
+        StyleFloat helixTextOutlineWidth { get; set; }
+        StyleEnum<TextOverflowPosition> helixTextOverflowPosition { get; set; }
+        StyleEnum<OverflowClipBox> helixOverflowClipBox { get; set; }
     }
 
     // An element's inline style over the native one.
@@ -494,6 +513,200 @@ namespace HelixEngine.UI
             if (Keyword(property, v.keyword))
                 m_Element.SetInlineStyleText(property, Number(v.value) + "px");
         }
+
+        // ------------------------------------------------------------------------- properties of several values
+
+        Length LengthAt(string property, int index)
+        {
+            int unit = m_Element.InlineStyleUnitAt(property, index);
+            float v = m_Element.InlineStyleNumberAt(property, index);
+            return unit == 0 ? Length.Auto() : new Length(v, unit == 2 ? LengthUnit.Percent : LengthUnit.Pixel);
+        }
+
+        static string Rgba(Color c) => $"rgba({Number(c.r * 255)}, {Number(c.g * 255)}, {Number(c.b * 255)}, {Number(c.a)})";
+
+        public StyleTranslate translate
+        {
+            get
+            {
+                StyleKeyword k = Unset("translate");
+                return k != StyleKeyword.Undefined ? k : new Translate(LengthAt("translate", 0), LengthAt("translate", 1));
+            }
+            set
+            {
+                if (Keyword("translate", value.keyword))
+                    m_Element.SetInlineStyleText("translate", value.keyword == StyleKeyword.None ? "none" : $"{value.value.x} {value.value.y}");
+            }
+        }
+
+        public StyleRotate rotate
+        {
+            get
+            {
+                StyleKeyword k = Unset("rotate");
+                return k != StyleKeyword.Undefined ? k : new Rotate(new Angle(m_Element.InlineStyleNumberAt("rotate", 0)));
+            }
+            set
+            {
+                if (Keyword("rotate", value.keyword))
+                    m_Element.SetInlineStyleText("rotate", value.keyword == StyleKeyword.None ? "none" : value.value.angle.Text);
+            }
+        }
+
+        public StyleScale scale
+        {
+            get
+            {
+                StyleKeyword k = Unset("scale");
+                return k != StyleKeyword.Undefined ? k : new Scale(new Vector2(m_Element.InlineStyleNumberAt("scale", 0), m_Element.InlineStyleNumberAt("scale", 1)));
+            }
+            set
+            {
+                if (Keyword("scale", value.keyword))
+                    m_Element.SetInlineStyleText("scale", value.keyword == StyleKeyword.None ? "none" : $"{Number(value.value.value.x)} {Number(value.value.value.y)}");
+            }
+        }
+
+        public StyleTransformOrigin transformOrigin
+        {
+            get
+            {
+                StyleKeyword k = Unset("transform-origin");
+                return k != StyleKeyword.Undefined ? k : new TransformOrigin(LengthAt("transform-origin", 0), LengthAt("transform-origin", 1));
+            }
+            set
+            {
+                if (Keyword("transform-origin", value.keyword))
+                    m_Element.SetInlineStyleText("transform-origin", $"{value.value.x} {value.value.y}");
+            }
+        }
+
+        public StyleBackground backgroundImage
+        {
+            get
+            {
+                StyleKeyword k = Unset("background-image");
+                return k != StyleKeyword.Undefined ? k : new StyleBackground(m_Element.InlineStyleTexture("background-image"));
+            }
+            set
+            {
+                if (Keyword("background-image", value.keyword))
+                    m_Element.SetInlineStyleTexture("background-image", value.keyword == StyleKeyword.None ? null : value.value.texture, default);
+            }
+        }
+
+        StyleBackgroundPosition GetPosition(string property)
+        {
+            StyleKeyword k = Unset(property);
+            if (k != StyleKeyword.Undefined)
+                return k;
+            return new BackgroundPosition(StyleWords.Parse<BackgroundPositionKeyword>(m_Element.InlineStyleWordAt(property, 0)), LengthAt(property, 1));
+        }
+
+        void SetPosition(string property, StyleBackgroundPosition v)
+        {
+            if (Keyword(property, v.keyword))
+                m_Element.SetInlineStyleText(property, $"{StyleWords.Of(v.value.keyword)} {v.value.offset}");
+        }
+
+        public StyleBackgroundPosition backgroundPositionX { get => GetPosition("background-position-x"); set => SetPosition("background-position-x", value); }
+        public StyleBackgroundPosition backgroundPositionY { get => GetPosition("background-position-y"); set => SetPosition("background-position-y", value); }
+
+        public StyleBackgroundRepeat backgroundRepeat
+        {
+            get
+            {
+                StyleKeyword k = Unset("background-repeat");
+                if (k != StyleKeyword.Undefined)
+                    return k;
+                int n = m_Element.InlineStyleCount("background-repeat");
+                Repeat x = StyleWords.Parse<Repeat>(m_Element.InlineStyleWordAt("background-repeat", 0));
+                return new BackgroundRepeat(x, n > 1 ? StyleWords.Parse<Repeat>(m_Element.InlineStyleWordAt("background-repeat", 1)) : x);
+            }
+            set
+            {
+                if (Keyword("background-repeat", value.keyword))
+                    m_Element.SetInlineStyleText("background-repeat", $"{StyleWords.Of(value.value.x)} {StyleWords.Of(value.value.y)}");
+            }
+        }
+
+        public StyleBackgroundSize backgroundSize
+        {
+            get
+            {
+                StyleKeyword k = Unset("background-size");
+                if (k != StyleKeyword.Undefined)
+                    return k;
+                string type = m_Element.InlineStyleWordAt("background-size", 0);
+                if (type == "cover" || type == "contain")
+                    return new BackgroundSize(type == "cover" ? BackgroundSizeType.Cover : BackgroundSizeType.Contain);
+                return new BackgroundSize(LengthAt("background-size", 1), LengthAt("background-size", 2));
+            }
+            set
+            {
+                if (!Keyword("background-size", value.keyword))
+                    return;
+                BackgroundSize b = value.value;
+                string text = b.sizeType == BackgroundSizeType.Cover ? "cover" : b.sizeType == BackgroundSizeType.Contain ? "contain" : $"{b.x} {b.y}";
+                m_Element.SetInlineStyleText("background-size", text);
+            }
+        }
+
+        public StyleTextShadow textShadow
+        {
+            get
+            {
+                StyleKeyword k = Unset("text-shadow");
+                if (k != StyleKeyword.Undefined)
+                    return k;
+                return new TextShadow
+                {
+                    offset = new Vector2(m_Element.InlineStyleNumberAt("text-shadow", 0), m_Element.InlineStyleNumberAt("text-shadow", 1)),
+                    blurRadius = m_Element.InlineStyleNumberAt("text-shadow", 2),
+                    color = m_Element.InlineStyleColorAt("text-shadow", 3),
+                };
+            }
+            set
+            {
+                if (!Keyword("text-shadow", value.keyword))
+                    return;
+                TextShadow t = value.value;
+                m_Element.SetInlineStyleText("text-shadow", $"{Number(t.offset.x)}px {Number(t.offset.y)}px {Number(t.blurRadius)}px {Rgba(t.color)}");
+            }
+        }
+
+        public StyleCursor cursor
+        {
+            get
+            {
+                StyleKeyword k = Unset("cursor");
+                if (k != StyleKeyword.Undefined)
+                    return k;
+                return new Cursor
+                {
+                    texture = m_Element.InlineStyleTexture("cursor"),
+                    hotspot = new Vector2(m_Element.InlineStyleNumberAt("cursor", 1), m_Element.InlineStyleNumberAt("cursor", 2)),
+                };
+            }
+            set
+            {
+                if (Keyword("cursor", value.keyword))
+                    m_Element.SetInlineStyleTexture("cursor", value.value.texture, value.value.hotspot);
+            }
+        }
+
+        public StyleColor helixTextOutlineColor { get => GetColor("-helix-text-outline-color"); set => SetColor("-helix-text-outline-color", value); }
+        public StyleFloat helixTextOutlineWidth { get => GetFloat("-helix-text-outline-width"); set => SetLengthFloat("-helix-text-outline-width", value); }
+        public StyleEnum<TextOverflowPosition> helixTextOverflowPosition
+        {
+            get => GetEnum<TextOverflowPosition>("-helix-text-overflow-position");
+            set => SetEnum("-helix-text-overflow-position", value);
+        }
+        public StyleEnum<OverflowClipBox> helixOverflowClipBox
+        {
+            get => GetEnum<OverflowClipBox>("-helix-overflow-clip-box");
+            set => SetEnum("-helix-overflow-clip-box", value);
+        }
     }
 
     // The values of an element's style as computed and laid out.
@@ -519,6 +732,19 @@ namespace HelixEngine.UI
         float paddingTop { get; }
         float paddingRight { get; }
         float paddingBottom { get; }
+        Vector3 translate { get; }
+        Rotate rotate { get; }
+        Scale scale { get; }
+        Vector3 transformOrigin { get; }
+        Background backgroundImage { get; }
+        BackgroundPosition backgroundPositionX { get; }
+        BackgroundPosition backgroundPositionY { get; }
+        BackgroundRepeat backgroundRepeat { get; }
+        BackgroundSize backgroundSize { get; }
+        TextShadow textShadow { get; }
+        Color helixTextOutlineColor { get; }
+        float helixTextOutlineWidth { get; }
+        TextOverflowPosition helixTextOverflowPosition { get; }
     }
 
     internal sealed class ResolvedStyle : IResolvedStyle
@@ -547,6 +773,68 @@ namespace HelixEngine.UI
         public float paddingTop => m_Element.ResolvedStyleNumber("padding-top");
         public float paddingRight => m_Element.ResolvedStyleNumber("padding-right");
         public float paddingBottom => m_Element.ResolvedStyleNumber("padding-bottom");
+
+        // A computed length in pixels (percentages of a size).
+        float Pixels(string property, int index, float size)
+        {
+            float v = m_Element.ResolvedStyleNumberAt(property, index);
+            int unit = m_Element.ResolvedStyleUnitAt(property, index);
+            return unit == 2 ? v * size / 100f : unit == 1 ? v : 0;
+        }
+
+        Length LengthAt(string property, int index)
+        {
+            int unit = m_Element.ResolvedStyleUnitAt(property, index);
+            float v = m_Element.ResolvedStyleNumberAt(property, index);
+            return unit == 0 ? Length.Auto() : new Length(v, unit == 2 ? LengthUnit.Percent : LengthUnit.Pixel);
+        }
+
+        BackgroundPosition PositionOf(string property) =>
+            new BackgroundPosition(StyleWords.Parse<BackgroundPositionKeyword>(m_Element.ResolvedStyleWordAt(property, 0)), LengthAt(property, 1));
+
+        public Vector3 translate
+        {
+            get
+            {
+                Rect r = m_Element.layout;
+                return new Vector3(Pixels("translate", 0, r.width), Pixels("translate", 1, r.height), 0);
+            }
+        }
+        public Rotate rotate => new Rotate(new Angle(m_Element.ResolvedStyleNumberAt("rotate", 0)));
+        public Scale scale => new Scale(new Vector2(m_Element.ResolvedStyleNumberAt("scale", 0), m_Element.ResolvedStyleNumberAt("scale", 1)));
+        public Vector3 transformOrigin
+        {
+            get
+            {
+                Rect r = m_Element.layout;
+                return new Vector3(Pixels("transform-origin", 0, r.width), Pixels("transform-origin", 1, r.height), 0);
+            }
+        }
+        public Background backgroundImage => Background.FromTexture2D(m_Element.ResolvedStyleTexture("background-image"));
+        public BackgroundPosition backgroundPositionX => PositionOf("background-position-x");
+        public BackgroundPosition backgroundPositionY => PositionOf("background-position-y");
+        public BackgroundRepeat backgroundRepeat => new BackgroundRepeat(StyleWords.Parse<Repeat>(m_Element.ResolvedStyleWordAt("background-repeat", 0)),
+                                                                         StyleWords.Parse<Repeat>(m_Element.ResolvedStyleWordAt("background-repeat", 1)));
+        public BackgroundSize backgroundSize
+        {
+            get
+            {
+                string type = m_Element.ResolvedStyleWordAt("background-size", 0);
+                if (type == "cover" || type == "contain")
+                    return new BackgroundSize(type == "cover" ? BackgroundSizeType.Cover : BackgroundSizeType.Contain);
+                return new BackgroundSize(LengthAt("background-size", 1), LengthAt("background-size", 2));
+            }
+        }
+        public TextShadow textShadow => new TextShadow
+        {
+            offset = new Vector2(m_Element.ResolvedStyleNumberAt("text-shadow", 0), m_Element.ResolvedStyleNumberAt("text-shadow", 1)),
+            blurRadius = m_Element.ResolvedStyleNumberAt("text-shadow", 2),
+            color = m_Element.ResolvedStyleColorAt("text-shadow", 3),
+        };
+        public Color helixTextOutlineColor => m_Element.ResolvedStyleColor("-helix-text-outline-color");
+        public float helixTextOutlineWidth => m_Element.ResolvedStyleNumber("-helix-text-outline-width");
+        public TextOverflowPosition helixTextOverflowPosition =>
+            StyleWords.Parse<TextOverflowPosition>(m_Element.ResolvedStyleWord("-helix-text-overflow-position"));
     }
 
     public partial class Element

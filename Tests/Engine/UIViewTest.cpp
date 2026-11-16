@@ -1,9 +1,11 @@
+#include <Engine/Support/CppScripts.h>
 #include <Engine/Support/TestPipeline.h>
 #include <Engine/Support/UIHost.h>
 #include <Support/Devices.h>
 #include <Support/Golden.h>
 
 #include <Helix/Engine/Asset/Asset.h>
+#include <Helix/Engine/Input/Cursor.h>
 #include <Helix/Engine/Input/InputFeed.h>
 #include <Helix/Engine/GameObject/GameObject.h>
 #include <Helix/Engine/GameObject/Lifecycle.h>
@@ -168,11 +170,11 @@ HX_TEST(UIAssets, MarkupAndSheetsLoadAsAssets)
     UITemplate* page = LoadAt<UITemplate>("page.hxml");
     HX_REQUIRE(page != nullptr);
     HX_CHECK(page->path() == "page.hxml" && page->document().Nodes().Size() == 3);
-    StyleSheetAsset* sheet = LoadAt<StyleSheetAsset>("Styles/page.hss");
+    StyleSheet* sheet = LoadAt<StyleSheet>("Styles/page.hss");
     HX_REQUIRE(sheet != nullptr);
     HX_CHECK(sheet->sheet()->Errors().Empty() && sheet->sheet()->Rules().Size() == 4);
     // A sheet with errors still loads (its errors are in it).
-    StyleSheetAsset* broken = LoadAt<StyleSheetAsset>("broken.hss");
+    StyleSheet* broken = LoadAt<StyleSheet>("broken.hss");
     HX_REQUIRE(broken != nullptr);
     HX_CHECK(!broken->sheet()->Errors().Empty());
 }
@@ -608,4 +610,135 @@ HX_TEST(UIScripts, CSharpCallbacksGetTheViewsEventsInTheirOrder)
     RunScriptPhase(ScriptMessage::Update);
     HX_CHECK(ui::testing::NotesAre({"focused:button", "submit:button", "capture:True:button", "released:False:button"}));
     engine::InputFeed::Reset();
+}
+
+HX_TEST(UIView, AThemeImportsItsSheetsAndTheCursorFollowsTheHoveredElement)
+{
+    HX_REQUIRE(RegisterModules());
+    AssetFolder folder;
+    folder.Write("page.hxml", R"(<HXML><Style src="Themes/main.tss"/><Style src="loop.hss"/>
+        <Element name="box" class="box"><Element name="inner" style="width: 10px; height: 10px;"/></Element>
+        <Element name="plain" style="position: absolute; left: 0px; top: 40px; width: 20px; height: 8px;"/></HXML>)");
+    folder.Folder("Themes");
+    folder.Write("Themes/main.tss", R"(@import url("../base.hss"); :root { --accent: #00ff00; })");
+    folder.Write("base.hss", R"(.box { position: absolute; left: 10px; top: 10px; width: 20px; height: 20px; background-color: var(--accent); cursor: link; })");
+    // A sheet importing itself through another is reported, the rest applies.
+    folder.Write("loop.hss", R"(@import "loop2.hss"; .x { width: 1px; })");
+    folder.Write("loop2.hss", R"(@import "loop.hss";)");
+    folder.Open();
+    ThemeStyleSheet* theme = LoadAt<ThemeStyleSheet>("Themes/main.tss");
+    HX_REQUIRE(theme != nullptr);
+    HX_CHECK(theme->sheet()->Imports().Size() == 1 && !theme->importedWithErrors() && theme->contentHash() != 0);
+    ReportScreen(64, 48);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("page.hxml"));
+    engine::InputFeed::Reset();
+    engine::Cursor::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    // The theme's import and its variable.
+    Element* box = view->rootElement()->ElementAtChecked(0);
+    HX_REQUIRE(box != nullptr && box->name() == StringView("box"));
+    HX_CHECK(box->ResolvedStyleColor("background-color").g > 0.99f && box->ResolvedStyleNumber("width") == 20);
+    // Over the box (and its child, which inherits it): the link shape; off it: the arrow again.
+    u64 before = engine::Cursor::Current().version;
+    frame({Mouse(platform::EventType::MouseMove, 15, 15)});
+    HX_CHECK(engine::Cursor::Current().shape == platform::SystemCursor::Hand && engine::Cursor::Current().version == before + 1);
+    frame({Mouse(platform::EventType::MouseMove, 25, 25)});
+    HX_CHECK(engine::Cursor::Current().version == before + 1);
+    frame({Mouse(platform::EventType::MouseMove, 5, 44)});
+    HX_CHECK(engine::Cursor::Current().shape == platform::SystemCursor::Arrow);
+    // A game's cursor stays while the mouse is off the views' elements.
+    engine::Cursor::SetSystemCursor(platform::SystemCursor::Crosshair);
+    frame({Mouse(platform::EventType::MouseMove, 60, 2)});
+    HX_CHECK(engine::Cursor::Current().shape == platform::SystemCursor::Crosshair);
+    DestroyImmediate(ui);
+    engine::InputFeed::Reset();
+    engine::Cursor::Reset();
+}
+
+HX_TEST(UIScripts, CSharpSetsTheLooksAndReadsCustomProperties)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    AssetFolder folder;
+    folder.Write("page.hxml", R"(<HXML><Style src="looks.hss"/><Element name="box" class="box"/></HXML>)");
+    folder.Write("looks.hss", R"(:root { --base: #00ff00; } .box { width: 20px; height: 20px; --accent: var(--base); --size: 12px; --title: "Hi"; --flag: true; })");
+    folder.Open();
+    ReportScreen(64, 48);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("page.hxml"));
+    engine::InputFeed::Reset();
+    view->Update();
+    ui->AddComponent(ui::testing::CSharp("CsStyleTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"inline:10px:50%:90:3:4px:Right:5px:Repeat:Cover:3:1:2:Middle", "unset:Null", "cursor:True:2", "needs-dashes",
+                                    "custom:True:1:12:Hi:True:False"}));
+    RunScriptPhase(ScriptMessage::Update);
+    // Scaled 2 x 3 about (0, 4): 40 x 60.
+    HX_CHECK(ui::testing::NotesAre({"resolved:10:2:4:Cover:2:2:Middle", "bound:40:60"}));
+    DestroyImmediate(ui);
+}
+
+HX_TEST(UIScripts, MarkupMakesElementTypesOfCSharpAndCppClasses)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    ui::testing::CppNotes().Clear();
+    AssetFolder folder;
+    folder.Write("types.hxml", R"(<HXML><Style src="types.hss"/>
+        <CsCard name="card" title="Hello" count="3" accent-color="#ff0000" mood="very-happy"><Element name="inner"/></CsCard>
+        <fancy-card name="fancy" shiny="true" title="F"/>
+        <CsCard name="bad" nonsense="1"/>
+        <CppGauge name="gauge" value="0.5" label="fuel" max-value="10" tint="#00ff00" level="0.75" wrong="2"/>
+    </HXML>)");
+    folder.Write("types.hss", R"(CsCard { opacity: 0.5; } CppGauge { opacity: 0.25; })");
+    folder.Open();
+    ReportScreen(64, 48);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("types.hxml"));
+    engine::InputFeed::Reset();
+    view->Update();
+    // The unknown attributes are the build's errors; the C++ part was made with its own child.
+    u32 unknown = 0;
+    for (const HxmlError& e : view->errors())
+        unknown += e.message.View().Contains("has no attribute") ? 1 : 0;
+    HX_CHECK(unknown == 2);
+    HX_CHECK(ui::testing::CppNotes().Size() == 2 && ui::testing::CppNotes()[0] == StringView("gauge-made:1") &&
+             ui::testing::CppNotes()[1] == StringView("level:0.75"));
+    // Built again: the old gauge's C++ part goes with its element (no script holds it), the new one is made.
+    ui::testing::CppNotes().Clear();
+    view->Rebuild();
+    view->Update();
+    HX_CHECK(ui::testing::CppNotes().Size() == 3 && ui::testing::CppNotes()[0] == StringView("gauge-gone") &&
+             ui::testing::CppNotes()[1] == StringView("gauge-made:1") && ui::testing::CppNotes()[2] == StringView("level:0.75"));
+    // The C++ object of the gauge, found from its element's handle, with its fields.
+    Element* gauge = nullptr;
+    for (i32 i = 0; i < view->rootElement()->childCount(); i++)
+        if (Element* c = view->rootElement()->ElementAtChecked(i); c && c->name() == StringView("gauge"))
+            gauge = c;
+    HX_REQUIRE(gauge != nullptr);
+    auto* part = scripting::HandleObject<ui::testing::CppGauge>(::HelixEngine::UI::Element::HxFromId(gauge->Id()));
+    HX_REQUIRE(part != nullptr);
+    HX_CHECK(part->value == 0.5f && part->label == StringView("fuel") && part->maxValue == 10 && part->color.g > 0.99f);
+    ui->AddComponent(ui::testing::CSharp("CsElementTypeTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"card:True:Hello:3:1:VeryHappy:header:1:2", "inner:content", "fancy:True:F:CsFancy",
+                                    "instance:True:4:True", "clone:0:4", "sheets:1:True:True", "removed:0:False", "moved:1:True",
+                                    "gauge:0.25", "made:content"}));
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"typed:0.5:0.5:1"}));
+    DestroyImmediate(ui);
 }

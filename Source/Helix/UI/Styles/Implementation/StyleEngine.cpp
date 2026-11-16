@@ -25,10 +25,38 @@ namespace helix::ui
             return true;
         }
 
-        // A property animates when it holds one length, number or color.
-        bool Animatable(const PropertyInfo& p)
+        struct Values
         {
-            return !p.list && (p.type == ValueType::Length || p.type == ValueType::Number || p.type == ValueType::Color);
+            StyleValue v[kMaxValues];
+            u32 count = 0;
+
+            bool operator==(const Values& o) const
+            {
+                if (count != o.count)
+                    return false;
+                for (u32 i = 0; i < count; i++)
+                    if (!(v[i] == o.v[i]))
+                        return false;
+                return true;
+            }
+        };
+
+        Values Get(const PropertyInfo& p, const ComputedStyle& style)
+        {
+            Values out;
+            out.count = GetValues(p, style, out.v);
+            return out;
+        }
+
+        void Set(const PropertyInfo& p, ComputedStyle& style, const StyleValue* values, u32 count) { p.set(style, Span<const StyleValue>(values, count)); }
+
+        // Each value between the two (the same count; else the end's at the end).
+        void Between(const PropertyInfo& p, ComputedStyle& style, const StyleValue* from, const StyleValue* to, u32 count, f32 t)
+        {
+            StyleValue v[kMaxValues];
+            for (u32 i = 0; i < count; i++)
+                v[i] = Interpolate(from[i], to[i], t);
+            Set(p, style, v, count);
         }
 
         Atom PropertyAtom(PropertyId id)
@@ -85,7 +113,7 @@ namespace helix::ui
         return slots_[e.index].shown;
     }
 
-    void StyleEngine::AddStyleSheet(ElementHandle owner, std::shared_ptr<const StyleSheet> sheet)
+    void StyleEngine::AddStyleSheet(ElementHandle owner, std::shared_ptr<const StyleSheetData> sheet)
     {
         if (!tree_.IsAlive(owner) || !sheet)
             return;
@@ -93,7 +121,7 @@ namespace helix::ui
         tree_.MarkStyleDirty(owner);
     }
 
-    void StyleEngine::RemoveStyleSheet(ElementHandle owner, const StyleSheet* sheet)
+    void StyleEngine::RemoveStyleSheet(ElementHandle owner, const StyleSheetData* sheet)
     {
         if (!tree_.IsAlive(owner))
             return;
@@ -105,6 +133,23 @@ namespace helix::ui
                 tree_.MarkStyleDirty(owner);
                 return;
             }
+    }
+
+    void StyleEngine::InsertStyleSheet(ElementHandle owner, u32 index, std::shared_ptr<const StyleSheetData> sheet)
+    {
+        if (!tree_.IsAlive(owner) || !sheet)
+            return;
+        auto& sheets = At(owner).sheets;
+        sheets.Insert(index < sheets.Size() ? index : sheets.Size(), Move(sheet));
+        tree_.MarkStyleDirty(owner);
+    }
+
+    Span<const std::shared_ptr<const StyleSheetData>> StyleEngine::StyleSheets(ElementHandle owner) const
+    {
+        if (!tree_.IsAlive(owner) || owner.index >= slots_.Size() || slots_[owner.index].generation != owner.generation)
+            return {};
+        const auto& sheets = slots_[owner.index].sheets;
+        return Span<const std::shared_ptr<const StyleSheetData>>(sheets.Data(), sheets.Size());
     }
 
     void StyleEngine::ClearStyleSheets(ElementHandle owner)
@@ -145,6 +190,19 @@ namespace helix::ui
         At(e).inlineStyle.Push(Move(d));
         tree_.MarkStyleDirty(e);
         return true;
+    }
+
+    void StyleEngine::SetInlineValues(ElementHandle e, PropertyId property, Span<const StyleValue> values)
+    {
+        if (!tree_.IsAlive(e) || property == kNoProperty)
+            return;
+        Declaration d;
+        d.property = property;
+        for (const StyleValue& v : values)
+            d.values.Push(v);
+        ClearInlineProperty(e, property);
+        At(e).inlineStyle.Push(Move(d));
+        tree_.MarkStyleDirty(e);
     }
 
     void StyleEngine::SetInlineInitial(ElementHandle e, PropertyId property)
@@ -195,19 +253,29 @@ namespace helix::ui
         if (!tree_.IsAlive(root))
             return;
         computed_ = 0;
+        customResolved_.Clear();
         active_.Clear();
         std::fill(bloom_, bloom_ + 4096, u16(0));
         // Tree order: the sheets and ancestor atoms in effect are kept on the way down.
         struct Walker
         {
             StyleEngine& engine;
+            // A sheet in effect, the sheets it imports first (their rules come before its own).
+            void Activate(const StyleSheetData* sheet, u32 depth)
+            {
+                if (!sheet || depth > 16)
+                    return;
+                for (const auto& imported : sheet->Imported())
+                    Activate(imported.get(), depth + 1);
+                engine.active_.Push(sheet);
+            }
             void Walk(ElementHandle e, const ComputedStyle* parent, bool force)
             {
                 ElementTree& tree = engine.tree_;
                 Slot& s = engine.At(e);
                 usize sheetsBefore = engine.active_.Size();
                 for (const auto& sheet : s.sheets)
-                    engine.active_.Push(sheet.get());
+                    Activate(sheet.get(), 0);
                 Dirty flags = tree.DirtyFlags(e);
                 bool recompute = force || Any(flags & Dirty::Style) || !s.computedOnce;
                 if (recompute)
@@ -307,29 +375,9 @@ namespace helix::ui
         return {};
     }
 
-    void StyleEngine::Apply(ComputedStyle& style, const Declaration& d, ElementHandle e)
+    bool StyleEngine::Substitute(ElementHandle e, StringView raw, String& text) const
     {
-        if (d.custom != kNoAtom || d.property == kNoProperty)
-            return;
-        const PropertyInfo& p = Property(d.property);
-        if (d.initial)
-        {
-            static const ComputedStyle initial;
-            if (!p.list)
-            {
-                StyleValue v = p.get(initial);
-                p.set(style, Span<const StyleValue>(&v, 1));
-            }
-            return;
-        }
-        if (!d.hasVar)
-        {
-            p.set(style, Span<const StyleValue>(d.values.Data(), d.values.Size()));
-            return;
-        }
-        // var(--name[, fallback]) replaced by the variable's text (or the fallback), then parsed.
-        String text;
-        StringView raw = d.raw.View();
+        // var(--name[, fallback]) replaced by the variable's text (or the fallback).
         usize at = 0;
         for (;;)
         {
@@ -337,12 +385,12 @@ namespace helix::ui
             if (v == StringView::npos)
             {
                 text.Append(raw.Substr(at));
-                break;
+                return true;
             }
             text.Append(raw.Substr(at, v - at));
             usize close = raw.Find(')', v);
             if (close == StringView::npos)
-                return;
+                return false;
             StringView inside = raw.Substr(v + 4, close - v - 4);
             usize comma = inside.Find(',');
             StringView name = (comma == StringView::npos ? inside : inside.Substr(0, comma)).Trimmed();
@@ -351,6 +399,78 @@ namespace helix::ui
             text.Append(value.Empty() ? fallback : value);
             at = close + 1;
         }
+    }
+
+    bool StyleEngine::CustomProperty(ElementHandle e, StringView name, String& out) const
+    {
+        out.Clear();
+        if (!tree_.IsAlive(e) || e.index >= slots_.Size() || slots_[e.index].generation != e.generation)
+            return false;
+        Atom atom = FindAtom(name);
+        if (atom == kNoAtom)
+            return false;
+        const Slot& s = slots_[e.index];
+        for (usize i = s.varNames.Size(); i-- > 0;)
+            if (s.varNames[i] == atom)
+            {
+                String text;
+                if (!Substitute(e, s.varValues[i].View(), text))
+                    return false;
+                out = String(text.View().Trimmed());
+                return true;
+            }
+        return false;
+    }
+
+    void StyleEngine::CustomPropertyNames(ElementHandle e, Array<Atom>& out) const
+    {
+        out.Clear();
+        if (!tree_.IsAlive(e) || e.index >= slots_.Size() || slots_[e.index].generation != e.generation)
+            return;
+        for (Atom a : slots_[e.index].varNames)
+        {
+            bool seen = false;
+            for (Atom b : out)
+                seen = seen || a == b;
+            if (!seen)
+                out.Push(a);
+        }
+    }
+
+    void StyleEngine::Apply(ComputedStyle& style, const Declaration& d, ElementHandle e)
+    {
+        if (d.shorthand != kNoAtom)
+        {
+            // A shorthand holding var(): its longhands from the replaced text.
+            String text;
+            Array<Declaration> longhands;
+            String error;
+            if (Substitute(e, d.raw.View(), text) && ExpandShorthand(d.shorthand, text.View(), longhands, error))
+                for (const Declaration& l : longhands)
+                    Apply(style, l, e);
+            return;
+        }
+        if (d.custom != kNoAtom || d.property == kNoProperty)
+            return;
+        const PropertyInfo& p = Property(d.property);
+        if (d.initial)
+        {
+            static const ComputedStyle initial;
+            if (!p.list)
+            {
+                Values v = Get(p, initial);
+                Set(p, style, v.v, v.count);
+            }
+            return;
+        }
+        if (!d.hasVar)
+        {
+            p.set(style, Span<const StyleValue>(d.values.Data(), d.values.Size()));
+            return;
+        }
+        String text;
+        if (!Substitute(e, d.raw.View(), text))
+            return;
         Array<StyleValue> values;
         String error;
         if (ParseValue(d.property, text.View(), values, error))
@@ -371,8 +491,8 @@ namespace helix::ui
                     p.copy(style, *parent);
                 else if (p.inherited)
                 {
-                    StyleValue v = p.get(*parent);
-                    p.set(style, Span<const StyleValue>(&v, 1));
+                    Values v = Get(p, *parent);
+                    Set(p, style, v.v, v.count);
                 }
             }
 
@@ -384,7 +504,7 @@ namespace helix::ui
         Span<const Atom> classes = tree_.Classes(e);
         for (u32 sheet = 0; sheet < active_.Size(); sheet++)
         {
-            const StyleSheet& ss = *active_[sheet];
+            const StyleSheetData& ss = *active_[sheet];
             ss.ForEachCandidate(type, name, classes, [&](u32 key) {
                 const Selector& sel = ss.SelectorAt(key);
                 if (Matches(sel, e))
@@ -413,6 +533,11 @@ namespace helix::ui
         for (const Match& m : matches)
             declareVars(m.rule->declarations);
         declareVars(s.inlineStyle);
+        // Its custom properties were resolved (it has some, or had some before): scripts hear of it
+        // (CustomStyleResolvedEvent).
+        if (!s.varNames.Empty() || s.hadCustom)
+            customResolved_.Push(e);
+        s.hadCustom = !s.varNames.Empty();
         for (const Match& m : matches)
             for (const Declaration& d : m.rule->declarations)
                 Apply(style, d, e);
@@ -426,10 +551,7 @@ namespace helix::ui
         LayoutStyle shownLayout = s.shown.layout;
         s.shown = s.target;
         for (const Running& r : s.running)
-        {
-            StyleValue v = Interpolate(r.from, r.to, Ease(r.easing, r.duration > 0 ? (r.elapsed - r.delay) / r.duration : 1.0f));
-            Property(r.property).set(s.shown, Span<const StyleValue>(&v, 1));
-        }
+            Between(Property(r.property), s.shown, r.from, r.to, r.count, Ease(r.easing, r.duration > 0 ? (r.elapsed - r.delay) / r.duration : 1.0f));
         if (!s.computedOnce || !SameLayout(shownLayout, s.shown.layout))
             layout_.SetStyle(e, s.shown.layout);
         s.computedOnce = true;
@@ -445,7 +567,7 @@ namespace helix::ui
             const PropertyInfo& p = Property(id);
             if (!Animatable(p))
                 continue;
-            StyleValue from = p.get(before), to = p.get(after);
+            Values from = Get(p, before), to = Get(p, after);
             if (from == to)
                 continue;
             const TransitionSpec* spec = nullptr;
@@ -455,16 +577,22 @@ namespace helix::ui
             if (!spec || spec->duration <= 0)
                 continue;
             // From what is shown now (a running transition's current value).
-            StyleValue current = p.get(s.shown);
+            Values current = Get(p, s.shown);
+            Running next;
+            next.property = id;
+            next.count = to.count < current.count ? to.count : current.count;
+            for (u32 i = 0; i < next.count; i++)
+                next.from[i] = current.v[i], next.to[i] = to.v[i];
+            next.elapsed = 0, next.duration = spec->duration, next.delay = spec->delay, next.easing = spec->easing;
             bool replaced = false;
             for (Running& r : s.running)
                 if (r.property == id)
                 {
-                    r = Running{id, current, to, 0, spec->duration, spec->delay, spec->easing};
+                    r = next;
                     replaced = true;
                 }
             if (!replaced)
-                s.running.Push(Running{id, current, to, 0, spec->duration, spec->delay, spec->easing});
+                s.running.Push(next);
         }
     }
 
@@ -477,8 +605,10 @@ namespace helix::ui
             r.elapsed += dt;
             f32 t = r.duration > 0 ? (r.elapsed - r.delay) / r.duration : 1.0f;
             const PropertyInfo& p = Property(r.property);
-            StyleValue v = t >= 1 ? r.to : Interpolate(r.from, r.to, Ease(r.easing, t));
-            p.set(s.shown, Span<const StyleValue>(&v, 1));
+            if (t >= 1)
+                Set(p, s.shown, r.to, r.count);
+            else
+                Between(p, s.shown, r.from, r.to, r.count, Ease(r.easing, t));
             layoutChanged |= p.layout;
             inheritedChanged |= p.inherited;
             if (t >= 1)

@@ -31,6 +31,14 @@ namespace helix::ui
         Page
     };
 
+    // Where an ellipsis replaces the text that does not fit (TextOverflowMode::Ellipsis).
+    enum class TextEllipsisPosition : u8
+    {
+        End,
+        Start,
+        Middle
+    };
+
     enum class TextVerticalAlignment : u8
     {
         Top,
@@ -76,6 +84,7 @@ namespace helix::ui
         f32 characterSpacing = 0, wordSpacing = 0, lineSpacing = 0, paragraphSpacing = 0;
         TextWrappingMode wrapping = TextWrappingMode::Normal;
         TextOverflowMode overflow = TextOverflowMode::Overflow;
+        TextEllipsisPosition ellipsisPosition = TextEllipsisPosition::End;
         LineBreakStrictness strictness = LineBreakStrictness::Strict;
         BidiDirection direction = BidiDirection::Auto;
         bool richText = true;

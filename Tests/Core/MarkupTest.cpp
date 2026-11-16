@@ -34,10 +34,10 @@ namespace
     struct Files : HxmlResolver
     {
         HashMap<StringView, HxmlDocument> documents;
-        HashMap<StringView, std::shared_ptr<const StyleSheet>> sheets;
+        HashMap<StringView, std::shared_ptr<const StyleSheetData>> sheets;
 
         const HxmlDocument* Template(StringView src) override { return documents.Find(src); }
-        std::shared_ptr<const StyleSheet> Style(StringView src) override
+        std::shared_ptr<const StyleSheetData> Style(StringView src) override
         {
             auto* s = sheets.Find(src);
             return s ? *s : nullptr;
@@ -76,7 +76,7 @@ namespace
 HX_TEST(Hxml, ElementsWithNamesClassesStylesAndSheets)
 {
     Files files;
-    files.sheets.Set("page.hss", std::make_shared<StyleSheet>(StyleSheet::Parse(".row { flex-direction: row; } #title { height: 30px; }")));
+    files.sheets.Set("page.hss", std::make_shared<StyleSheetData>(StyleSheetData::Parse(".row { flex-direction: row; } #title { height: 30px; }")));
     HxmlDocument doc;
     Array<HxmlError> errors;
     HX_REQUIRE(HxmlDocument::Parse(R"(<HXML xmlns="Helix.UI">

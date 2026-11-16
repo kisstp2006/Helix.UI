@@ -5,7 +5,10 @@
 #include <Helix/UI/Elements/ElementTree.h>
 #include <Helix/UI/Styles/Properties.h>
 
-// HSS style sheets: rules of selectors and declarations, parsed from text. Selectors are type names, #names, .classes
+#include <memory>
+
+// HSS style sheets: rules of selectors and declarations, parsed from text; @import url("...") at the start brings in
+// other sheets, whose rules come before the sheet's own (whoever loads the sheet finds them, see SetImported). Selectors are type names, #names, .classes
 // and :pseudo states (hover, active, focus, checked, disabled, enabled, root), joined by descendant (space) and child
 // (>) combinators, in lists separated by commas. Declarations set properties (Properties.h), custom properties
 // (--name) and take var(--name, fallback) values.
@@ -58,6 +61,8 @@ namespace helix::ui
         bool hasVar = false;
         // `initial`: the property's initial value.
         bool initial = false;
+        // A shorthand whose value holds var(): its name (expanded into its longhands once the variables are known).
+        Atom shorthand = kNoAtom;
     };
 
     struct StyleRule
@@ -66,14 +71,22 @@ namespace helix::ui
         Array<Declaration> declarations;
     };
 
-    class StyleSheet
+    class StyleSheetData
     {
     public:
         // Parses a sheet; what cannot be parsed is reported and skipped (the rest still applies).
-        static StyleSheet Parse(StringView text);
+        static StyleSheetData Parse(StringView text);
 
         Span<const StyleRule> Rules() const { return Span<const StyleRule>(rules_.Data(), rules_.Size()); }
         Span<const StyleError> Errors() const { return Span<const StyleError>(errors_.Data(), errors_.Size()); }
+        // The paths of its @import rules, as written, and the sheets found for them (in order; a missing one is left
+        // out).
+        Span<const String> Imports() const { return Span<const String>(imports_.Data(), imports_.Size()); }
+        Span<const std::shared_ptr<const StyleSheetData>> Imported() const
+        {
+            return Span<const std::shared_ptr<const StyleSheetData>>(imported_.Data(), imported_.Size());
+        }
+        void SetImported(Array<std::shared_ptr<const StyleSheetData>> sheets) { imported_ = Move(sheets); }
 
         // The selectors (rule << 16 | selector) whose rightmost part may match an element of this type, name and
         // classes: those keyed by its name, its classes, its type, and those that match any element.
@@ -102,6 +115,8 @@ namespace helix::ui
 
         Array<StyleRule> rules_;
         Array<StyleError> errors_;
+        Array<String> imports_;
+        Array<std::shared_ptr<const StyleSheetData>> imported_;
         HashMap<Atom, Array<u32>> byName_, byClass_, byType_;
         Array<u32> universal_;
     };
@@ -110,4 +125,6 @@ namespace helix::ui
     void ParseDeclarations(StringView text, Array<Declaration>& out, Array<StyleError>& errors);
     // A property's value from text (shorthands are not values); false with the reason.
     bool ParseValue(PropertyId property, StringView text, Array<StyleValue>& out, String& error);
+    // A shorthand's longhands from its value's text (var() already replaced); false with the reason.
+    bool ExpandShorthand(Atom shorthand, StringView text, Array<Declaration>& out, String& error);
 }

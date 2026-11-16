@@ -33,6 +33,8 @@ namespace helix::ui
         virtual engine::Texture2D* Texture(const TextQuad& quad) = 0;
         // A background image by its url or resource: the texture (or an atlas page) with its uv rect and size.
         virtual bool Image(Atom path, UIImage& out) = 0;
+        // The texture at a path of the styles (null when there is none).
+        virtual engine::Texture2D* TextureAt(Atom path) = 0;
     };
 
     class Panel
@@ -51,6 +53,9 @@ namespace helix::ui
         EventSystem& events() { return events_; }
         ElementHandle root() const { return root_; }
         void SetTextHost(PanelTextHost* host) { host_ = host; }
+        // The element types' behavior (their attach handlers) on the elements under e that have none yet.
+        void AttachTypes(ElementHandle e);
+        PanelTextHost* Host() const { return host_; }
 
         // The root's children made again from a document (errors of the markup and its sheets are returned).
         void Build(const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors);
@@ -77,7 +82,7 @@ namespace helix::ui
 
         static Vector2 Measure(void* user, ElementHandle e, f32 width, MeasureMode widthMode, f32 height, MeasureMode heightMode);
         void Settings(const ComputedStyle& style, TextSlot& slot) const;
-        void DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity);
+        void DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity, const Affine& parent);
         void SendPanelEvents();
 
         ElementWorld& world_;

@@ -22,7 +22,7 @@ namespace
         explicit Fixture(StringView sheet)
         {
             root = tree.Create(Intern("Element"));
-            auto parsed = std::make_shared<StyleSheet>(StyleSheet::Parse(sheet));
+            auto parsed = std::make_shared<StyleSheetData>(StyleSheetData::Parse(sheet));
             for (const StyleError& e : parsed->Errors())
                 std::printf("    %u:%u %s\n", e.line, e.column, e.message.CStr());
             styles.AddStyleSheet(root, parsed);
@@ -50,7 +50,7 @@ namespace
 
 HX_TEST(Hss, ParsesRulesSelectorsAndShorthands)
 {
-    StyleSheet sheet = StyleSheet::Parse(R"(
+    StyleSheetData sheet = StyleSheetData::Parse(R"(
         /* a comment */
         Button, .big > #ok:hover {
             width: 120px; height: 50%;
@@ -87,7 +87,7 @@ HX_TEST(Hss, ParsesRulesSelectorsAndShorthands)
 
 HX_TEST(Hss, ErrorsCarryTheirLineAndColumnAndTheRestStillApplies)
 {
-    StyleSheet sheet = StyleSheet::Parse("Box {\n  width: 10px;\n  colour: red;\n  height: purple;\n}\n.ok { opacity: 0.5; }\n");
+    StyleSheetData sheet = StyleSheetData::Parse("Box {\n  width: 10px;\n  colour: red;\n  height: purple;\n}\n.ok { opacity: 0.5; }\n");
     HX_REQUIRE(sheet.Errors().Size() == 2);
     HX_CHECK(sheet.Errors()[0].line == 3 && sheet.Errors()[0].column == 3 && sheet.Errors()[0].message.View().Contains("colour"));
     HX_CHECK(sheet.Errors()[1].line == 4 && sheet.Errors()[1].message.View().Contains("purple"));
@@ -121,7 +121,7 @@ HX_TEST(Hss, TheCascadeBySpecificitySheetsAndInlineStyles)
 
     // A pseudo state; a sheet on the panel wins over the root's at the same specificity; the inline style wins over all.
     f.tree.SetStates(c, PseudoStates::Hover);
-    f.styles.AddStyleSheet(panel, std::make_shared<StyleSheet>(StyleSheet::Parse("Box { width: 40px; }")));
+    f.styles.AddStyleSheet(panel, std::make_shared<StyleSheetData>(StyleSheetData::Parse("Box { width: 40px; }")));
     f.styles.SetInlineStyle(b, "width: 50px; opacity: 0.4");
     f.styles.Update(f.root, 0);
     HX_CHECK(Near(f.styles.Computed(c).opacity, 0.9f) && f.styles.Computed(c).layout.width == Length::Px(40));

@@ -13,7 +13,7 @@ namespace helix::engine
     class Mesh;
 }
 
-// A view: a panel built from a markup asset, laid out in the screen's size and drawn over the screen in the engine's
+// A view: a panel built from a markup asset when it is enabled (or its source set), laid out in the screen's size and drawn over the screen in the engine's
 // screen overlay (after every camera, with any pipeline or none), in the order of the views' sorting orders. With
 // watchFiles the markup and its sheets are read again from their source while the game runs and the panel built again
 // when they change. The views read the engine's input each frame (InputFeed): pointers go to the top-most view with an
@@ -60,6 +60,8 @@ namespace helix::ui
         // The geometry of the last Update in a mesh (null before the first), a submesh per batch.
         engine::Mesh* mesh() const;
         const UIMesh& uiMesh() const { return uiMesh_; }
+        // The texture at a path of the view's styles (a cursor image; null when there is none).
+        engine::Texture2D* CursorTexture(Atom path);
 
     private:
         class TextHost;

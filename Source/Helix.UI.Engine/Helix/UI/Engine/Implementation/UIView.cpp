@@ -1,5 +1,7 @@
 #include <Helix/UI/Engine/UIView.h>
 
+#include <Helix/Engine/Input/Cursor.h>
+
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Engine/Asset/Asset.h>
 #include <Helix/Engine/Input/InputFeed.h>
@@ -56,6 +58,18 @@ namespace helix::ui
             // The input frame the views read last, and the view the keys go to (the last one pressed in).
             u64 inputFrame = 0;
             UIView* keyboard = nullptr;
+            // The cursor the views last set (none: the game's own), so it is set again only when it changes.
+            struct CursorKey
+            {
+                bool ui = false, set = false;
+                Atom image = kNoAtom;
+                CursorShape shape = CursorShape::Arrow;
+                f32 hotspot[2] = {0, 0};
+                bool operator==(const CursorKey& o) const
+                {
+                    return ui == o.ui && set == o.set && image == o.image && shape == o.shape && hotspot[0] == o.hotspot[0] && hotspot[1] == o.hotspot[1];
+                }
+            } cursor;
             // One material per set of textures in the slots.
             Array<MaterialEntry> materials;
             bool missingShader = false;
@@ -127,66 +141,12 @@ namespace helix::ui
             return *v.atlas;
         }
 
-        // The folder part of a path (with its slash), empty for a file at the root.
-        StringView FolderOf(StringView path)
-        {
-            for (usize i = path.Size(); i-- > 0;)
-                if (path[i] == '/')
-                    return path.Substr(0, i + 1);
-            return StringView();
-        }
-
-        // A src of the markup: relative to the markup's folder, or from the source's root when it starts with '/'.
-        String Resolve(StringView base, StringView src)
-        {
-            if (src.StartsWith("/"))
-                return String(src.Substr(1));
-            String out(FolderOf(base));
-            while (src.StartsWith("../"))
-            {
-                src = src.Substr(3);
-                StringView parent = FolderOf(out.View().Substr(0, out.Size() > 0 ? out.Size() - 1 : 0));
-                out = String(parent);
-            }
-            out += src;
-            return out;
-        }
-
         bool ReadSource(StringView path, Array<u8>& out)
         {
             const engine::AssetEntry* e = engine::FindAssetAtPath(path);
             String error;
             return e && e->source && e->source->Read(e->path.View(), out, error);
         }
-
-        // Templates and sheets of the markup from the asset catalog; what it read is kept for watchFiles.
-        class AssetResolver final : public HxmlResolver
-        {
-        public:
-            AssetResolver(StringView base, Array<String>& read) : base_(base), read_(read) {}
-
-            const HxmlDocument* Template(StringView src) override
-            {
-                String path = Resolve(base_, src);
-                read_.Push(path);
-                const engine::AssetEntry* e = engine::FindAssetAtPath(path.View());
-                auto* t = e ? ScriptObjectAs<UITemplate>(engine::LoadAsset(e->guid)) : nullptr;
-                return t ? &t->document() : nullptr;
-            }
-
-            std::shared_ptr<const StyleSheet> Style(StringView src) override
-            {
-                String path = Resolve(base_, src);
-                read_.Push(path);
-                const engine::AssetEntry* e = engine::FindAssetAtPath(path.View());
-                auto* s = e ? ScriptObjectAs<StyleSheetAsset>(engine::LoadAsset(e->guid)) : nullptr;
-                return s ? s->sheet() : nullptr;
-            }
-
-        private:
-            StringView base_;
-            Array<String>& read_;
-        };
 
         // The views over the screen, once a frame after the cameras: pixels from the top left mapped to the target.
         void Draw(void*, engine::CommandBuffer& cmd)
@@ -356,6 +316,64 @@ namespace helix::ui
              }},
         };
 
+        // The system shapes of the cursor keywords.
+        constexpr platform::SystemCursor kShapes[] = {
+            platform::SystemCursor::Arrow,            platform::SystemCursor::Text,               platform::SystemCursor::ResizeVertical,
+            platform::SystemCursor::ResizeHorizontal, platform::SystemCursor::Hand,               platform::SystemCursor::ResizeHorizontal,
+            platform::SystemCursor::ResizeDiagonalUp, platform::SystemCursor::ResizeDiagonalDown, platform::SystemCursor::Move,
+            platform::SystemCursor::Arrow,            platform::SystemCursor::ResizeDiagonalDown, platform::SystemCursor::Arrow,
+            platform::SystemCursor::Arrow,            platform::SystemCursor::Move,               platform::SystemCursor::Arrow,
+            platform::SystemCursor::Arrow,            platform::SystemCursor::Crosshair,          platform::SystemCursor::ResizeVertical,
+            platform::SystemCursor::ResizeHorizontal, platform::SystemCursor::NotAllowed,         platform::SystemCursor::Wait,
+            platform::SystemCursor::Crosshair,
+        };
+        static_assert(sizeof(kShapes) / sizeof(kShapes[0]) == u32(CursorShape::Crosshair) + 1);
+
+        // The cursor of the element under the mouse in the top-most view that has one there (its style's, inherited);
+        // set on the engine's Cursor when it changes, the arrow again when the mouse leaves the views' elements.
+        void UpdateCursor(Span<UIView* const> order)
+        {
+            Views& v = V();
+            Views::CursorKey key;
+            UIView* over = nullptr;
+            for (UIView* view : order)
+            {
+                EventSystem& events = view->panel()->events();
+                ElementHandle under = events.Pick(events.PointerPosition(PointerId::mouse));
+                if (!under.IsValid())
+                    continue;
+                const ComputedStyle& s = view->panel()->styles().Computed(under);
+                key.ui = true;
+                key.set = s.cursorSet;
+                key.image = s.cursorImage;
+                key.shape = s.cursorShape;
+                key.hotspot[0] = s.cursorHotspot[0], key.hotspot[1] = s.cursorHotspot[1];
+                over = view;
+                break;
+            }
+            if (key == v.cursor)
+                return;
+            bool wasUi = v.cursor.ui && v.cursor.set;
+            v.cursor = key;
+            if (!key.set)
+            {
+                // Off the views' cursors: the arrow (a game's own cursor stays while the mouse is elsewhere).
+                if (wasUi)
+                    engine::Cursor::SetSystemCursor(platform::SystemCursor::Arrow);
+                return;
+            }
+            if (key.image == kNoAtom)
+            {
+                engine::Cursor::SetSystemCursor(kShapes[u32(key.shape)]);
+                return;
+            }
+            engine::Texture2D* texture = over ? over->CursorTexture(key.image) : nullptr;
+            if (texture)
+                engine::Cursor::SetCursor(texture, Vector2(key.hotspot[0], key.hotspot[1]), engine::CursorMode::Auto);
+            else
+                engine::Cursor::SetSystemCursor(platform::SystemCursor::Arrow);
+        }
+
         // The frame's input to the views, once a frame (by the first view that updates).
         void ReadInput()
         {
@@ -377,6 +395,7 @@ namespace helix::ui
                         r.route(views, e);
                         break;
                     }
+            UpdateCursor(views);
         }
 
         void AddView(UIView* view)
@@ -453,6 +472,19 @@ namespace helix::ui
 
         bool Image(Atom path, UIImage& out) override
         {
+            engine::Texture2D* texture = TextureAt(path);
+            if (!texture)
+                return false;
+            Atlas().Place(texture, out);
+            return true;
+        }
+
+        // The texture of a path of the markup's styles (loaded once; null when there is none).
+        engine::Texture2D* TextureAt(Atom path) override
+        {
+            // A texture a script set is its object's.
+            if (engine::Texture2D* set = EntityResourceTexture(AtomName(path)))
+                return set;
             engine::Texture2D* texture = nullptr;
             bool known = false;
             for (const ImageEntry& e : images_)
@@ -465,7 +497,7 @@ namespace helix::ui
             {
                 if (UITemplate* t = view_.source())
                 {
-                    String resolved = Resolve(t->path(), AtomName(path));
+                    String resolved = ResolveAssetPath(t->path(), AtomName(path));
                     if (const engine::AssetEntry* e = engine::FindAssetAtPath(resolved.View()))
                     {
                         engine::Object* o = engine::LoadAsset(e->guid);
@@ -477,10 +509,7 @@ namespace helix::ui
                 }
                 images_.Push({path, engine::PPtr<engine::Texture2D>(texture)});
             }
-            if (!texture)
-                return false;
-            Atlas().Place(texture, out);
-            return true;
+            return texture;
         }
 
         void Forget()
@@ -498,7 +527,7 @@ namespace helix::ui
             FontAsset* asset = nullptr;
             if (UITemplate* t = view_.source())
             {
-                String resolved = Resolve(t->path(), AtomName(path));
+                String resolved = ResolveAssetPath(t->path(), AtomName(path));
                 if (const engine::AssetEntry* e = engine::FindAssetAtPath(resolved.View()))
                     asset = ScriptObjectAs<FontAsset>(engine::LoadAsset(e->guid));
                 if (!asset)
@@ -523,6 +552,8 @@ namespace helix::ui
         Array<ImageEntry> images_;
     };
 
+    engine::Texture2D* UIView::CursorTexture(Atom path) { return host_ ? static_cast<TextHost*>(host_.get())->TextureAt(path) : nullptr; }
+
     UIView::UIView(const UIView& other)
         : engine::GameBehaviour(other), source_(other.source_), sortingOrder_(other.sortingOrder_), watchFiles_(other.watchFiles_)
     {
@@ -538,7 +569,11 @@ namespace helix::ui
     void UIView::SetSource(UITemplate* value)
     {
         source_ = engine::PPtr<UITemplate>(value);
-        built_ = false;
+        // Built at once while enabled (scripts find its elements right after).
+        if (panel_)
+            Build();
+        else
+            built_ = false;
     }
 
     Span<UIView* const> UIView::Views() { return Span<UIView* const>(V().list.Data(), V().list.Size()); }
@@ -550,8 +585,9 @@ namespace helix::ui
         host_ = std::make_unique<TextHost>(*this);
         panel_ = std::make_unique<Panel>();
         panel_->SetTextHost(host_.get());
-        built_ = false;
         AddView(this);
+        // The elements are there when it is enabled: other scripts' Start finds them.
+        Build();
     }
 
     void UIView::OnDisable()
@@ -578,7 +614,7 @@ namespace helix::ui
         }
         Array<String> read;
         read.Push(String(t->path()));
-        AssetResolver resolver(t->path(), read);
+        AssetHxmlResolver resolver(t->path(), &read);
         panel_->Build(t->document(), &resolver, errors_);
         for (const HxmlError& e : errors_)
             HX_LOG_WARNING(UILog, "{}:{}:{}: {}", t->path(), e.line, e.column, e.message.View());
@@ -614,7 +650,7 @@ namespace helix::ui
                     for (const HxmlError& err : errors)
                         HX_LOG_WARNING(UILog, "{}:{}:{}: {}", w.path.View(), err.line, err.column, err.message.View());
             }
-            else if (auto* s = ScriptObjectAs<StyleSheetAsset>(o))
+            else if (auto* s = ScriptObjectAs<StyleSheet>(o))
             {
                 s->SetText(w.path.View(), text);
                 for (const StyleError& err : s->sheet()->Errors())

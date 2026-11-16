@@ -615,11 +615,38 @@ namespace helix::ui
                     ellipsisWidth = f32(ellipsisFont->GetFace().Advance(ellipsisGlyph)) * ellipsisFont->Scale(s0);
                 cutAt = (boxWidth >= 0 ? boxWidth : d.width) - ellipsisWidth;
             }
+            // An ellipsis at the start or in the middle: the clusters kept on each side of it (by their place from the
+            // line's start in visual order) and how far the kept tail moves back.
+            f32 headEnd = 0, tailStart = kUnbounded, tailShift = 0;
+            bool ellipsisInside = li == ellipsisLine && settings.ellipsisPosition != TextEllipsisPosition::End;
+            if (ellipsisInside)
+            {
+                f32 room = cutAt - d.x > 0 ? cutAt - d.x : 0;
+                f32 x = 0;
+                u32 previous = kNone;
+                f32 firstTail = kUnbounded;
+                bool middle = settings.ellipsisPosition == TextEllipsisPosition::Middle;
+                for (const VisualItem& item : visual[li])
+                {
+                    u32 cluster = clusterOf[item.character];
+                    if (cluster == previous)
+                        continue;
+                    previous = cluster;
+                    if (middle && x + advance[cluster] <= room * 0.5f + 0.01f)
+                        headEnd = x + advance[cluster];
+                    if (x >= d.width - (middle ? room - headEnd : room) - 0.01f && firstTail == kUnbounded)
+                        firstTail = x;
+                    x += advance[cluster];
+                }
+                tailStart = firstTail;
+                tailShift = firstTail == kUnbounded ? 0.0f : firstTail - (headEnd + ellipsisWidth);
+            }
             f32 pen = d.x;
             f32 lastEnd = d.x;
             bool cut = false;
             u32 lastCluster = kNone;
             f32 clusterPen = pen, inCluster = 0;
+            f32 moved = 0;
             for (const VisualItem& item : visual[li])
             {
                 u32 c = item.character;
@@ -634,20 +661,29 @@ namespace helix::ui
                         f32 target = d.x + e.length.Resolve(sizes[c], alignWidth, 0);
                         pen = target > pen ? target : pen;
                     }
-                    if (li == ellipsisLine && pen + advance[cluster] > cutAt + 0.01f && !IsWhitespace(codes[cluster]))
+                    if (ellipsisInside)
+                    {
+                        // Kept before the ellipsis, kept after it (moved back), or cut.
+                        f32 x = pen - d.x;
+                        bool head = x + advance[cluster] <= headEnd + 0.01f;
+                        bool tail = x >= tailStart - 0.01f;
+                        cut = !head && !tail;
+                        moved = tail ? -tailShift : 0.0f;
+                    }
+                    else if (li == ellipsisLine && pen + advance[cluster] > cutAt + 0.01f && !IsWhitespace(codes[cluster]))
                         cut = true;
-                    clusterPen = pen + shift[cluster];
+                    clusterPen = pen + shift[cluster] + moved;
                     inCluster = 0;
                     CharacterInfo& ci = out.characterInfo[cluster];
-                    ci.origin = pen;
-                    ci.xAdvance = pen + advance[cluster];
+                    ci.origin = pen + moved;
+                    ci.xAdvance = pen + moved + advance[cluster];
                     ci.lineNumber = li;
                     ci.pageNumber = d.page;
                     ci.ascender = d.baseline - d.ascender;
                     ci.baseLine = d.baseline;
                     ci.descender = d.baseline - d.descender;
-                    ci.topLeft = ci.bottomLeft = Vector2(pen, d.baseline);
-                    ci.topRight = ci.bottomRight = Vector2(pen + advance[cluster], d.baseline);
+                    ci.topLeft = ci.bottomLeft = Vector2(pen + moved, d.baseline);
+                    ci.topRight = ci.bottomRight = Vector2(pen + moved + advance[cluster], d.baseline);
                     pen += advance[cluster];
                     if (codes[cluster] == ' ' || codes[cluster] == 0x3000)
                         pen += extra;
@@ -735,7 +771,8 @@ namespace helix::ui
                 {
                     font::FontAtlas& atlas = ellipsisFont->Cache().Atlas();
                     f32 k = s / f32(ellipsisFont->Cache().SamplingSize());
-                    f32 x0 = lastEnd + f32(entry->left) * k, y0 = d.baseline + f32(entry->top) * k;
+                    f32 at = ellipsisInside ? d.x + headEnd : lastEnd;
+                    f32 x0 = at + f32(entry->left) * k, y0 = d.baseline + f32(entry->top) * k;
                     TextQuad q;
                     q.corners[0] = Vector2(x0, y0);
                     q.corners[1] = Vector2(x0 + f32(entry->width) * k, y0);

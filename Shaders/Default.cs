@@ -11,8 +11,9 @@ namespace HelixEngine.UI.Shaders;
 /// 0 a flat color, 1 a signed distance field glyph, 2 a multi channel one, 3 a color image, 4 a coverage glyph, 5 a
 /// rounded box's fill, 6 its border (parameters.y: the side, or -1 for all), 7 an image inside a rounded box. Rounded
 /// boxes come as their size, corner radii and border widths, the point as its place in the box; their edges are
-/// antialiased from the box's distance. Every fragment is clipped to a rounded rectangle on the screen (one corner
-/// radius, in size.z). Four texture
+/// antialiased from the box's distance (the mesh scales a transformed box's distances to pixels). Every fragment is
+/// clipped to a rounded rectangle (one corner radius, in size.z): the vertex gives its place in it and its size, in
+/// the space of the element that clips (rotated and scaled with it). Four texture
 /// slots (parameters.w names the vertex's). Colors come premultiplied by their alpha.
 /// </summary>
 [Shader("Hidden/UI/Default")]
@@ -60,7 +61,8 @@ public sealed class Default : ShaderDefinition
             o.size = size;
             o.radii = radii;
             o.borders = borders;
-            o.clipLocal = new float4(position.x - clipRect.x, position.y - clipRect.y, clipRect.z - clipRect.x, clipRect.w - clipRect.y);
+            // The mesh gives the place in the clip itself (the clip may turn with its element).
+            o.clipLocal = clipRect;
             return o;
         }
 

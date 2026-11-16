@@ -125,6 +125,8 @@ namespace helix::ui
             Array<HxmlError>& errors;
             // The documents being built (a template that holds itself stops).
             Array<const HxmlDocument*> stack;
+            // While a template's document is built: where its element marked content-container goes.
+            ElementHandle* contentTarget = nullptr;
 
             void Error(const HxmlNode& at, StringView message)
             {
@@ -209,7 +211,18 @@ namespace helix::ui
                     for (const HxmlAttribute& a : n.attributes)
                         if (AtomName(a.name) != StringView("template"))
                             Attribute(n, container, a.name, a.value.View());
+                    // The template's element marked content-container takes the instance's children.
+                    ElementHandle* outer = contentTarget;
+                    ElementHandle target;
+                    contentTarget = &target;
                     Document(*d, container, Span<const Override>(mine.Data(), mine.Size()));
+                    contentTarget = outer;
+                    if (tree.IsAlive(target))
+                        tree.SetContentContainer(container, target);
+                    resolver->Instanced(container, name->View(), src->View());
+                    for (const HxmlNode& c : n.children)
+                        if (c.type != FindAtom("AttributeOverrides"))
+                            Node(c, tree.ContentContainer(container), templates, overrides);
                     return;
                 }
                 const ElementType* type = FindElementType(n.type);
@@ -218,33 +231,69 @@ namespace helix::ui
                     Error(n, Format("unknown element type <{}>", AtomName(n.type)));
                     return;
                 }
-                ElementHandle e = tree.Create(type->name);
-                tree.Append(parent, e);
                 // The element's name comes first: overrides are found by it.
                 const String* name = n.Attribute("name");
                 Atom nameAtom = name ? Intern(name->View()) : kNoAtom;
+                Array<HxmlAttribute> all;
                 for (const HxmlAttribute& a : n.attributes)
                 {
                     StringView value = a.value.View();
                     for (const Override& o : overrides)
                         if (o.element == nameAtom && nameAtom != kNoAtom && o.attribute == a.name)
                             value = o.value.View();
-                    Attribute(n, e, a.name, value);
+                    all.Push({a.name, String(value)});
                 }
                 for (const Override& o : overrides)
                     if (o.element == nameAtom && nameAtom != kNoAtom && !n.Attribute(AtomName(o.attribute)))
-                        Attribute(n, e, o.attribute, o.value.View());
+                        all.Push({o.attribute, o.value});
+                // A type of a script class: its object makes the element, with the attributes the markup does not
+                // read itself.
+                ElementHandle e;
+                if (type->create)
+                {
+                    Array<HxmlAttribute> own;
+                    for (const HxmlAttribute& a : all)
+                        if (!IsCommon(AtomName(a.name)))
+                            own.Push(a);
+                    Array<Atom> unknown;
+                    e = type->create(tree, type->name, Span<const HxmlAttribute>(own.Data(), own.Size()), unknown);
+                    for (Atom u : unknown)
+                        Error(n, Format("<{}> has no attribute '{}'", AtomName(type->name), AtomName(u)));
+                }
+                if (!tree.IsAlive(e))
+                    e = tree.Create(type->name);
+                tree.Append(parent, e);
+                for (const HxmlAttribute& a : all)
+                    if (!type->create || IsCommon(AtomName(a.name)))
+                        Attribute(n, e, a.name, a.value.View());
                 // Text content (a label's text) when no text attribute gave one.
                 if (!n.text.Empty() && tree.Text(e).Empty() && type->attributes && !n.Attribute("text"))
                     type->attributes(tree, e, "text", Trimmed(n.text.View()));
+                // The children into its content container (its object's, or the element).
+                ElementHandle into = type->content ? type->content(tree, e) : tree.ContentContainer(e);
+                if (!tree.IsAlive(into))
+                    into = e;
                 for (const HxmlNode& c : n.children)
-                    Node(c, e, templates, overrides);
+                    Node(c, into, templates, overrides);
+            }
+
+            // The attributes the markup reads itself (the rest are the element type's).
+            static bool IsCommon(StringView name)
+            {
+                return name == StringView("name") || name == StringView("class") || name == StringView("style") ||
+                       name == StringView("content-container") || FindCommon(name) != nullptr;
             }
 
             void Attribute(const HxmlNode& n, ElementHandle e, Atom attribute, StringView value)
             {
                 StringView name = AtomName(attribute);
-                if (name == StringView("name"))
+                if (name == StringView("content-container"))
+                {
+                    // Marks the template's element that takes an instance's children (outside of a template: none).
+                    if (contentTarget)
+                        *contentTarget = e;
+                }
+                else if (name == StringView("name"))
                     tree.SetName(e, Intern(value));
                 else if (name == StringView("class"))
                 {
@@ -286,8 +335,14 @@ namespace helix::ui
     void RegisterElementType(StringView name, AttributeHandler attributes, PaintHandler paint, AttachHandler attach)
     {
         Atom a = Intern(name);
-        Types().Set(a, ElementType{a, attributes, paint, attach});
+        ElementType t;
+        t.name = a, t.attributes = attributes, t.paint = paint, t.attach = attach;
+        Types().Set(a, t);
     }
+
+    void RegisterElementType(const ElementType& type) { Types().Set(type.name, type); }
+
+    void UnregisterElementType(Atom name) { Types().Remove(name); }
 
     const ElementType* FindElementType(Atom name) { return Types().Find(name); }
 

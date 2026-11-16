@@ -3,6 +3,7 @@
 #include <Helix/Core/Basics/Span.h>
 #include <Helix/Core/Containers/Array.h>
 #include <Helix/Math/Geometry.h>
+#include <Helix/UI/Core/Affine.h>
 #include <Helix/UI/Events/EventCallbacks.h>
 #include <Helix/UI/Events/UIEvent.h>
 
@@ -150,7 +151,7 @@ namespace helix::ui
         void SwitchFocus(ElementHandle to, f64 time);
         void UpdateDrag(u8 modifiers, f64 time);
         void EndDrag(i32 pointerId, bool dropped, u8 modifiers, f64 time);
-        ElementHandle PickIn(ElementHandle e, Vector2 point, const Rect& clip, Array<ElementHandle>* all) const;
+        ElementHandle PickIn(ElementHandle e, Vector2 point, const Affine& parent, Array<ElementHandle>* all) const;
         bool Displayed(ElementHandle e) const;
         Pointer& At(i32 pointerId);
 

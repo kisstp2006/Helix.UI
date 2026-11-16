@@ -108,6 +108,8 @@ namespace helix::ui
         // Bumped by every SetText that changes a text.
         u32 TextVersion() const { return textVersion_; }
         void SetName(ElementHandle e, Atom name);
+        // Its type (a script class's element takes its class's name).
+        void SetType(ElementHandle e, Atom type);
         Span<const Atom> Classes(ElementHandle e) const;
         bool HasClass(ElementHandle e, Atom c) const;
         void AddClass(ElementHandle e, Atom c);
@@ -131,6 +133,10 @@ namespace helix::ui
         void SetDelegatesFocus(ElementHandle e, bool delegates);
         PickingMode Picking(ElementHandle e) const { return IsAlive(e) ? picking_[e.index] : PickingMode::Ignore; }
         void SetPicking(ElementHandle e, PickingMode mode);
+        // Where children added to an element go (a template's content container): the element itself unless set; a
+        // container that is gone counts as unset.
+        ElementHandle ContentContainer(ElementHandle e) const;
+        void SetContentContainer(ElementHandle e, ElementHandle container);
 
         Dirty DirtyFlags(ElementHandle e) const { return IsAlive(e) ? dirty_[e.index] : Dirty::None; }
         // The element's style and its subtree's (its ancestors learn that a descendant changed).
@@ -199,6 +205,7 @@ namespace helix::ui
         Array<u8> focusable_, delegatesFocus_;
         Array<i32> tabIndex_;
         Array<PickingMode> picking_;
+        Array<ElementHandle> content_;
         Array<Dirty> dirty_;
         Array<u32> free_;
         Hooks hooks_;

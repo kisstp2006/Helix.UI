@@ -14,6 +14,37 @@ namespace helix::ui::testing
         return notes;
     }
 
+    // An element type of a C++ class: made over its element (its handle refers to it in its constructor), its fields
+    // set from markup, gone with its element.
+    HX_CLASS(Namespace = "UIEngineTests", HxmlElement)
+    class CppGauge : public ::HelixEngine::UI::Element
+    {
+    public:
+        CppGauge()
+        {
+            ::HelixEngine::UI::Element bar = ::HelixEngine::UI::Element::New();
+            bar.name = "bar";
+            Add(bar);
+            CppNotes().Push(Format("gauge-made:{}", i32(childCount)));
+        }
+        ~CppGauge() { CppNotes().Push(String("gauge-gone")); }
+
+        HX_FIELD(HxmlAttribute) f32 value = 0;
+        HX_FIELD(HxmlAttribute) String label;
+        HX_FIELD(HxmlAttribute) i32 maxValue = 1;
+        HX_FIELD(HxmlAttribute = "tint") Color color;
+        // A property: markup sets it through its setter, where the class reacts.
+        HX_PROPERTY(HxmlAttribute) f32 level() const { return level_; }
+        void SetLevel(f32 v)
+        {
+            level_ = v;
+            CppNotes().Push(Format("level:{}", v));
+        }
+
+    private:
+        f32 level_ = 0;
+    };
+
     HX_CLASS(Namespace = "UIEngineTests")
     class CppElementScript : public ::HelixEngine::GameBehaviour
     {

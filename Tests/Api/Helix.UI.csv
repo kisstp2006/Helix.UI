@@ -35,9 +35,56 @@ UI.Align,SpaceAround,UI.Align.SpaceAround = 6
 UI.Align,SpaceBetween,UI.Align.SpaceBetween = 5
 UI.Align,SpaceEvenly,UI.Align.SpaceEvenly = 7
 UI.Align,Stretch,UI.Align.Stretch = 4
+UI.Angle,.ctor,"Angle(float) / Angle(float, AngleUnit)"
+UI.Angle,Degrees,static Angle Degrees(float)
+UI.Angle,Gradians,static Angle Gradians(float)
+UI.Angle,Radians,static Angle Radians(float)
+UI.Angle,ToDegrees,float ToDegrees()
+UI.Angle,ToGradians,float ToGradians()
+UI.Angle,ToRadians,float ToRadians()
+UI.Angle,ToString,string ToString()
+UI.Angle,ToTurns,float ToTurns()
+UI.Angle,Turns,static Angle Turns(float)
+UI.Angle,operators,"Implicit(float) / Equality(Angle, Angle) / Inequality(Angle, Angle)"
+UI.Angle,unit,AngleUnit unit { get; set; }
+UI.Angle,value,float value { get; set; }
+UI.AngleUnit,Degree,UI.AngleUnit.Degree = 0
+UI.AngleUnit,Gradian,UI.AngleUnit.Gradian = 1
+UI.AngleUnit,Radian,UI.AngleUnit.Radian = 2
+UI.AngleUnit,Turn,UI.AngleUnit.Turn = 3
 UI.AttachToPanelEvent,.ctor,AttachToPanelEvent()
 UI.AttachToPanelEvent,destinationPanel,IPanel destinationPanel { get; }
 UI.AttachToPanelEvent,originPanel,IPanel originPanel { get; }
+UI.Background,FromTexture2D,static Background FromTexture2D(Texture2D)
+UI.Background,GetSelectedImage,Object GetSelectedImage()
+UI.Background,IsEmpty,bool IsEmpty()
+UI.Background,ToString,string ToString()
+UI.Background,operators,"Equality(Background, Background) / Inequality(Background, Background) / Implicit(Texture2D)"
+UI.Background,texture,Texture2D texture { get; set; }
+UI.BackgroundPosition,.ctor,"BackgroundPosition(BackgroundPositionKeyword) / BackgroundPosition(BackgroundPositionKeyword, Length)"
+UI.BackgroundPosition,ToString,string ToString()
+UI.BackgroundPosition,keyword,BackgroundPositionKeyword keyword
+UI.BackgroundPosition,offset,Length offset
+UI.BackgroundPosition,operators,"Equality(BackgroundPosition, BackgroundPosition) / Inequality(BackgroundPosition, BackgroundPosition)"
+UI.BackgroundPositionKeyword,Bottom,UI.BackgroundPositionKeyword.Bottom = 2
+UI.BackgroundPositionKeyword,Center,UI.BackgroundPositionKeyword.Center = 0
+UI.BackgroundPositionKeyword,Left,UI.BackgroundPositionKeyword.Left = 3
+UI.BackgroundPositionKeyword,Right,UI.BackgroundPositionKeyword.Right = 4
+UI.BackgroundPositionKeyword,Top,UI.BackgroundPositionKeyword.Top = 1
+UI.BackgroundRepeat,.ctor,"BackgroundRepeat(Repeat, Repeat)"
+UI.BackgroundRepeat,ToString,string ToString()
+UI.BackgroundRepeat,operators,"Equality(BackgroundRepeat, BackgroundRepeat) / Inequality(BackgroundRepeat, BackgroundRepeat)"
+UI.BackgroundRepeat,x,Repeat x
+UI.BackgroundRepeat,y,Repeat y
+UI.BackgroundSize,.ctor,"BackgroundSize(Length, Length) / BackgroundSize(BackgroundSizeType)"
+UI.BackgroundSize,ToString,string ToString()
+UI.BackgroundSize,operators,"Equality(BackgroundSize, BackgroundSize) / Inequality(BackgroundSize, BackgroundSize)"
+UI.BackgroundSize,sizeType,BackgroundSizeType sizeType { get; set; }
+UI.BackgroundSize,x,Length x { get; set; }
+UI.BackgroundSize,y,Length y { get; set; }
+UI.BackgroundSizeType,Contain,UI.BackgroundSizeType.Contain = 2
+UI.BackgroundSizeType,Cover,UI.BackgroundSizeType.Cover = 1
+UI.BackgroundSizeType,Length,UI.BackgroundSizeType.Length = 0
 UI.BlurEvent,.ctor,BlurEvent()
 UI.CallbackEventHandler,HasBubbleUpHandlers,bool HasBubbleUpHandlers()
 UI.CallbackEventHandler,HasTrickleDownHandlers,bool HasTrickleDownHandlers()
@@ -50,6 +97,15 @@ UI.ClickEvent,.ctor,ClickEvent()
 UI.CompositionEvent,.ctor,CompositionEvent()
 UI.ContextType,Editor,UI.ContextType.Editor = 1
 UI.ContextType,Player,UI.ContextType.Player = 0
+UI.Cursor,ToString,string ToString()
+UI.Cursor,hotspot,Vector2 hotspot { get; set; }
+UI.Cursor,operators,"Equality(Cursor, Cursor) / Inequality(Cursor, Cursor)"
+UI.Cursor,texture,Texture2D texture { get; set; }
+UI.CustomStyleProperty,.ctor,CustomStyleProperty(string)
+UI.CustomStyleProperty,name,string name { get; }
+UI.CustomStyleProperty,operators,"Equality(CustomStyleProperty, CustomStyleProperty) / Inequality(CustomStyleProperty, CustomStyleProperty)"
+UI.CustomStyleResolvedEvent,.ctor,CustomStyleResolvedEvent()
+UI.CustomStyleResolvedEvent,customStyle,ICustomStyle customStyle { get; }
 UI.DetachFromPanelEvent,.ctor,DetachFromPanelEvent()
 UI.DetachFromPanelEvent,destinationPanel,IPanel destinationPanel { get; }
 UI.DetachFromPanelEvent,originPanel,IPanel originPanel { get; }
@@ -99,6 +155,7 @@ UI.Element,canGrabFocus,bool canGrabFocus { get; }
 UI.Element,childCount,int childCount { get; }
 UI.Element,contentContainer,Element contentContainer { get; }
 UI.Element,contentRect,Rect contentRect { get; }
+UI.Element,customStyle,ICustomStyle customStyle { get; }
 UI.Element,delegatesFocus,bool delegatesFocus { get; set; }
 UI.Element,enabledInHierarchy,bool enabledInHierarchy { get; }
 UI.Element,enabledSelf,bool enabledSelf { get; }
@@ -115,6 +172,7 @@ UI.Element,pickingMode,PickingMode pickingMode { get; set; }
 UI.Element,resolvedStyle,IResolvedStyle resolvedStyle { get; }
 UI.Element,schedule,IVisualElementScheduler schedule { get; }
 UI.Element,style,IStyle style { get; }
+UI.Element,styleSheets,ElementStyleSheetSet styleSheets { get; }
 UI.Element,tabIndex,int tabIndex { get; set; }
 UI.Element,this[],Element this[][int] { get; }
 UI.Element,tooltip,string tooltip { get; set; }
@@ -134,6 +192,14 @@ UI.Element.Hierarchy,parent,Element parent { get; }
 UI.Element.Hierarchy,this[],Element this[][int] { get; }
 UI.ElementQueryExtensions,Find,"static T Find<T>(Element, string = null, params string[]) / static Element Find(Element, string = null, params string[])"
 UI.ElementQueryExtensions,FindAll,"static List<T> FindAll<T>(Element, string = null, params string[]) / static List<Element> FindAll(Element, string = null, params string[])"
+UI.ElementStyleSheetSet,Add,void Add(StyleSheet)
+UI.ElementStyleSheetSet,Clear,void Clear()
+UI.ElementStyleSheetSet,Contains,bool Contains(StyleSheet)
+UI.ElementStyleSheetSet,Insert,"void Insert(int, StyleSheet)"
+UI.ElementStyleSheetSet,Remove,bool Remove(StyleSheet)
+UI.ElementStyleSheetSet,count,int count { get; }
+UI.ElementStyleSheetSet,operators,"Equality(ElementStyleSheetSet, ElementStyleSheetSet) / Inequality(ElementStyleSheetSet, ElementStyleSheetSet)"
+UI.ElementStyleSheetSet,this[],StyleSheet this[][int] { get; }
 UI.EventBase,Dispose,void Dispose() / void Dispose()
 UI.EventBase,GetPooled,static T GetPooled()
 UI.EventBase,RegisterEventType,static long RegisterEventType()
@@ -171,6 +237,12 @@ UI.GeometryChangedEvent,GetPooled,"static GeometryChangedEvent GetPooled(Rect, R
 UI.GeometryChangedEvent,layoutPass,int layoutPass { get; }
 UI.GeometryChangedEvent,newRect,Rect newRect { get; }
 UI.GeometryChangedEvent,oldRect,Rect oldRect { get; }
+UI.HxmlAttributeAttribute,.ctor,"HxmlAttributeAttribute() / HxmlAttributeAttribute(string) / HxmlAttributeAttribute(string, params string[])"
+UI.HxmlAttributeAttribute,name,string name { get; set; }
+UI.HxmlAttributeAttribute,obsoleteNames,string[] obsoleteNames { get; set; }
+UI.HxmlElementAttribute,.ctor,HxmlElementAttribute() / HxmlElementAttribute(string)
+UI.HxmlElementAttribute,name,string name
+UI.ICustomStyle,TryGetValue,"bool TryGetValue(CustomStyleProperty<float>, out float) / bool TryGetValue(CustomStyleProperty<int>, out int) / bool TryGetValue(CustomStyleProperty<bool>, out bool) / bool TryGetValue(CustomStyleProperty<Color>, out Color) / bool TryGetValue(CustomStyleProperty<Texture2D>, out Texture2D) / bool TryGetValue(CustomStyleProperty<string>, out string)"
 UI.IEventHandler,HandleEvent,void HandleEvent(EventBase)
 UI.IEventHandler,HasBubbleUpHandlers,bool HasBubbleUpHandlers()
 UI.IEventHandler,HasTrickleDownHandlers,bool HasTrickleDownHandlers()
@@ -236,6 +308,11 @@ UI.IPointerEvent,tangentialPressure,float tangentialPressure { get; }
 UI.IPointerEvent,tilt,Vector2 tilt { get; }
 UI.IPointerEvent,twist,float twist { get; }
 UI.IResolvedStyle,backgroundColor,Color backgroundColor { get; }
+UI.IResolvedStyle,backgroundImage,Background backgroundImage { get; }
+UI.IResolvedStyle,backgroundPositionX,BackgroundPosition backgroundPositionX { get; }
+UI.IResolvedStyle,backgroundPositionY,BackgroundPosition backgroundPositionY { get; }
+UI.IResolvedStyle,backgroundRepeat,BackgroundRepeat backgroundRepeat { get; }
+UI.IResolvedStyle,backgroundSize,BackgroundSize backgroundSize { get; }
 UI.IResolvedStyle,borderBottomWidth,float borderBottomWidth { get; }
 UI.IResolvedStyle,borderLeftWidth,float borderLeftWidth { get; }
 UI.IResolvedStyle,borderRightWidth,float borderRightWidth { get; }
@@ -246,19 +323,32 @@ UI.IResolvedStyle,flexGrow,float flexGrow { get; }
 UI.IResolvedStyle,flexShrink,float flexShrink { get; }
 UI.IResolvedStyle,fontSize,float fontSize { get; }
 UI.IResolvedStyle,height,float height { get; }
+UI.IResolvedStyle,helixTextOutlineColor,Color helixTextOutlineColor { get; }
+UI.IResolvedStyle,helixTextOutlineWidth,float helixTextOutlineWidth { get; }
+UI.IResolvedStyle,helixTextOverflowPosition,TextOverflowPosition helixTextOverflowPosition { get; }
 UI.IResolvedStyle,left,float left { get; }
 UI.IResolvedStyle,opacity,float opacity { get; }
 UI.IResolvedStyle,paddingBottom,float paddingBottom { get; }
 UI.IResolvedStyle,paddingLeft,float paddingLeft { get; }
 UI.IResolvedStyle,paddingRight,float paddingRight { get; }
 UI.IResolvedStyle,paddingTop,float paddingTop { get; }
+UI.IResolvedStyle,rotate,Rotate rotate { get; }
+UI.IResolvedStyle,scale,Scale scale { get; }
+UI.IResolvedStyle,textShadow,TextShadow textShadow { get; }
 UI.IResolvedStyle,top,float top { get; }
+UI.IResolvedStyle,transformOrigin,Vector3 transformOrigin { get; }
+UI.IResolvedStyle,translate,Vector3 translate { get; }
 UI.IResolvedStyle,visibility,Visibility visibility { get; }
 UI.IResolvedStyle,width,float width { get; }
 UI.IStyle,alignContent,StyleEnum<Align> alignContent { get; set; }
 UI.IStyle,alignItems,StyleEnum<Align> alignItems { get; set; }
 UI.IStyle,alignSelf,StyleEnum<Align> alignSelf { get; set; }
 UI.IStyle,backgroundColor,StyleColor backgroundColor { get; set; }
+UI.IStyle,backgroundImage,StyleBackground backgroundImage { get; set; }
+UI.IStyle,backgroundPositionX,StyleBackgroundPosition backgroundPositionX { get; set; }
+UI.IStyle,backgroundPositionY,StyleBackgroundPosition backgroundPositionY { get; set; }
+UI.IStyle,backgroundRepeat,StyleBackgroundRepeat backgroundRepeat { get; set; }
+UI.IStyle,backgroundSize,StyleBackgroundSize backgroundSize { get; set; }
 UI.IStyle,borderBottomColor,StyleColor borderBottomColor { get; set; }
 UI.IStyle,borderBottomLeftRadius,StyleLength borderBottomLeftRadius { get; set; }
 UI.IStyle,borderBottomRightRadius,StyleLength borderBottomRightRadius { get; set; }
@@ -273,6 +363,7 @@ UI.IStyle,borderTopRightRadius,StyleLength borderTopRightRadius { get; set; }
 UI.IStyle,borderTopWidth,StyleFloat borderTopWidth { get; set; }
 UI.IStyle,bottom,StyleLength bottom { get; set; }
 UI.IStyle,color,StyleColor color { get; set; }
+UI.IStyle,cursor,StyleCursor cursor { get; set; }
 UI.IStyle,display,StyleEnum<DisplayStyle> display { get; set; }
 UI.IStyle,flexBasis,StyleLength flexBasis { get; set; }
 UI.IStyle,flexDirection,StyleEnum<FlexDirection> flexDirection { get; set; }
@@ -283,6 +374,7 @@ UI.IStyle,fontSize,StyleLength fontSize { get; set; }
 UI.IStyle,height,StyleLength height { get; set; }
 UI.IStyle,helixBackgroundImageTintColor,StyleColor helixBackgroundImageTintColor { get; set; }
 UI.IStyle,helixFontStyleAndWeight,StyleEnum<FontStyle> helixFontStyleAndWeight { get; set; }
+UI.IStyle,helixOverflowClipBox,StyleEnum<OverflowClipBox> helixOverflowClipBox { get; set; }
 UI.IStyle,helixParagraphSpacing,StyleLength helixParagraphSpacing { get; set; }
 UI.IStyle,helixSliceBottom,StyleInt helixSliceBottom { get; set; }
 UI.IStyle,helixSliceLeft,StyleInt helixSliceLeft { get; set; }
@@ -290,6 +382,9 @@ UI.IStyle,helixSliceRight,StyleInt helixSliceRight { get; set; }
 UI.IStyle,helixSliceScale,StyleFloat helixSliceScale { get; set; }
 UI.IStyle,helixSliceTop,StyleInt helixSliceTop { get; set; }
 UI.IStyle,helixTextAlign,StyleEnum<TextAnchor> helixTextAlign { get; set; }
+UI.IStyle,helixTextOutlineColor,StyleColor helixTextOutlineColor { get; set; }
+UI.IStyle,helixTextOutlineWidth,StyleFloat helixTextOutlineWidth { get; set; }
+UI.IStyle,helixTextOverflowPosition,StyleEnum<TextOverflowPosition> helixTextOverflowPosition { get; set; }
 UI.IStyle,justifyContent,StyleEnum<Justify> justifyContent { get; set; }
 UI.IStyle,left,StyleLength left { get; set; }
 UI.IStyle,letterSpacing,StyleLength letterSpacing { get; set; }
@@ -309,8 +404,13 @@ UI.IStyle,paddingRight,StyleLength paddingRight { get; set; }
 UI.IStyle,paddingTop,StyleLength paddingTop { get; set; }
 UI.IStyle,position,StyleEnum<Position> position { get; set; }
 UI.IStyle,right,StyleLength right { get; set; }
+UI.IStyle,rotate,StyleRotate rotate { get; set; }
+UI.IStyle,scale,StyleScale scale { get; set; }
 UI.IStyle,textOverflow,StyleEnum<TextOverflow> textOverflow { get; set; }
+UI.IStyle,textShadow,StyleTextShadow textShadow { get; set; }
 UI.IStyle,top,StyleLength top { get; set; }
+UI.IStyle,transformOrigin,StyleTransformOrigin transformOrigin { get; set; }
+UI.IStyle,translate,StyleTranslate translate { get; set; }
 UI.IStyle,visibility,StyleEnum<Visibility> visibility { get; set; }
 UI.IStyle,whiteSpace,StyleEnum<WhiteSpace> whiteSpace { get; set; }
 UI.IStyle,width,StyleLength width { get; set; }
@@ -403,6 +503,8 @@ UI.NavigationMoveEvent,move,Vector2 move { get; }
 UI.NavigationSubmitEvent,.ctor,NavigationSubmitEvent()
 UI.Overflow,Hidden,UI.Overflow.Hidden = 1
 UI.Overflow,Visible,UI.Overflow.Visible = 0
+UI.OverflowClipBox,ContentBox,UI.OverflowClipBox.ContentBox = 1
+UI.OverflowClipBox,PaddingBox,UI.OverflowClipBox.PaddingBox = 0
 UI.PenStatus,Barrel,UI.PenStatus.Barrel = 2
 UI.PenStatus,Contact,UI.PenStatus.Contact = 1
 UI.PenStatus,Eraser,UI.PenStatus.Eraser = 8
@@ -472,11 +574,51 @@ UI.Position,Relative,UI.Position.Relative = 0
 UI.PropagationPhase,BubbleUp,UI.PropagationPhase.BubbleUp = 3
 UI.PropagationPhase,None,UI.PropagationPhase.None = 0
 UI.PropagationPhase,TrickleDown,UI.PropagationPhase.TrickleDown = 1
+UI.Repeat,NoRepeat,UI.Repeat.NoRepeat = 0
+UI.Repeat,Repeat,UI.Repeat.Repeat = 3
+UI.Repeat,Round,UI.Repeat.Round = 2
+UI.Repeat,Space,UI.Repeat.Space = 1
+UI.Rotate,.ctor,"Rotate(Angle) / Rotate(Angle, Vector3) / Rotate(Quaternion)"
+UI.Rotate,None,static Rotate None()
+UI.Rotate,ToString,string ToString()
+UI.Rotate,angle,Angle angle { get; set; }
+UI.Rotate,axis,Vector3 axis { get; set; }
+UI.Rotate,operators,"Implicit(Quaternion) / Equality(Rotate, Rotate) / Inequality(Rotate, Rotate)"
+UI.Scale,.ctor,Scale(Vector2) / Scale(Vector3)
+UI.Scale,None,static Scale None()
+UI.Scale,ToString,string ToString()
+UI.Scale,operators,"Implicit(Vector2) / Implicit(Vector3) / Equality(Scale, Scale) / Inequality(Scale, Scale)"
+UI.Scale,value,Vector3 value { get; set; }
+UI.StyleBackground,.ctor,StyleBackground(Background) / StyleBackground(Texture2D) / StyleBackground(StyleKeyword)
+UI.StyleBackground,ToString,string ToString()
+UI.StyleBackground,keyword,StyleKeyword keyword { get; set; }
+UI.StyleBackground,operators,"Implicit(StyleKeyword) / Implicit(Background) / Implicit(Texture2D) / Equality(StyleBackground, StyleBackground) / Inequality(StyleBackground, StyleBackground)"
+UI.StyleBackground,value,Background value { get; set; }
+UI.StyleBackgroundPosition,.ctor,StyleBackgroundPosition(BackgroundPosition) / StyleBackgroundPosition(StyleKeyword)
+UI.StyleBackgroundPosition,ToString,string ToString()
+UI.StyleBackgroundPosition,keyword,StyleKeyword keyword { get; set; }
+UI.StyleBackgroundPosition,operators,"Implicit(StyleKeyword) / Implicit(BackgroundPosition) / Equality(StyleBackgroundPosition, StyleBackgroundPosition) / Inequality(StyleBackgroundPosition, StyleBackgroundPosition)"
+UI.StyleBackgroundPosition,value,BackgroundPosition value { get; set; }
+UI.StyleBackgroundRepeat,.ctor,StyleBackgroundRepeat(BackgroundRepeat) / StyleBackgroundRepeat(StyleKeyword)
+UI.StyleBackgroundRepeat,ToString,string ToString()
+UI.StyleBackgroundRepeat,keyword,StyleKeyword keyword { get; set; }
+UI.StyleBackgroundRepeat,operators,"Implicit(StyleKeyword) / Implicit(BackgroundRepeat) / Equality(StyleBackgroundRepeat, StyleBackgroundRepeat) / Inequality(StyleBackgroundRepeat, StyleBackgroundRepeat)"
+UI.StyleBackgroundRepeat,value,BackgroundRepeat value { get; set; }
+UI.StyleBackgroundSize,.ctor,StyleBackgroundSize(BackgroundSize) / StyleBackgroundSize(StyleKeyword)
+UI.StyleBackgroundSize,ToString,string ToString()
+UI.StyleBackgroundSize,keyword,StyleKeyword keyword { get; set; }
+UI.StyleBackgroundSize,operators,"Implicit(StyleKeyword) / Implicit(BackgroundSize) / Equality(StyleBackgroundSize, StyleBackgroundSize) / Inequality(StyleBackgroundSize, StyleBackgroundSize)"
+UI.StyleBackgroundSize,value,BackgroundSize value { get; set; }
 UI.StyleColor,.ctor,StyleColor(Color) / StyleColor(StyleKeyword)
 UI.StyleColor,ToString,string ToString()
 UI.StyleColor,keyword,StyleKeyword keyword { get; set; }
 UI.StyleColor,operators,"Implicit(StyleKeyword) / Implicit(Color) / Equality(StyleColor, StyleColor) / Inequality(StyleColor, StyleColor) / Equality(StyleColor, Color) / Inequality(StyleColor, Color)"
 UI.StyleColor,value,Color value { get; set; }
+UI.StyleCursor,.ctor,StyleCursor(Cursor) / StyleCursor(StyleKeyword)
+UI.StyleCursor,ToString,string ToString()
+UI.StyleCursor,keyword,StyleKeyword keyword { get; set; }
+UI.StyleCursor,operators,"Implicit(StyleKeyword) / Implicit(Cursor) / Equality(StyleCursor, StyleCursor) / Inequality(StyleCursor, StyleCursor)"
+UI.StyleCursor,value,Cursor value { get; set; }
 UI.StyleEnum,.ctor,StyleEnum(T) / StyleEnum(StyleKeyword)
 UI.StyleEnum,ToString,string ToString()
 UI.StyleEnum,keyword,StyleKeyword keyword { get; set; }
@@ -502,15 +644,72 @@ UI.StyleLength,ToString,string ToString()
 UI.StyleLength,keyword,StyleKeyword keyword { get; set; }
 UI.StyleLength,operators,"Implicit(StyleKeyword) / Implicit(float) / Implicit(Length) / Equality(StyleLength, StyleLength) / Inequality(StyleLength, StyleLength)"
 UI.StyleLength,value,Length value { get; set; }
-UI.StyleSheetAsset,.ctor,StyleSheetAsset()
+UI.StyleRotate,.ctor,StyleRotate(Rotate) / StyleRotate(StyleKeyword)
+UI.StyleRotate,ToString,string ToString()
+UI.StyleRotate,keyword,StyleKeyword keyword { get; set; }
+UI.StyleRotate,operators,"Implicit(StyleKeyword) / Implicit(Rotate) / Equality(StyleRotate, StyleRotate) / Inequality(StyleRotate, StyleRotate)"
+UI.StyleRotate,value,Rotate value { get; set; }
+UI.StyleScale,.ctor,StyleScale(Scale) / StyleScale(Vector2) / StyleScale(StyleKeyword)
+UI.StyleScale,ToString,string ToString()
+UI.StyleScale,keyword,StyleKeyword keyword { get; set; }
+UI.StyleScale,operators,"Implicit(StyleKeyword) / Implicit(Vector2) / Implicit(Scale) / Equality(StyleScale, StyleScale) / Inequality(StyleScale, StyleScale)"
+UI.StyleScale,value,Scale value { get; set; }
+UI.StyleSheet,.ctor,StyleSheet()
+UI.StyleSheet,contentHash,int contentHash { get; }
+UI.StyleSheet,importedWithErrors,bool importedWithErrors { get; }
+UI.StyleSheet,importedWithWarnings,bool importedWithWarnings { get; }
+UI.StyleTextShadow,.ctor,StyleTextShadow(TextShadow) / StyleTextShadow(StyleKeyword)
+UI.StyleTextShadow,ToString,string ToString()
+UI.StyleTextShadow,keyword,StyleKeyword keyword { get; set; }
+UI.StyleTextShadow,operators,"Implicit(StyleKeyword) / Implicit(TextShadow) / Equality(StyleTextShadow, StyleTextShadow) / Inequality(StyleTextShadow, StyleTextShadow)"
+UI.StyleTextShadow,value,TextShadow value { get; set; }
+UI.StyleTransformOrigin,.ctor,StyleTransformOrigin(TransformOrigin) / StyleTransformOrigin(StyleKeyword)
+UI.StyleTransformOrigin,ToString,string ToString()
+UI.StyleTransformOrigin,keyword,StyleKeyword keyword { get; set; }
+UI.StyleTransformOrigin,operators,"Implicit(StyleKeyword) / Implicit(TransformOrigin) / Equality(StyleTransformOrigin, StyleTransformOrigin) / Inequality(StyleTransformOrigin, StyleTransformOrigin)"
+UI.StyleTransformOrigin,value,TransformOrigin value { get; set; }
+UI.StyleTranslate,.ctor,StyleTranslate(Translate) / StyleTranslate(StyleKeyword)
+UI.StyleTranslate,ToString,string ToString()
+UI.StyleTranslate,keyword,StyleKeyword keyword { get; set; }
+UI.StyleTranslate,operators,"Implicit(StyleKeyword) / Implicit(Translate) / Equality(StyleTranslate, StyleTranslate) / Inequality(StyleTranslate, StyleTranslate)"
+UI.StyleTranslate,value,Translate value { get; set; }
+UI.TemplateContainer,.ctor,TemplateContainer() / TemplateContainer(string)
+UI.TemplateContainer,contentContainer,Element contentContainer { get; }
+UI.TemplateContainer,templateId,string templateId { get; }
+UI.TemplateContainer,templateSource,UITemplate templateSource { get; set; }
 UI.TextOverflow,Clip,UI.TextOverflow.Clip = 0
 UI.TextOverflow,Ellipsis,UI.TextOverflow.Ellipsis = 1
+UI.TextOverflowPosition,End,UI.TextOverflowPosition.End = 0
+UI.TextOverflowPosition,Middle,UI.TextOverflowPosition.Middle = 2
+UI.TextOverflowPosition,Start,UI.TextOverflowPosition.Start = 1
+UI.TextShadow,ToString,string ToString()
+UI.TextShadow,blurRadius,float blurRadius
+UI.TextShadow,color,Color color
+UI.TextShadow,offset,Vector2 offset
+UI.TextShadow,operators,"Equality(TextShadow, TextShadow) / Inequality(TextShadow, TextShadow)"
+UI.ThemeStyleSheet,.ctor,ThemeStyleSheet()
 UI.TimerState,deltaTime,long deltaTime { get; }
 UI.TimerState,now,long now { get; set; }
 UI.TimerState,start,long start { get; set; }
+UI.TransformOrigin,.ctor,"TransformOrigin(Length, Length) / TransformOrigin(Length, Length, float)"
+UI.TransformOrigin,Initial,static TransformOrigin Initial()
+UI.TransformOrigin,ToString,string ToString()
+UI.TransformOrigin,operators,"Equality(TransformOrigin, TransformOrigin) / Inequality(TransformOrigin, TransformOrigin)"
+UI.TransformOrigin,x,Length x { get; set; }
+UI.TransformOrigin,y,Length y { get; set; }
+UI.TransformOrigin,z,float z { get; set; }
+UI.Translate,.ctor,"Translate(Length, Length) / Translate(Length, Length, float)"
+UI.Translate,None,static Translate None()
+UI.Translate,ToString,string ToString()
+UI.Translate,operators,"Implicit(Vector3) / Implicit(Vector2) / Equality(Translate, Translate) / Inequality(Translate, Translate)"
+UI.Translate,x,Length x { get; set; }
+UI.Translate,y,Length y { get; set; }
+UI.Translate,z,float z { get; set; }
 UI.TrickleDown,NoTrickleDown,UI.TrickleDown.NoTrickleDown = 0
 UI.TrickleDown,TrickleDown,UI.TrickleDown.TrickleDown = 1
 UI.UITemplate,.ctor,UITemplate()
+UI.UITemplate,CloneTree,"void CloneTree(Element, out int, out int) / TemplateContainer CloneTree() / void CloneTree(Element)"
+UI.UITemplate,Instantiate,TemplateContainer Instantiate()
 UI.UIView,.ctor,UIView()
 UI.UIView,rootElement,Element rootElement { get; }
 UI.UIView,sortingOrder,int sortingOrder { get; set; }

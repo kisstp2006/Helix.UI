@@ -1,6 +1,7 @@
 #include <Helix/UI/Engine/Panel.h>
 
 #include <Helix/UI/Engine/Element.h>
+#include <Helix/UI/Styles/Transforms.h>
 
 namespace helix::ui
 {
@@ -14,7 +15,7 @@ namespace helix::ui
             return a.font == b.font && a.fontSize == b.fontSize && a.color == b.color && a.fontStyle == b.fontStyle && a.alignment == b.alignment &&
                    a.verticalAlignment == b.verticalAlignment && a.characterSpacing == b.characterSpacing && a.wordSpacing == b.wordSpacing &&
                    a.lineSpacing == b.lineSpacing && a.paragraphSpacing == b.paragraphSpacing && a.wrapping == b.wrapping && a.overflow == b.overflow &&
-                   a.width == b.width && a.height == b.height;
+                   a.ellipsisPosition == b.ellipsisPosition && a.width == b.width && a.height == b.height;
         }
     }
 
@@ -26,7 +27,7 @@ namespace helix::ui
         tree_.SetPicking(root_, PickingMode::Ignore);
         events_.SetRoot(root_);
         // Its root counts as being in a tree, and its elements take the focus through this panel's events.
-        Element::SetAnchored(world_, root_, &events_);
+        Element::SetAnchored(world_, root_, this);
         // The root fills the panel.
         LayoutStyle s;
         s.width = Length::Percent(100);
@@ -50,8 +51,14 @@ namespace helix::ui
         Instantiate(document, tree_, styles_, root_, resolver, errors);
         events_.Forget();
         // The types' behavior on the new elements.
-        tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) {
-            if (const ElementType* type = FindElementType(tree_.Type(e)); type && type->attach)
+        AttachTypes(root_);
+    }
+
+    void Panel::AttachTypes(ElementHandle under)
+    {
+        tree_.ForEachInSubtree(under, [&](ElementHandle e, u32) {
+            const ElementType* type = FindElementType(tree_.Type(e));
+            if (type && type->attach && Element::MarkAttached(world_, e))
                 type->attach(events_, e);
         });
     }
@@ -73,6 +80,7 @@ namespace helix::ui
         s.verticalAlignment = kVertical[u32(style.textAlign) / 3];
         s.wrapping = style.whiteSpace == WhiteSpace::Normal || style.whiteSpace == WhiteSpace::PreWrap ? TextWrappingMode::Normal : TextWrappingMode::NoWrap;
         s.overflow = style.textOverflow == TextOverflow::Ellipsis ? TextOverflowMode::Ellipsis : TextOverflowMode::Masking;
+        s.ellipsisPosition = TextEllipsisPosition(u8(style.textOverflowPosition));
         // Spacing in pixels to the text layout's hundredths of an em.
         auto em = [&](const Length& l) { return l.unit == Length::Unit::Pixel ? l.value / s.fontSize * 100.0f : 0.0f; };
         s.characterSpacing = em(style.letterSpacing);
@@ -202,6 +210,10 @@ namespace helix::ui
             if (!now.Contains(entry.key) && tree_.IsAlive(e) && listens(e, t.detachFromPanel))
                 send(t.detachFromPanel, e, entry.value, entry.value);
         }
+        // Elements that came in (built by a script into one) take their types' behavior.
+        for (ElementHandle e : came)
+            if (const ElementType* type = FindElementType(tree_.Type(e)); type && type->attach && Element::MarkAttached(world_, e))
+                type->attach(events_, e);
         for (ElementHandle e : came)
         {
             if (listens(e, t.attachToPanel))
@@ -213,6 +225,13 @@ namespace helix::ui
             if (listens(e, t.geometryChanged))
                 send(t.geometryChanged, e, *members_.Find(key(e)), layout_.WorldRect(e));
         members_ = Move(now);
+        // The elements whose custom properties the styles' update resolved (a copy: callbacks may change styles).
+        Array<ElementHandle> custom;
+        for (ElementHandle e : styles_.CustomResolved())
+            custom.Push(e);
+        for (ElementHandle e : custom)
+            if (tree_.IsAlive(e) && listens(e, t.customStyleResolved))
+                send(t.customStyleResolved, e, Rect(), Rect());
     }
 
     const TextInfo* Panel::TextOf(ElementHandle e) const
@@ -226,16 +245,20 @@ namespace helix::ui
     void Panel::Draw(UIMesh& mesh)
     {
         mesh.Clear();
-        DrawElement(mesh, root_, 1.0f);
+        DrawElement(mesh, root_, 1.0f, Affine());
     }
 
-    void Panel::DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity)
+    void Panel::DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity, const Affine& parent)
     {
         const ComputedStyle& s = styles_.Computed(e);
         if (s.layout.display == Display::None)
             return;
         opacity *= s.opacity;
         Rect r = layout_.WorldRect(e);
+        // Its geometry is made untransformed and mapped by its world transform.
+        Affine local = LocalTransform(s, r);
+        Affine world = local.IsIdentity() ? parent : parent * local;
+        mesh.SetTransform(world);
         const LayoutBox& b = layout_.Box(e);
         // Radii in pixels (percentages of the smaller side), no larger than half the box.
         f32 smaller = r.width < r.height ? r.width : r.height;
@@ -264,7 +287,17 @@ namespace helix::ui
                 if (host_->Image(s.backgroundImage, image))
                 {
                     image.tint = s.backgroundTint;
-                    image.scaleMode = UIScaleMode(u8(s.backgroundScaleMode));
+                    image.sizeMode = UISizeMode(u8(s.backgroundSizeType));
+                    for (u32 axis = 0; axis < 2; axis++)
+                    {
+                        image.size[axis] = s.backgroundSize[axis];
+                        image.offset[axis] = s.backgroundPositionOffset[axis];
+                        image.repeat[axis] = UIRepeat(u8(s.backgroundRepeat[axis]));
+                        BackgroundPositionKeyword k = s.backgroundPositionKeyword[axis];
+                        image.edge[axis] = k == BackgroundPositionKeyword::Center                                     ? UIEdge::Center
+                                           : k == BackgroundPositionKeyword::Right || k == BackgroundPositionKeyword::Bottom ? UIEdge::End
+                                                                                                                            : UIEdge::Start;
+                    }
                     for (u32 k = 0; k < 4; k++)
                         image.slices[k] = s.slices[k];
                     image.sliceScale = s.sliceScale;
@@ -301,43 +334,87 @@ namespace helix::ui
                 for (const TextRect& t : text->rects)
                     if (t.behind)
                         rect(t);
-                for (const TextQuad& q : text->quads)
+                // The glyphs in layers: the shadow (moved, its edge softened by the blur), the outline (a wider
+                // edge in its color), then the glyphs. Distance field glyphs take all three; bitmap glyphs and
+                // color glyphs the shadow's offset only.
+                enum Layer : u8
                 {
-                    engine::Texture2D* texture = host_->Texture(q);
-                    if (!texture)
+                    kShadow,
+                    kOutline,
+                    kFill
+                };
+                bool shadow = s.textShadowColor.a > 0, outline = s.textOutlineWidth > 0 && s.textOutlineColor.a > 0;
+                for (u8 layer = shadow ? kShadow : outline ? kOutline : kFill; layer <= kFill; layer++)
+                {
+                    if (layer == kOutline && !outline)
                         continue;
-                    UIVertexKind kind = UIVertexKind::Image;
-                    f32 scale = 1;
-                    if (!q.colorGlyph && q.font)
+                    for (const TextQuad& q : text->quads)
                     {
-                        GlyphRenderMode mode = q.font->Cache().Mode();
-                        kind = mode == GlyphRenderMode::Sdf ? UIVertexKind::GlyphSdf : mode == GlyphRenderMode::Msdf ? UIVertexKind::GlyphMsdf : UIVertexKind::GlyphCoverage;
-                        scale = 2.0f * f32(q.font->Cache().Padding()) * q.sdfScale;
+                        engine::Texture2D* texture = host_->Texture(q);
+                        if (!texture)
+                            continue;
+                        UIVertexKind kind = UIVertexKind::Image;
+                        f32 scale = 1;
+                        bool field = false;
+                        if (!q.colorGlyph && q.font)
+                        {
+                            GlyphRenderMode mode = q.font->Cache().Mode();
+                            kind = mode == GlyphRenderMode::Sdf ? UIVertexKind::GlyphSdf : mode == GlyphRenderMode::Msdf ? UIVertexKind::GlyphMsdf : UIVertexKind::GlyphCoverage;
+                            field = kind != UIVertexKind::GlyphCoverage;
+                            scale = 2.0f * f32(q.font->Cache().Padding()) * q.sdfScale;
+                        }
+                        if (layer == kOutline && !field)
+                            continue;
+                        f32 edge = 0.5f - (q.bold ? kBoldEdge : 0.0f);
+                        Color color = q.color;
+                        f32 dx = ox, dy = oy;
+                        if (layer != kFill && field)
+                        {
+                            // The outline grows the glyph by its width (the field's distances are 1/scale per pixel).
+                            if (outline)
+                                edge -= s.textOutlineWidth / scale;
+                            edge = edge < 0.02f ? 0.02f : edge;
+                        }
+                        if (layer == kShadow)
+                        {
+                            dx += s.textShadowOffset[0], dy += s.textShadowOffset[1];
+                            color = Color(s.textShadowColor.r, s.textShadowColor.g, s.textShadowColor.b, s.textShadowColor.a * q.color.a);
+                            if (field && s.textShadowBlur > 1)
+                                scale /= s.textShadowBlur;
+                            if (!field && kind == UIVertexKind::Image)
+                                kind = UIVertexKind::GlyphCoverage;
+                        }
+                        else if (layer == kOutline)
+                            color = Color(s.textOutlineColor.r, s.textOutlineColor.g, s.textOutlineColor.b, s.textOutlineColor.a * q.color.a);
+                        const Vector2 p[4] = {Vector2(dx + q.corners[0].x, dy + q.corners[0].y), Vector2(dx + q.corners[1].x, dy + q.corners[1].y),
+                                              Vector2(dx + q.corners[2].x, dy + q.corners[2].y), Vector2(dx + q.corners[3].x, dy + q.corners[3].y)};
+                        mesh.TexturedQuad(p, q.uv, premultiply(color), texture, kind, edge, scale);
                     }
-                    const Vector2 p[4] = {Vector2(ox + q.corners[0].x, oy + q.corners[0].y), Vector2(ox + q.corners[1].x, oy + q.corners[1].y),
-                                          Vector2(ox + q.corners[2].x, oy + q.corners[2].y), Vector2(ox + q.corners[3].x, oy + q.corners[3].y)};
-                    mesh.TexturedQuad(p, q.uv, premultiply(q.color), texture, kind, 0.5f - (q.bold ? kBoldEdge : 0.0f), scale);
                 }
                 for (const TextRect& t : text->rects)
                     if (!t.behind)
                         rect(t);
             }
         }
-        // Overflow hidden: the descendants inside the padding box, its corners rounded inside the borders.
+        // Overflow hidden: the descendants inside the padding box (or the content box), its corners rounded inside
+        // the borders (and the padding), in the element's space.
         UIClip saved = mesh.Clip();
         if (s.overflow == Overflow::Hidden)
         {
-            Rect inner(r.x + borders[0], r.y + borders[1], r.width - borders[0] - borders[2], r.height - borders[1] - borders[3]);
+            f32 edges[4] = {borders[0], borders[1], borders[2], borders[3]};
+            if (s.overflowClipBox == OverflowClipBox::ContentBox)
+                for (u32 k = 0; k < 4; k++)
+                    edges[k] += b.padding[k];
+            Rect inner(r.x + edges[0], r.y + edges[1], r.width - edges[0] - edges[2], r.height - edges[1] - edges[3]);
             auto in = [](f32 radius, f32 a, f32 c) {
                 f32 m = a > c ? a : c;
                 return radius > m ? radius - m : 0.0f;
             };
-            Vector4 innerRadii(in(radii.x, borders[0], borders[1]), in(radii.y, borders[2], borders[1]), in(radii.z, borders[2], borders[3]),
-                               in(radii.w, borders[0], borders[3]));
-            mesh.SetClip(saved.Within(inner, innerRadii));
+            Vector4 innerRadii(in(radii.x, edges[0], edges[1]), in(radii.y, edges[2], edges[1]), in(radii.z, edges[2], edges[3]), in(radii.w, edges[0], edges[3]));
+            mesh.SetClip(saved.Within(inner, innerRadii, world));
         }
         for (ElementHandle c = tree_.FirstChild(e); c.IsValid(); c = tree_.NextSibling(c))
-            DrawElement(mesh, c, opacity);
+            DrawElement(mesh, c, opacity, world);
         mesh.SetClip(saved);
     }
 }

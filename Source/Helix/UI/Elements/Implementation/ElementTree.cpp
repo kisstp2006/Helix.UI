@@ -24,6 +24,7 @@ namespace helix::ui
             focusable_.Push(0), delegatesFocus_.Push(0);
             tabIndex_.Push(0);
             picking_.Push(PickingMode::Position);
+            content_.Push(ElementHandle{});
             dirty_.Push(Dirty::None);
         }
         live_[i] = 1;
@@ -37,6 +38,7 @@ namespace helix::ui
         focusable_[i] = delegatesFocus_[i] = 0;
         tabIndex_[i] = 0;
         picking_[i] = PickingMode::Position;
+        content_[i] = ElementHandle{};
         dirty_[i] = Dirty::Style | Dirty::Layout;
         alive_++;
         version_++;
@@ -210,6 +212,15 @@ namespace helix::ui
         MarkLayoutDirty(e);
     }
 
+    void ElementTree::SetType(ElementHandle e, Atom type)
+    {
+        if (!IsAlive(e) || type_[e.index] == type)
+            return;
+        type_[e.index] = type;
+        MarkStyleDirty(e);
+        version_++;
+    }
+
     void ElementTree::SetName(ElementHandle e, Atom name)
     {
         if (!IsAlive(e) || name_[e.index] == name)
@@ -306,6 +317,20 @@ namespace helix::ui
     {
         if (IsAlive(e))
             picking_[e.index] = mode;
+    }
+
+    ElementHandle ElementTree::ContentContainer(ElementHandle e) const
+    {
+        if (!IsAlive(e))
+            return {};
+        ElementHandle c = content_[e.index];
+        return IsAlive(c) ? c : e;
+    }
+
+    void ElementTree::SetContentContainer(ElementHandle e, ElementHandle container)
+    {
+        if (IsAlive(e))
+            content_[e.index] = container == e ? ElementHandle{} : container;
     }
 
     void ElementTree::MarkStyleDirty(ElementHandle e)

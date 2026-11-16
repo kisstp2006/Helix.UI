@@ -1,5 +1,7 @@
 #include <Helix/UI/Rendering/UIMesh.h>
 
+#include <cmath>
+
 namespace helix::ui
 {
     namespace
@@ -11,16 +13,22 @@ namespace helix::ui
         }
 
         f32 Max0(f32 v) { return v > 0 ? v : 0; }
+
+        f32 Resolve(const Length& l, f32 size) { return l.unit == Length::Unit::Percent ? l.value * size / 100.0f : l.unit == Length::Unit::Pixel ? l.value : 0.0f; }
     }
 
-    UIClip UIClip::Within(const Rect& inner, const Vector4& innerRadii) const
+    UIClip UIClip::Within(const Rect& inner, const Vector4& innerRadii, const Affine& frame) const
     {
-        f32 x0 = rect.x > inner.x ? rect.x : inner.x;
-        f32 y0 = rect.y > inner.y ? rect.y : inner.y;
-        f32 x1 = rect.x + rect.width < inner.x + inner.width ? rect.x + rect.width : inner.x + inner.width;
-        f32 y1 = rect.y + rect.height < inner.y + inner.height ? rect.y + rect.height : inner.y + inner.height;
+        // This clip's rectangle in the inner one's space.
+        Affine toInner = frame.Inverse();
+        Rect o = (toInner * toClip.Inverse()).Bounds(rect);
+        f32 x0 = o.x > inner.x ? o.x : inner.x;
+        f32 y0 = o.y > inner.y ? o.y : inner.y;
+        f32 x1 = o.x + o.width < inner.x + inner.width ? o.x + o.width : inner.x + inner.width;
+        f32 y1 = o.y + o.height < inner.y + inner.height ? o.y + o.height : inner.y + inner.height;
         UIClip c;
         c.rect = Rect(x0, y0, Max0(x1 - x0), Max0(y1 - y0));
+        c.toClip = toInner;
         f32 r = innerRadii.x;
         for (f32 v : {innerRadii.y, innerRadii.z, innerRadii.w})
             r = v > r ? v : r;
@@ -34,6 +42,41 @@ namespace helix::ui
         indices_.Clear();
         batches_.Clear();
         clip_ = UIClip();
+        SetTransform(Affine());
+    }
+
+    void UIMesh::SetTransform(const Affine& transform)
+    {
+        transform_ = transform;
+        identity_ = transform.IsIdentity();
+        scale_ = identity_ ? 1.0f : transform.Scale();
+    }
+
+    void UIMesh::Push(UIVertex v)
+    {
+        if (!identity_)
+        {
+            v.position = transform_.Apply(v.position);
+            u32 kind = u32(v.parameters.x + 0.5f);
+            if (kind >= u32(UIVertexKind::ShapeFill))
+            {
+                // A shape's distances in pixels: its point, size, radii and borders scaled.
+                v.uvLocal.z *= scale_, v.uvLocal.w *= scale_;
+                v.size.x *= scale_, v.size.y *= scale_;
+                v.radii = Vector4(v.radii.x * scale_, v.radii.y * scale_, v.radii.z * scale_, v.radii.w * scale_);
+                v.borders = Vector4(v.borders.x * scale_, v.borders.y * scale_, v.borders.z * scale_, v.borders.w * scale_);
+            }
+            else if (kind == u32(UIVertexKind::GlyphSdf) || kind == u32(UIVertexKind::GlyphMsdf))
+                v.parameters.z *= scale_;
+        }
+        // Its place in the clip, in pixels (the clip's space is the clipping element's; the place is affine in the
+        // screen position, so the shader's interpolation keeps it exact).
+        Vector2 q = clip_.toClip.Apply(v.position);
+        f32 k = clip_.toClip.IsIdentity() ? 1.0f : 1.0f / clip_.toClip.Scale();
+        const Rect& r = clip_.rect;
+        v.clipRect = Vector4((q.x - r.x) * k, (q.y - r.y) * k, r.width * k, r.height * k);
+        v.size.z = clip_.radius * k;
+        vertices_.Push(v);
     }
 
     f32 UIMesh::Slot(const void* texture, u32 indexCount)
@@ -68,9 +111,6 @@ namespace helix::ui
     {
         UIVertex v{};
         v.parameters = Vector4(f32(u8(kind)), 0, 0, 0);
-        const Rect& r = clip_.rect;
-        v.clipRect = Vector4(r.x, r.y, r.x + r.width, r.y + r.height);
-        v.size = Vector4(0, 0, clip_.radius, 0);
         return v;
     }
 
@@ -175,36 +215,91 @@ namespace helix::ui
                     quad(Rect(xs[i], ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j]), Rect(us[i], vs[j], us[i + 1] - us[i], vs[j + 1] - vs[j]));
             return;
         }
-        f32 aspect = image.textureHeight > 0 ? image.textureWidth * image.uv.width / (image.textureHeight * image.uv.height) : 1;
-        f32 areaAspect = area.width / area.height;
-        switch (image.scaleMode)
+        // The image's size: lengths (auto keeps the texture's aspect), or covering or fitting the area.
+        f32 tw = image.textureWidth * image.uv.width, th = image.textureHeight * image.uv.height;
+        if (tw <= 0 || th <= 0)
+            return;
+        f32 w = tw, h = th;
+        if (image.sizeMode == UISizeMode::Cover || image.sizeMode == UISizeMode::Contain)
         {
-        case UIScaleMode::ScaleToFit:
-        {
-            // The whole image, as large as fits, centered.
-            f32 w = areaAspect > aspect ? area.height * aspect : area.width, h = areaAspect > aspect ? area.height : area.width / aspect;
-            quad(Rect(area.x + (area.width - w) * 0.5f, area.y + (area.height - h) * 0.5f, w, h), image.uv);
-            break;
+            f32 kx = area.width / tw, ky = area.height / th;
+            f32 k = image.sizeMode == UISizeMode::Cover ? (kx > ky ? kx : ky) : (kx < ky ? kx : ky);
+            w = tw * k, h = th * k;
         }
-        case UIScaleMode::ScaleAndCrop:
+        else
         {
-            // The area filled, the image's middle cut to its shape.
-            Rect uv = image.uv;
-            if (areaAspect > aspect)
+            bool autoX = image.size[0].IsAuto(), autoY = image.size[1].IsAuto();
+            f32 rx = Resolve(image.size[0], area.width), ry = Resolve(image.size[1], area.height);
+            if (!autoX && !autoY)
+                w = rx, h = ry;
+            else if (!autoX)
+                w = rx, h = rx * th / tw;
+            else if (!autoY)
+                h = ry, w = ry * tw / th;
+        }
+        // Round: as many whole tiles as fit best, stretched to fill the area.
+        f32 sizes[2] = {w, h};
+        const f32 extents[2] = {area.width, area.height};
+        for (u32 axis = 0; axis < 2; axis++)
+            if (image.repeat[axis] == UIRepeat::Round && sizes[axis] > 0)
             {
-                f32 keep = aspect / areaAspect;
-                uv = Rect(uv.x, uv.y + uv.height * (1 - keep) * 0.5f, uv.width, uv.height * keep);
+                f32 n = f32(i32(extents[axis] / sizes[axis] + 0.5f));
+                sizes[axis] = extents[axis] / (n < 1 ? 1 : n);
             }
-            else
+        w = sizes[0], h = sizes[1];
+        if (w < 0.25f || h < 0.25f)
+            return;
+        // The tiles' places per axis: the position (an offset from an edge, percentages of the free room), then
+        // the repetition.
+        const f32 starts[2] = {area.x, area.y};
+        Array<f32> places[2];
+        for (u32 axis = 0; axis < 2; axis++)
+        {
+            f32 size = sizes[axis], extent = extents[axis], start = starts[axis];
+            f32 free = extent - size;
+            f32 offset = Resolve(image.offset[axis], free);
+            f32 at = image.edge[axis] == UIEdge::Start ? offset : image.edge[axis] == UIEdge::Center ? free * 0.5f + offset : free - offset;
+            Array<f32>& out = places[axis];
+            switch (image.repeat[axis])
             {
-                f32 keep = areaAspect / aspect;
-                uv = Rect(uv.x + uv.width * (1 - keep) * 0.5f, uv.y, uv.width * keep, uv.height);
+            case UIRepeat::Repeat:
+            case UIRepeat::Round:
+            {
+                f32 first = image.repeat[axis] == UIRepeat::Round ? 0.0f : at - size * std::ceil(at / size);
+                for (f32 x = first; x < extent && out.Size() < 1024; x += size)
+                    if (x + size > 0)
+                        out.Push(start + x);
+                break;
             }
-            quad(area, uv);
-            break;
+            case UIRepeat::Space:
+            {
+                u32 n = u32(extent / size);
+                if (n >= 2)
+                {
+                    f32 gap = (extent - f32(n) * size) / f32(n - 1);
+                    for (u32 k = 0; k < n && k < 1024; k++)
+                        out.Push(start + f32(k) * (size + gap));
+                }
+                else
+                    out.Push(start + at);
+                break;
+            }
+            default: out.Push(start + at); break;
+            }
         }
-        default: quad(area, image.uv); break;
-        }
+        // Each tile cut to the area (its uv cut with it).
+        for (f32 y : places[1])
+            for (f32 x : places[0])
+            {
+                f32 x0 = x > area.x ? x : area.x, y0 = y > area.y ? y : area.y;
+                f32 x1 = x + w < area.x + area.width ? x + w : area.x + area.width;
+                f32 y1 = y + h < area.y + area.height ? y + h : area.y + area.height;
+                if (x1 <= x0 || y1 <= y0)
+                    continue;
+                Rect uv(image.uv.x + (x0 - x) / w * image.uv.width, image.uv.y + (y0 - y) / h * image.uv.height, (x1 - x0) / w * image.uv.width,
+                        (y1 - y0) / h * image.uv.height);
+                quad(Rect(x0, y0, x1 - x0, y1 - y0), uv);
+            }
     }
 
     void UIMesh::TexturedQuad(const Vector2 (&corners)[4], const Rect& uv, Color color, const void* texture, UIVertexKind kind, f32 edge, f32 scale)

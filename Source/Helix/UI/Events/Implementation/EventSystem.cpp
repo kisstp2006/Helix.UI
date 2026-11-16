@@ -1,4 +1,5 @@
 #include <Helix/UI/Events/EventSystem.h>
+#include <Helix/UI/Styles/Transforms.h>
 
 #include <Helix/UI/Layout/Layout.h>
 #include <Helix/UI/Styles/StyleEngine.h>
@@ -36,16 +37,6 @@ namespace helix::ui
         constexpr u8 kShift = 1;
 
         bool Inside(const Rect& r, Vector2 p) { return p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height; }
-
-        Rect Intersect(const Rect& a, const Rect& b)
-        {
-            f32 x0 = a.x > b.x ? a.x : b.x, y0 = a.y > b.y ? a.y : b.y;
-            f32 x1 = a.x + a.width < b.x + b.width ? a.x + a.width : b.x + b.width;
-            f32 y1 = a.y + a.height < b.y + b.height ? a.y + a.height : b.y + b.height;
-            return Rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0);
-        }
-
-        const Rect kEverywhere(-1e9f, -1e9f, 2e9f, 2e9f);
 
         bool Contains(const Array<ElementHandle>& list, ElementHandle e)
         {
@@ -136,8 +127,10 @@ namespace helix::ui
         if (!tree_.IsAlive(element) || !callbacks_.Has(element, e.type, trickleDown) || !tree_.EnabledInHierarchy(element))
             return false;
         e.currentTarget = element;
+        // The position in the element's space (its transforms undone), from its border box's top left.
         Rect r = layout_.WorldRect(element);
-        e.localPosition = Vector2(e.position.x - r.x, e.position.y - r.y);
+        Vector2 p = WorldTransform(tree_, layout_, styles_, element).Inverse().Apply(e.position);
+        e.localPosition = Vector2(p.x - r.x, p.y - r.y);
         // A copy: callbacks may add and remove callbacks.
         Span<const EventCallbacks::Callback> of = callbacks_.Of(element);
         Array<EventCallbacks::Callback> list;
@@ -164,7 +157,7 @@ namespace helix::ui
         return tree_.IsAlive(e);
     }
 
-    ElementHandle EventSystem::PickIn(ElementHandle e, Vector2 point, const Rect& clip, Array<ElementHandle>* all) const
+    ElementHandle EventSystem::PickIn(ElementHandle e, Vector2 point, const Affine& parent, Array<ElementHandle>* all) const
     {
         if (!tree_.IsAlive(e))
             return {};
@@ -172,22 +165,30 @@ namespace helix::ui
         if (s.layout.display == Display::None)
             return {};
         Rect r = layout_.WorldRect(e);
-        Rect inner = clip;
+        // The point in the element's untransformed space (its world map undone).
+        Affine local = LocalTransform(s, r);
+        Affine world = local.IsIdentity() ? parent : parent * local;
+        Vector2 p = world.IsIdentity() ? point : world.Inverse().Apply(point);
+        // Overflow hidden: the descendants only inside the clip box (the ancestors' clips were checked on the way).
+        bool inside = true;
         if (s.overflow == Overflow::Hidden)
         {
             const LayoutBox& b = layout_.Box(e);
-            inner = Intersect(clip, Rect(r.x + b.border[kLeft], r.y + b.border[kTop], r.width - b.border[kLeft] - b.border[kRight],
-                                         r.height - b.border[kTop] - b.border[kBottom]));
+            f32 edges[4] = {b.border[kLeft], b.border[kTop], b.border[kRight], b.border[kBottom]};
+            if (s.overflowClipBox == OverflowClipBox::ContentBox)
+                for (u32 k = 0; k < 4; k++)
+                    edges[k] += b.padding[k];
+            inside = Inside(Rect(r.x + edges[0], r.y + edges[1], r.width - edges[0] - edges[2], r.height - edges[1] - edges[3]), p);
         }
         // The children drawn last are on top.
-        if (Inside(inner, point))
+        if (inside)
             for (ElementHandle c = tree_.LastChild(e); c.IsValid(); c = tree_.PreviousSibling(c))
             {
-                ElementHandle hit = PickIn(c, point, inner, all);
+                ElementHandle hit = PickIn(c, point, world, all);
                 if (hit.IsValid())
                     return hit;
             }
-        if (tree_.Picking(e) == PickingMode::Position && s.visibility == Visibility::Visible && Inside(clip, point) && Inside(r, point))
+        if (tree_.Picking(e) == PickingMode::Position && s.visibility == Visibility::Visible && Inside(r, p))
         {
             if (!all)
                 return e;
@@ -196,12 +197,12 @@ namespace helix::ui
         return {};
     }
 
-    ElementHandle EventSystem::Pick(Vector2 point) const { return PickIn(root_, point, kEverywhere, nullptr); }
+    ElementHandle EventSystem::Pick(Vector2 point) const { return PickIn(root_, point, Affine(), nullptr); }
 
     void EventSystem::PickAll(Vector2 point, Array<ElementHandle>& out) const
     {
         out.Clear();
-        PickIn(root_, point, kEverywhere, &out);
+        PickIn(root_, point, Affine(), &out);
     }
 
     ElementHandle EventSystem::ElementUnderPointer(i32 pointerId) const

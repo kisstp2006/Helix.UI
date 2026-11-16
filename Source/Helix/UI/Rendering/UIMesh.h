@@ -4,11 +4,15 @@
 #include <Helix/Math/Color.h>
 #include <Helix/Math/Geometry.h>
 #include <Helix/Math/Vector.h>
+#include <Helix/UI/Core/Affine.h>
+#include <Helix/UI/Layout/LayoutStyle.h>
 
 // The geometry of a panel for the shader Hidden/UI/Default: indexed vertices in batches, each batch drawing with up to
 // four textures (its slots; a vertex names its slot). Shapes (rounded boxes with per side borders) are quads whose
 // fragments compute the box's distance; images and glyphs are textured quads; painted paths are triangles of flat
-// color. Every vertex carries the rounded rectangle it is clipped to. Pixels from the top left, colors premultiplied.
+// color. Every vertex carries its place in the rounded rectangle it is clipped to. Geometry goes through the mesh's
+// transform (an element's world map): positions are mapped, the distances shapes and glyphs are measured in are scaled
+// to pixels. Pixels from the top left, colors premultiplied.
 namespace helix::ui
 {
     enum class UIVertexKind : u8
@@ -35,17 +39,21 @@ namespace helix::ui
         Vector4 size;
         // Corner radii (top left, top right, bottom right, bottom left) and border widths (left, top, right, bottom).
         Vector4 radii, borders;
-        // The clip rectangle (x0, y0, x1, y1).
+        // The point's place in its clip rectangle (in pixels) and the rectangle's size.
         Vector4 clipRect;
     };
 
-    // A rounded clip rectangle (the whole plane when unbounded) with one corner radius (the shader takes one).
+    // A rounded clip rectangle (the whole plane when unbounded) with one corner radius (the shader takes one), in the
+    // space of the element that clips: toClip takes screen points there.
     struct UIClip
     {
         Rect rect = Rect(-1e6f, -1e6f, 2e6f, 2e6f);
         f32 radius = 0;
-        // The intersection with an inner clip (rectangles intersect; the corners are the inner one's).
-        UIClip Within(const Rect& inner, const Vector4& innerRadii) const;
+        Affine toClip;
+        // The intersection with an inner clip of an element whose world map is `frame` (the corners are the inner
+        // one's; this clip's rectangle is taken by its bounds in the inner one's space when the two spaces turn
+        // against each other).
+        UIClip Within(const Rect& inner, const Vector4& innerRadii, const Affine& frame = Affine()) const;
     };
 
     struct UIBatch
@@ -67,15 +75,35 @@ namespace helix::ui
         Color borderColors[4];
     };
 
-    enum class UIScaleMode : u8
+    // How a background image is sized: lengths (auto: the texture's own, keeping its aspect when the other is given),
+    // or as large as it covers or fits the area.
+    enum class UISizeMode : u8
     {
-        StretchToFill,
-        ScaleAndCrop,
-        ScaleToFit
+        Length,
+        Cover,
+        Contain
     };
 
-    // An image: a texture's uv rectangle (0 to 1, v down) into a rect, tinted, optionally 9-sliced (the slices in
-    // texture pixels, drawn at `sliceScale` screen pixels per texture pixel), inside a rounded box.
+    // Where an image sits on an axis: from the start (left, top), the middle or the end, with an offset.
+    enum class UIEdge : u8
+    {
+        Start,
+        Center,
+        End
+    };
+
+    // Repetition on an axis (the CSS background-repeat values).
+    enum class UIRepeat : u8
+    {
+        NoRepeat,
+        Space,
+        Round,
+        Repeat
+    };
+
+    // An image: a texture's uv rectangle (0 to 1, v down) into the area inside the borders, placed, sized and
+    // repeated per axis as CSS backgrounds are, tinted, or 9-sliced over the whole area (the slices in texture pixels,
+    // drawn at `sliceScale` screen pixels per texture pixel), inside a rounded box.
     struct UIImage
     {
         const void* texture = nullptr;
@@ -83,7 +111,13 @@ namespace helix::ui
         // The texture's size in pixels (for the scale modes and the slices).
         f32 textureWidth = 1, textureHeight = 1;
         Color tint = Color(1, 1, 1, 1);
-        UIScaleMode scaleMode = UIScaleMode::StretchToFill;
+        UISizeMode sizeMode = UISizeMode::Length;
+        // Lengths of the area (percentages) or pixels; the initial size fills the area.
+        Length size[2] = {Length::Percent(100), Length::Percent(100)};
+        UIEdge edge[2] = {UIEdge::Center, UIEdge::Center};
+        // Percentages of the free room (area minus image), or pixels.
+        Length offset[2] = {Length::Px(0), Length::Px(0)};
+        UIRepeat repeat[2] = {UIRepeat::NoRepeat, UIRepeat::NoRepeat};
         f32 slices[4] = {0, 0, 0, 0};
         f32 sliceScale = 1;
         // The texture's rows go up (a texture's own: v 0 at the bottom); the uv rectangle is then the whole of it.
@@ -100,6 +134,9 @@ namespace helix::ui
 
         void SetClip(const UIClip& clip) { clip_ = clip; }
         const UIClip& Clip() const { return clip_; }
+        // The map the following geometry goes through.
+        void SetTransform(const Affine& transform);
+        const Affine& Transform() const { return transform_; }
 
         // A filled and bordered box (the fill inside the borders; a border of four colors as four sides).
         void Shape(const UIShape& shape, f32 opacity);
@@ -119,12 +156,17 @@ namespace helix::ui
         // The batch and slot a texture goes to (a new batch when the current one's slots are taken).
         f32 Slot(const void* texture, u32 indexCount);
         UIVertex Base(UIVertexKind kind) const;
-        void Push(const UIVertex& v) { vertices_.Push(v); }
+        // A vertex through the transform, its place in the clip filled in.
+        void Push(UIVertex v);
         void QuadIndices(u32 base);
 
         Array<UIVertex> vertices_;
         Array<u32> indices_;
         Array<UIBatch> batches_;
         UIClip clip_;
+        Affine transform_;
+        // The transform's pixels per unit; whether it is the identity.
+        f32 scale_ = 1;
+        bool identity_ = true;
     };
 }

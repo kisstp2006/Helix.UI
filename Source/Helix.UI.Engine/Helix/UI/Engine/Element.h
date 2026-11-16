@@ -3,6 +3,7 @@
 #include <Helix/Core/Basics/Tags.h>
 #include <Helix/Core/Containers/Array.h>
 #include <Helix/Core/Strings/String.h>
+#include <Helix/Engine/Texture/Texture.h>
 #include <Helix/Math/Geometry.h>
 #include <Helix/Math/Vector.h>
 #include <Helix/Scripting/Bindings/Interop.h>
@@ -18,6 +19,8 @@
 namespace helix::ui
 {
     class Element;
+    class Panel;
+    class StyleSheet;
 
     HX_CLASS(Root, Owned, Namespace = "HelixEngine.UI", Abstract)
     class CallbackEventHandler
@@ -128,6 +131,15 @@ namespace helix::ui
         void SetViewDataKey(StringView value) { viewDataKey_ = String(value); }
         HX_FUNCTION() void MarkDirtyRepaint();
 
+        // ------------------------------------------------------------------------- styleSheets, for C#
+        HX_FUNCTION(Internal) i32 StyleSheetCount() const;
+        HX_FUNCTION(Internal) StyleSheet* StyleSheetAt(i32 index) const;
+        HX_FUNCTION(Internal) void AddStyleSheet(StyleSheet* sheet);
+        HX_FUNCTION(Internal) void InsertStyleSheet(i32 index, StyleSheet* sheet);
+        HX_FUNCTION(Internal) bool RemoveStyleSheet(StyleSheet* sheet);
+        HX_FUNCTION(Internal) bool ContainsStyleSheet(StyleSheet* sheet) const;
+        HX_FUNCTION(Internal) void ClearStyleSheets();
+
         // ----------------------------------------------------------------------- styles, for the C# side
         // The inline style by property name: a value's text, StyleKeyword Null (0: gone) or Initial (1), and what it
         // holds: its kind (-2 unset, -1 initial, else the value's kind), number, length unit, color, keyword, resource.
@@ -143,6 +155,27 @@ namespace helix::ui
         HX_FUNCTION(Internal) f32 ResolvedStyleNumber(StringView property) const;
         HX_FUNCTION(Internal) Color ResolvedStyleColor(StringView property) const;
         HX_FUNCTION(Internal) String ResolvedStyleWord(StringView property) const;
+        // Properties of several values: how many the inline style holds, and the index-th value's parts; the
+        // computed ones (lengths with their unit: 0 auto, 1 pixels, 2 percent; angles in degrees).
+        HX_FUNCTION(Internal) i32 InlineStyleCount(StringView property) const;
+        HX_FUNCTION(Internal) f32 InlineStyleNumberAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) i32 InlineStyleUnitAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) Color InlineStyleColorAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) String InlineStyleWordAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) f32 ResolvedStyleNumberAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) i32 ResolvedStyleUnitAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) Color ResolvedStyleColorAt(StringView property, i32 index) const;
+        HX_FUNCTION(Internal) String ResolvedStyleWordAt(StringView property, i32 index) const;
+        // A texture as a property's value (background-image, cursor with its hotspot; null: none), and the texture a
+        // value names (a texture set so, or a path found by the element's panel).
+        HX_FUNCTION(Internal) void SetInlineStyleTexture(StringView property, engine::Texture2D* texture, Vector2 hotspot);
+        HX_FUNCTION(Internal) engine::Texture2D* InlineStyleTexture(StringView property) const;
+        HX_FUNCTION(Internal) engine::Texture2D* ResolvedStyleTexture(StringView property) const;
+        // The custom properties (customStyle): whether the element declares one, its text (var() replaced), and the
+        // texture its url() or resource() names (as the element's panel finds it; null outside of one).
+        HX_FUNCTION(Internal) bool HasCustomStyle(StringView name) const;
+        HX_FUNCTION(Internal) String CustomStyleText(StringView name) const;
+        HX_FUNCTION(Internal) engine::Texture2D* CustomStyleTexture(StringView name) const;
 
         // ------------------------------------------------------------------------------------------- the boxes
         // The border box in the parent's space, in the panel's space, and the content box in the element's.
@@ -159,9 +192,15 @@ namespace helix::ui
         // ------------------------------------------------------------------------------------------ for C++
         // The world's hooks: kept while a script holds it, its object told when the element goes or moves.
         static void InstallHooks(ElementWorld& world);
-        // Panel roots count as being in a tree; their panel's events give the focus to the elements under them.
-        static void SetAnchored(ElementWorld& world, ElementHandle e, EventSystem* events);
-        // The events of the panel the element is in (null outside of one).
+        // Panel roots count as being in a tree; their panel gives the focus to the elements under them.
+        static void SetAnchored(ElementWorld& world, ElementHandle e, Panel* panel);
+        // Marks that an element took its type's behavior (true the first time).
+        static bool MarkAttached(ElementWorld& world, ElementHandle e);
+        // The object class of an element type (TemplateContainer, ...): Of makes such objects for its elements.
+        using ObjectMaker = Element* (*)(ElementWorld& world, ElementHandle e);
+        static void RegisterObjectClass(StringView type, ObjectMaker maker);
+        // The panel the element is in and its events (null outside of one).
+        Panel* panel() const;
         EventSystem* events() const;
         Element* AsElement() override { return this; }
         // Its C# object holds state (callbacks, userData): kept while the element is in a tree. Called from the C# side
@@ -183,9 +222,12 @@ namespace helix::ui
     protected:
         // The object of an existing element (Of makes them).
         Element(ElementWorld& world, ElementHandle e);
+        // A new element of a type (the classes of element types).
+        explicit Element(Atom type);
 
     private:
         friend struct scripting::ObjectHandles<CallbackEventHandler>;
+        engine::Texture2D* TextureOf(Atom resource) const;
         ElementTree& tree() const { return world_->tree(); }
         // The C# object held strongly while the element is in a tree, let go when it leaves.
         void UpdateRetain();
@@ -196,6 +238,8 @@ namespace helix::ui
         ElementWorld* world_ = nullptr;
         ElementHandle handle_;
         u64 retained_ = 0;
+        // Its type was named after its C# class.
+        bool named_ = false;
         String tooltip_, viewDataKey_;
     };
 }

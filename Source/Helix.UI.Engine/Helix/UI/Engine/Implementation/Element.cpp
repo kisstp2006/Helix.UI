@@ -1,11 +1,17 @@
 #include <Helix/UI/Engine/Element.h>
+#include <Helix/UI/Engine/Panel.h>
+#include <Helix/UI/Engine/TemplateContainer.h>
+#include <Helix/UI/Engine/UIAssets.h>
+#include <Helix/UI/Styles/Transforms.h>
 
 #include <Helix/Core/Containers/HashMap.h>
+#include <Helix/Scripting/Scripts/NativeHandleClass.h>
 #include <Helix/UI/Styles/Properties.h>
 
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <new>
 
 namespace helix::ui
 {
@@ -15,8 +21,10 @@ namespace helix::ui
         struct Registry
         {
             Array<Element*> bySlot;
-            // The panel roots' event systems (null for the other slots).
-            Array<EventSystem*> anchored;
+            // The panels of the panel roots (null for the other slots).
+            Array<Panel*> anchored;
+            // The generation of each slot whose element took its type's behavior.
+            Array<u32> attached;
             bool hooked = false;
         };
 
@@ -39,6 +47,12 @@ namespace helix::ui
             if (!r)
                 r = new Registry();
             return *r;
+        }
+
+        HashMap<Atom, Element::ObjectMaker>& Makers()
+        {
+            static auto* m = new HashMap<Atom, Element::ObjectMaker>();
+            return *m;
         }
 
         Element* SlotObject(Registry& r, ElementHandle e)
@@ -149,6 +163,371 @@ namespace helix::ui
                 e->KeepScriptState();
         }
 
+        // ------------------------------------------------------------------------- element types of script classes
+
+        // A type of a C# class (managed: its index on the C# side) or of a C++ class of a game module (native): its
+        // markup name and its class's name (the type of its elements, what type selectors match), the markup
+        // attributes it reads and the type it derives from (whose attributes, painting and behavior it keeps).
+        struct ScriptType
+        {
+            Atom name = kNoAtom;
+            Atom className = kNoAtom;
+            i32 managed = -1;
+            const scripting::NativeHandleClass* native = nullptr;
+            Array<Atom> attributes;
+            // C++: the field of each attribute.
+            Array<const scripting::NativeHandleField*> fields;
+            Atom base = kNoAtom;
+        };
+
+        // The C++ part of an element: the object of its type's class, made over the element's object.
+        struct Part
+        {
+            u32 generation = ~0u;
+            void* object = nullptr;
+            const scripting::NativeHandleClass* c = nullptr;
+        };
+
+        struct Types
+        {
+            HashMap<Atom, ScriptType*> byName;
+            // The C# side makes a C# class's object (its index), given its attributes (names and values, each ended by
+            // a zero), and answers its element (index << 32 | generation; 0 when it could not); and it names the C#
+            // class of an object (by its wrapper) into a buffer, answering the length.
+            u64 (*factory)(i32 managed, const char* attributes, i32 length) = nullptr;
+            i32 (*namer)(u64 wrapper, char* buffer, i32 capacity) = nullptr;
+            Array<Part> parts;
+        };
+
+        Types& T()
+        {
+            static Types* t = new Types();
+            return *t;
+        }
+
+        // A member's name as an attribute: myValue is my-value.
+        String Kebab(StringView name)
+        {
+            String out;
+            for (usize i = 0; i < name.Size(); i++)
+            {
+                char c = name[i];
+                bool upper = c >= 'A' && c <= 'Z';
+                if (upper && i > 0 && ((name[i - 1] >= 'a' && name[i - 1] <= 'z') || (name[i - 1] >= '0' && name[i - 1] <= '9')))
+                    out.Append('-');
+                out.Append(upper ? char(c - 'A' + 'a') : c);
+            }
+            return out;
+        }
+
+        ScriptType* ScriptTypeOf(Atom name)
+        {
+            ScriptType** found = T().byName.Find(name);
+            return found ? *found : nullptr;
+        }
+
+        // The index of an attribute in the type or its script bases (-1: none of them reads it); the type that does.
+        i32 FindAttribute(ScriptType* t, Atom name, ScriptType*& owner)
+        {
+            for (u32 depth = 0; t && depth < 32; depth++, t = ScriptTypeOf(t->base))
+                for (u32 i = 0; i < t->attributes.Size(); i++)
+                    if (t->attributes[i] == name)
+                    {
+                        owner = t;
+                        return i32(i);
+                    }
+            return -1;
+        }
+
+        // The type below the script types of a chain (Element, Label, ...): its handlers read what the classes do not.
+        const ElementType* NativeBase(ScriptType* t)
+        {
+            for (u32 depth = 0; t && depth < 32; depth++)
+            {
+                ScriptType* next = ScriptTypeOf(t->base);
+                if (!next)
+                    return FindElementType(t->base);
+                t = next;
+            }
+            return nullptr;
+        }
+
+        bool NativeAttribute(ScriptType* t, ElementTree& tree, ElementHandle e, const HxmlAttribute& a)
+        {
+            const ElementType* base = NativeBase(t);
+            return base && base->attributes && base->attributes(tree, e, AtomName(a.name), a.value.View());
+        }
+
+        // Where the markup's children go: the content container of the element's object (its class may name another).
+        ElementHandle ObjectContent(ElementTree& tree, ElementHandle e)
+        {
+            ElementWorld& world = ElementWorld::Main();
+            if (&tree != &world.tree())
+                return e;
+            Element* x = Element::Of(world, e);
+            Element* c = x ? x->contentContainer() : nullptr;
+            return c && c->alive() ? c->handle() : e;
+        }
+
+        ElementHandle CreateManaged(ElementTree& tree, Atom type, Span<const HxmlAttribute> attributes, Array<Atom>& unknown)
+        {
+            ScriptType* t = ScriptTypeOf(type);
+            if (!t || !T().factory || &tree != &ElementWorld::Main().tree())
+                return {};
+            // What the classes read goes to the C# object; the rest to the type below them, once the element is there.
+            String packed;
+            Array<const HxmlAttribute*> rest;
+            for (const HxmlAttribute& a : attributes)
+            {
+                ScriptType* owner = nullptr;
+                if (FindAttribute(t, a.name, owner) >= 0)
+                {
+                    packed.Append(AtomName(a.name));
+                    packed.Append('\0');
+                    packed.Append(a.value.View());
+                    packed.Append('\0');
+                }
+                else
+                    rest.Push(&a);
+            }
+            u64 made = T().factory(t->managed, packed.Data(), i32(packed.Size()));
+            ElementHandle e{u32(made >> 32), u32(made)};
+            if (!made || !tree.IsAlive(e))
+                return {};
+            for (const HxmlAttribute* a : rest)
+                if (!NativeAttribute(t, tree, e, *a))
+                    unknown.Push(a->name);
+            return e;
+        }
+
+        // A field of a C++ class from the markup's text, by its kind.
+        bool SetField(void* object, const scripting::NativeHandleField& f, StringView text)
+        {
+            using K = scripting::NativeValueKind;
+            StringView t = text.Trimmed();
+            switch (f.kind)
+            {
+            case K::Bool:
+            {
+                if (t != StringView("true") && t != StringView("false"))
+                    return false;
+                bool v = t == StringView("true");
+                f.set(object, &v);
+                return true;
+            }
+            case K::I32:
+            case K::I64:
+            {
+                i64 v = 0;
+                bool negative = !t.Empty() && t[0] == '-';
+                usize i = negative || (!t.Empty() && t[0] == '+') ? 1 : 0;
+                if (i >= t.Size())
+                    return false;
+                for (; i < t.Size(); i++)
+                {
+                    if (t[i] < '0' || t[i] > '9')
+                        return false;
+                    v = v * 10 + (t[i] - '0');
+                }
+                v = negative ? -v : v;
+                if (f.kind == K::I32)
+                {
+                    i32 n = i32(v);
+                    f.set(object, &n);
+                }
+                else
+                    f.set(object, &v);
+                return true;
+            }
+            case K::F32:
+            case K::F64:
+            {
+                // Numbers as HSS reads them (one reader for the markup of both languages).
+                Array<StyleValue> values;
+                String error;
+                if (!ParseValue(FindProperty("opacity"), t, values, error) || values.Empty())
+                    return false;
+                if (f.kind == K::F32)
+                    f.set(object, &values[0].number);
+                else
+                {
+                    f64 d = values[0].number;
+                    f.set(object, &d);
+                }
+                return true;
+            }
+            case K::String:
+            {
+                String v(text);
+                f.set(object, &v);
+                return true;
+            }
+            case K::Color:
+            {
+                Array<StyleValue> values;
+                String error;
+                if (!ParseValue(FindProperty("color"), t, values, error) || values.Empty())
+                    return false;
+                f.set(object, &values[0].color);
+                return true;
+            }
+            }
+            return false;
+        }
+
+        void DestroyPart(ElementHandle e)
+        {
+            Types& s = T();
+            if (e.index >= s.parts.Size() || s.parts[e.index].generation != e.generation || !s.parts[e.index].object)
+                return;
+            Part p = s.parts[e.index];
+            s.parts[e.index] = Part();
+            p.c->destroy(p.object);
+            ::operator delete(p.object, std::align_val_t(p.c->alignment));
+        }
+
+        ElementHandle CreateNative(ElementTree& tree, Atom type, Span<const HxmlAttribute> attributes, Array<Atom>& unknown)
+        {
+            ScriptType* t = ScriptTypeOf(type);
+            ElementWorld& world = ElementWorld::Main();
+            if (!t || !t->native || &tree != &world.tree())
+                return {};
+            // An element of the class's type; its C++ object made over the element's object (its handle refers to it in
+            // its constructor).
+            ElementHandle e = tree.Create(t->className);
+            Element* x = Element::Of(world, e);
+            const scripting::NativeHandleClass& c = *t->native;
+            void* memory = ::operator new(c.size, std::align_val_t(c.alignment));
+            void* object = c.construct(memory, x->Id());
+            Types& s = T();
+            if (s.parts.Size() <= e.index)
+                s.parts.Resize(e.index + 1);
+            s.parts[e.index] = Part{e.generation, object, &c};
+            for (const HxmlAttribute& a : attributes)
+            {
+                ScriptType* owner = nullptr;
+                i32 i = FindAttribute(t, a.name, owner);
+                if (i >= 0 && owner->native)
+                {
+                    if (!SetField(object, *owner->fields[u32(i)], a.value.View()))
+                        unknown.Push(a.name);
+                }
+                else if (!NativeAttribute(t, tree, e, a))
+                    unknown.Push(a.name);
+            }
+            return e;
+        }
+
+        void UnregisterScriptType(ScriptType* t)
+        {
+            Types& s = T();
+            for (Atom name : {t->name, t->className})
+            {
+                s.byName.Remove(name);
+                UnregisterElementType(name);
+            }
+            delete t;
+        }
+
+        // Registers a type of a script class below a base type (its painting and behavior kept), by its markup name and
+        // its class's name.
+        void RegisterScriptType(ScriptType* t, CreateHandler create)
+        {
+            for (Atom name : {t->name, t->className})
+                if (ScriptType* old = ScriptTypeOf(name))
+                    UnregisterScriptType(old);
+            ElementType type;
+            if (const ElementType* base = NativeBase(t))
+            {
+                type.attributes = nullptr;
+                type.paint = base->paint;
+                type.attach = base->attach;
+            }
+            type.create = create;
+            type.content = &ObjectContent;
+            for (Atom name : {t->name, t->className})
+            {
+                T().byName.Set(name, t);
+                type.name = name;
+                RegisterElementType(type);
+            }
+        }
+
+        // The C# side registers its classes with HxmlElement: their markup name and class name, index, attributes (each
+        // ended by a zero) and the type they derive from.
+        void RegisterManagedClass(const char* name, i32 nameLength, const char* className, i32 classLength, i32 managed, const char* attributes,
+                                  i32 attributesLength, const char* base, i32 baseLength)
+        {
+            auto* t = new ScriptType();
+            t->name = Intern(StringView(name, usize(nameLength)));
+            t->className = Intern(StringView(className, usize(classLength)));
+            t->managed = managed;
+            t->base = Intern(baseLength > 0 ? StringView(base, usize(baseLength)) : StringView("Element"));
+            StringView list(attributes, usize(attributesLength));
+            usize at = 0;
+            while (at < list.Size())
+            {
+                usize end = list.Find('\0', at);
+                if (end == StringView::npos)
+                    end = list.Size();
+                if (end > at)
+                    t->attributes.Push(Intern(list.Substr(at, end - at)));
+                at = end + 1;
+            }
+            RegisterScriptType(t, &CreateManaged);
+        }
+
+        void SetElementFactory(void* factory, void* namer)
+        {
+            T().factory = std::bit_cast<u64 (*)(i32, const char*, i32)>(factory);
+            T().namer = std::bit_cast<i32 (*)(u64, char*, i32)>(namer);
+        }
+
+        // C++ classes of game modules deriving from the script API's Element (HX_CLASS(HxmlElement)).
+        void OnNativeClass(const scripting::NativeHandleClass& c, bool added, void*)
+        {
+            const scripting::NativeTag* tag = c.Tag("HxmlElement");
+            Atom name = Intern(tag && !tag->value.Empty() ? tag->value : c.name);
+            if (!added)
+            {
+                // Its code goes with its module: the parts made of it first.
+                Types& s = T();
+                for (u32 i = 0; i < s.parts.Size(); i++)
+                    if (s.parts[i].c == &c)
+                        DestroyPart(ElementHandle{i, s.parts[i].generation});
+                if (ScriptType* t = ScriptTypeOf(name); t && t->native == &c)
+                    UnregisterScriptType(t);
+                return;
+            }
+            if (!tag)
+                return;
+            auto* t = new ScriptType();
+            t->name = name;
+            t->className = Intern(c.name);
+            t->native = &c;
+            t->base = Intern("Element");
+            for (const scripting::NativeHandleField& f : c.fields)
+                for (const scripting::NativeTag& ft : f.tags)
+                    if (ft.key == StringView("HxmlAttribute"))
+                    {
+                        t->attributes.Push(Intern(ft.value.Empty() ? Kebab(f.name).View() : ft.value));
+                        t->fields.Push(&f);
+                    }
+            RegisterScriptType(t, &CreateNative);
+        }
+
+        void* LookupPart(u64 id, const void* key, void*)
+        {
+            Element* x = ElementById(id);
+            if (!x || !x->alive())
+                return nullptr;
+            ElementHandle e = x->handle();
+            const Types& s = T();
+            if (e.index >= s.parts.Size() || s.parts[e.index].generation != e.generation || !s.parts[e.index].c || s.parts[e.index].c->key != key)
+                return nullptr;
+            return s.parts[e.index].object;
+        }
+
         struct ExportRegistrar
         {
             ExportRegistrar()
@@ -160,12 +539,17 @@ namespace helix::ui
                 scripting::RegisterNativeExport("HelixUI.EventTypeId", std::bit_cast<const void*>(&EventTypeIdOf));
                 scripting::RegisterNativeExport("HelixUI.RegisterCallback", std::bit_cast<const void*>(&RegisterManaged));
                 scripting::RegisterNativeExport("HelixUI.SendEvent", std::bit_cast<const void*>(&SendEventTo));
+                scripting::RegisterNativeExport("HelixUI.RegisterElementClass", std::bit_cast<const void*>(&RegisterManagedClass));
+                scripting::RegisterNativeExport("HelixUI.SetElementFactory", std::bit_cast<const void*>(&SetElementFactory));
+                // The element types of C++ classes of game modules.
+                scripting::SetNativeHandleHandler("HelixEngine.UI.Element", &OnNativeClass, nullptr);
+                scripting::SetNativeHandleLookup("HelixEngine.UI.Element", &LookupPart, nullptr);
             }
         };
         const ExportRegistrar registrar;
 
-        // The event system of the panel whose root holds an element.
-        EventSystem* EventsOf(ElementWorld& world, ElementHandle e)
+        // The panel whose root holds an element.
+        Panel* PanelOf(ElementWorld& world, ElementHandle e)
         {
             ElementHandle top = e;
             for (ElementHandle p = world.tree().Parent(e); p.IsValid(); p = world.tree().Parent(p))
@@ -193,10 +577,12 @@ namespace helix::ui
 
     // ----------------------------------------------------------------------------------------------------- Element
 
-    Element::Element() : world_(&ElementWorld::Main())
+    Element::Element() : Element(Intern("Element")) {}
+
+    Element::Element(Atom type) : world_(&ElementWorld::Main())
     {
         InstallHooks(*world_);
-        handle_ = tree().Create(Intern("Element"));
+        handle_ = tree().Create(type);
         Registry& r = RegistryOf(*world_);
         if (r.bySlot.Size() <= handle_.index)
             r.bySlot.Resize(handle_.index + 1);
@@ -238,7 +624,73 @@ namespace helix::ui
             return nullptr;
         if (Element* x = SlotObject(RegistryOf(world), e))
             return x;
+        // The object class of its type, or an Element.
+        if (ObjectMaker* maker = Makers().Find(world.tree().Type(e)))
+            return (*maker)(world, e);
         return new Element(world, e);
+    }
+
+    void Element::RegisterObjectClass(StringView type, ObjectMaker maker) { Makers().Set(Intern(type), maker); }
+
+    bool Element::MarkAttached(ElementWorld& world, ElementHandle e)
+    {
+        Registry& r = RegistryOf(world);
+        if (!world.tree().IsAlive(e))
+            return false;
+        if (r.attached.Size() <= e.index)
+            r.attached.Resize(e.index + 1, ~0u);
+        if (r.attached[e.index] == e.generation)
+            return false;
+        r.attached[e.index] = e.generation;
+        return true;
+    }
+
+    // ---------------------------------------------------------------------------------------- styleSheets
+
+    i32 Element::StyleSheetCount() const { return alive() ? i32(world_->styles().StyleSheets(handle_).Size()) : 0; }
+
+    StyleSheet* Element::StyleSheetAt(i32 index) const
+    {
+        if (!alive() || index < 0)
+            return nullptr;
+        auto sheets = world_->styles().StyleSheets(handle_);
+        return usize(index) < sheets.Size() ? StyleSheet::Of(sheets[usize(index)].get()) : nullptr;
+    }
+
+    void Element::AddStyleSheet(StyleSheet* sheet)
+    {
+        if (alive() && sheet && !ContainsStyleSheet(sheet))
+            world_->styles().AddStyleSheet(handle_, sheet->sheet());
+    }
+
+    void Element::InsertStyleSheet(i32 index, StyleSheet* sheet)
+    {
+        if (alive() && sheet && !ContainsStyleSheet(sheet))
+            world_->styles().InsertStyleSheet(handle_, index < 0 ? 0u : u32(index), sheet->sheet());
+    }
+
+    bool Element::RemoveStyleSheet(StyleSheet* sheet)
+    {
+        if (!alive() || !sheet || !ContainsStyleSheet(sheet))
+            return false;
+        world_->styles().RemoveStyleSheet(handle_, sheet->sheet().get());
+        return true;
+    }
+
+    bool Element::ContainsStyleSheet(StyleSheet* sheet) const
+    {
+        if (!alive() || !sheet)
+            return false;
+        for (const auto& s : world_->styles().StyleSheets(handle_))
+            if (s.get() == sheet->sheet().get())
+                return true;
+        return false;
+    }
+
+    void Element::ClearStyleSheets()
+    {
+        if (alive())
+            world_->styles().ClearStyleSheets(handle_);
     }
 
     Element* Element::FromHandle(u32 index, u32 generation) { return Of(ElementWorld::Main(), ElementHandle{index, generation}); }
@@ -257,12 +709,12 @@ namespace helix::ui
         world.tree().SetHooks(hooks);
     }
 
-    void Element::SetAnchored(ElementWorld& world, ElementHandle e, EventSystem* events)
+    void Element::SetAnchored(ElementWorld& world, ElementHandle e, Panel* panel)
     {
         Registry& r = RegistryOf(world);
         if (r.anchored.Size() <= e.index)
             r.anchored.Resize(e.index + 1);
-        r.anchored[e.index] = events;
+        r.anchored[e.index] = panel;
         if (Element* x = SlotObject(r, e))
             x->UpdateRetain();
     }
@@ -279,7 +731,12 @@ namespace helix::ui
         Registry& r = RegistryOf(world);
         if (e.index < r.anchored.Size())
             r.anchored[e.index] = nullptr;
+        if (e.index < r.attached.Size())
+            r.attached[e.index] = ~0u;
         world.callbacks().Clear(e);
+        // Its C++ part goes with it.
+        if (&world == &ElementWorld::Main())
+            DestroyPart(e);
         // Only objects no script holds go with their element (Keep took the others out).
         if (Element* x = SlotObject(r, e))
         {
@@ -297,6 +754,19 @@ namespace helix::ui
 
     void Element::UpdateRetain()
     {
+        // A C# class's object: its elements' type is the class's name (what type selectors match), asked once.
+        if (!named_ && Wrapper() != 0 && alive() && T().namer)
+        {
+            named_ = true;
+            char buffer[256];
+            i32 n = T().namer(Wrapper(), buffer, i32(sizeof(buffer)));
+            if (n > 0 && n <= i32(sizeof(buffer)))
+            {
+                Atom type = Intern(StringView(buffer, usize(n)));
+                if (tree().Type(handle_) != type)
+                    tree().SetType(handle_, type);
+            }
+        }
         bool inTree = alive() && (tree().Parent(handle_).IsValid() || Anchored(RegistryOf(*world_), handle_));
         if (inTree && !retained_ && Wrapper() != 0)
             retained_ = scripting::RetainWrapper(Wrapper());
@@ -316,7 +786,15 @@ namespace helix::ui
 
     Element* Element::parent() const { return alive() ? Of(*world_, tree().Parent(handle_)) : nullptr; }
 
-    Element* Element::contentContainer() { return this; }
+    Element* Element::contentContainer()
+    {
+        // Itself, unless a template names its content container.
+        if (!alive())
+            return this;
+        ElementHandle c = tree().ContentContainer(handle_);
+        Element* x = c == handle_ ? this : Of(*world_, c);
+        return x ? x : this;
+    }
 
     i32 Element::HierarchyChildCount() const { return alive() ? i32(tree().ChildCount(handle_)) : 0; }
 
@@ -549,7 +1027,13 @@ namespace helix::ui
             tree().SetDelegatesFocus(handle_, value);
     }
 
-    EventSystem* Element::events() const { return alive() ? EventsOf(*world_, handle_) : nullptr; }
+    Panel* Element::panel() const { return alive() ? PanelOf(*world_, handle_) : nullptr; }
+
+    EventSystem* Element::events() const
+    {
+        Panel* p = panel();
+        return p ? &p->events() : nullptr;
+    }
 
     // The focus is a panel's: outside of one an element cannot take it.
     bool Element::canGrabFocus() const
@@ -766,6 +1250,165 @@ namespace helix::ui
         return WordOf(id, Property(id).get(world_->styles().Computed(handle_)));
     }
 
+    bool Element::HasCustomStyle(StringView name) const
+    {
+        String text;
+        return alive() && world_->styles().CustomProperty(handle_, name, text);
+    }
+
+    String Element::CustomStyleText(StringView name) const
+    {
+        String text;
+        if (alive())
+            world_->styles().CustomProperty(handle_, name, text);
+        return text;
+    }
+
+    engine::Texture2D* Element::CustomStyleTexture(StringView name) const
+    {
+        String text;
+        Panel* p = panel();
+        if (!p || !p->Host() || !world_->styles().CustomProperty(handle_, name, text))
+            return nullptr;
+        // url("path") or resource("path").
+        StringView t = text.View().Trimmed();
+        usize open = t.Find('(');
+        usize close = t.Find(')');
+        if (open == StringView::npos || close == StringView::npos || close < open)
+            return nullptr;
+        StringView inside = t.Substr(open + 1, close - open - 1).Trimmed();
+        if (inside.Size() >= 2 && (inside[0] == '"' || inside[0] == '\''))
+            inside = inside.Substr(1, inside.Size() - 2);
+        return p->Host()->TextureAt(Intern(inside));
+    }
+
+    namespace
+    {
+        // The computed values of a property.
+        u32 ComputedValues(const ElementWorld& world, ElementHandle e, StringView property, StyleValue (&out)[kMaxValues])
+        {
+            PropertyId id = FindProperty(property);
+            if (id == kNoProperty)
+                return 0;
+            return GetValues(Property(id), const_cast<ElementWorld&>(world).styles().Computed(e), out);
+        }
+
+        f32 NumberOf(const StyleValue& v) { return v.kind == StyleValue::Kind::Length ? v.length.value : v.kind == StyleValue::Kind::Angle ? AngleDegrees(v) : v.number; }
+
+        i32 UnitOf(const StyleValue& v) { return v.kind == StyleValue::Kind::Length ? i32(v.length.unit) : 1; }
+    }
+
+    i32 Element::InlineStyleCount(StringView property) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial))
+            return 0;
+        return i32(v.Size());
+    }
+
+    f32 Element::InlineStyleNumberAt(StringView property, i32 index) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial) || index < 0 || usize(index) >= v.Size())
+            return 0;
+        return NumberOf(v[usize(index)]);
+    }
+
+    i32 Element::InlineStyleUnitAt(StringView property, i32 index) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial) || index < 0 || usize(index) >= v.Size())
+            return 0;
+        return UnitOf(v[usize(index)]);
+    }
+
+    Color Element::InlineStyleColorAt(StringView property, i32 index) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial) || index < 0 || usize(index) >= v.Size())
+            return Color(0, 0, 0, 0);
+        return v[usize(index)].color;
+    }
+
+    String Element::InlineStyleWordAt(StringView property, i32 index) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial) || index < 0 || usize(index) >= v.Size())
+            return String();
+        return WordOf(FindProperty(property), v[usize(index)]);
+    }
+
+    f32 Element::ResolvedStyleNumberAt(StringView property, i32 index) const
+    {
+        StyleValue v[kMaxValues];
+        u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;
+        return index >= 0 && u32(index) < n ? NumberOf(v[index]) : 0.0f;
+    }
+
+    i32 Element::ResolvedStyleUnitAt(StringView property, i32 index) const
+    {
+        StyleValue v[kMaxValues];
+        u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;
+        return index >= 0 && u32(index) < n ? UnitOf(v[index]) : 0;
+    }
+
+    Color Element::ResolvedStyleColorAt(StringView property, i32 index) const
+    {
+        StyleValue v[kMaxValues];
+        u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;
+        return index >= 0 && u32(index) < n ? v[index].color : Color(0, 0, 0, 0);
+    }
+
+    String Element::ResolvedStyleWordAt(StringView property, i32 index) const
+    {
+        StyleValue v[kMaxValues];
+        u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;
+        return index >= 0 && u32(index) < n ? WordOf(FindProperty(property), v[index]) : String();
+    }
+
+    void Element::SetInlineStyleTexture(StringView property, engine::Texture2D* texture, Vector2 hotspot)
+    {
+        PropertyId id = FindProperty(property);
+        if (!alive() || id == kNoProperty)
+            return;
+        // Textures set from scripts are their objects' ids in the style (paths are the sheets').
+        Atom resource = EntityResource(texture);
+        StyleValue values[3] = {StyleValue::OfResource(resource), StyleValue::OfNumber(hotspot.x), StyleValue::OfNumber(hotspot.y)};
+        u32 count = Property(id).count >= 3 ? 3u : 1u;
+        world_->styles().SetInlineValues(handle_, id, Span<const StyleValue>(values, count));
+    }
+
+    engine::Texture2D* Element::TextureOf(Atom resource) const
+    {
+        if (resource == kNoAtom)
+            return nullptr;
+        if (engine::Texture2D* set = EntityResourceTexture(AtomName(resource)))
+            return set;
+        Panel* p = panel();
+        return p && p->Host() ? p->Host()->TextureAt(resource) : nullptr;
+    }
+
+    engine::Texture2D* Element::InlineStyleTexture(StringView property) const
+    {
+        Array<StyleValue> v;
+        bool initial = false;
+        if (!alive() || !InlineOf(*world_, handle_, property, v, initial) || v.Empty() || v[0].kind != StyleValue::Kind::Resource)
+            return nullptr;
+        return TextureOf(v[0].resource);
+    }
+
+    engine::Texture2D* Element::ResolvedStyleTexture(StringView property) const
+    {
+        StyleValue v[kMaxValues];
+        u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;
+        return n > 0 && v[0].kind == StyleValue::Kind::Resource ? TextureOf(v[0].resource) : nullptr;
+    }
+
     // -------------------------------------------------------------------------------------------- the boxes
 
     Rect Element::layout() const
@@ -776,7 +1419,15 @@ namespace helix::ui
         return Rect(b.x, b.y, b.width, b.height);
     }
 
-    Rect Element::worldBound() const { return alive() ? world_->layout().WorldRect(handle_) : Rect(); }
+    Rect Element::worldBound() const
+    {
+        if (!alive())
+            return Rect();
+        // The bounds of the border box as shown (its transforms and its ancestors').
+        Rect r = world_->layout().WorldRect(handle_);
+        Affine m = WorldTransform(world_->tree(), world_->layout(), world_->styles(), handle_);
+        return m.IsIdentity() ? r : m.Bounds(r);
+    }
 
     Rect Element::localBound() const { return layout(); }
 
@@ -805,14 +1456,19 @@ namespace helix::ui
 
     Vector2 Element::WorldToLocal(Vector2 p) const
     {
-        Rect w = worldBound();
-        return Vector2(p.x - w.x, p.y - w.y);
+        if (!alive())
+            return p;
+        Rect r = world_->layout().WorldRect(handle_);
+        Vector2 q = WorldTransform(world_->tree(), world_->layout(), world_->styles(), handle_).Inverse().Apply(p);
+        return Vector2(q.x - r.x, q.y - r.y);
     }
 
     Vector2 Element::LocalToWorld(Vector2 p) const
     {
-        Rect w = worldBound();
-        return Vector2(p.x + w.x, p.y + w.y);
+        if (!alive())
+            return p;
+        Rect r = world_->layout().WorldRect(handle_);
+        return WorldTransform(world_->tree(), world_->layout(), world_->styles(), handle_).Apply(Vector2(p.x + r.x, p.y + r.y));
     }
 
     Vector2 Element::ChangeCoordinatesTo(Element* dest, Vector2 point) const
@@ -825,4 +1481,30 @@ namespace helix::ui
 helix::ui::CallbackEventHandler* helix::scripting::ObjectHandles<helix::ui::CallbackEventHandler>::FromId(u64 id)
 {
     return ui::CallbackEventHandler::Find(id);
+}
+
+// ---------------------------------------------------------------------------------------------- TemplateContainer
+
+namespace helix::ui
+{
+    namespace
+    {
+        struct TemplateContainerClass
+        {
+            TemplateContainerClass()
+            {
+                Element::RegisterObjectClass("TemplateContainer", [](ElementWorld& world, ElementHandle e) -> Element* { return new TemplateContainer(world, e); });
+            }
+        } templateContainerClass;
+    }
+
+    TemplateContainer::TemplateContainer() : Element(Intern("TemplateContainer")) {}
+
+    TemplateContainer::TemplateContainer(StringView templateId) : Element(Intern("TemplateContainer")), templateId_(templateId) {}
+
+    scripting::TypeId TemplateContainer::HelixType() const { return scripting::TypeOf<TemplateContainer>(); }
+
+    UITemplate* TemplateContainer::templateSource() const { return ScriptObjectAs<UITemplate>(source_.Get()); }
+
+    void TemplateContainer::SetTemplateSource(UITemplate* source) { source_ = engine::PPtr<engine::Object>(source); }
 }

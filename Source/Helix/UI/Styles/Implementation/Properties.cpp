@@ -18,7 +18,21 @@ namespace helix::ui
         case Kind::Color: return color.r == o.color.r && color.g == o.color.g && color.b == o.color.b && color.a == o.color.a;
         case Kind::Keyword: return keyword == o.keyword;
         case Kind::Resource: return resource == o.resource;
+        case Kind::Angle: return number == o.number && keyword == o.keyword;
         default: return true;
+        }
+    }
+
+    f32 AngleDegrees(const StyleValue& v)
+    {
+        if (v.kind != StyleValue::Kind::Angle)
+            return v.number;
+        switch (AngleUnit(v.keyword))
+        {
+        case AngleUnit::Gradian: return v.number * 0.9f;
+        case AngleUnit::Radian: return v.number * 57.29577951308232f;
+        case AngleUnit::Turn: return v.number * 360.0f;
+        default: return v.number;
         }
     }
 
@@ -33,12 +47,19 @@ namespace helix::ui
         const StringView kVisibility[] = {"visible", "hidden"};
         const StringView kOverflow[] = {"visible", "hidden"};
         const StringView kEasings[] = {"ease", "linear", "ease-in", "ease-out", "ease-in-out"};
-        const StringView kScaleModes[] = {"stretch-to-fill", "scale-and-crop", "scale-to-fit"};
         const StringView kFontStyles[] = {"normal", "bold", "italic", "bold-and-italic"};
         const StringView kTextAnchors[] = {"upper-left", "upper-center", "upper-right", "middle-left", "middle-center",
                                            "middle-right", "lower-left", "lower-center", "lower-right"};
         const StringView kWhiteSpaces[] = {"normal", "nowrap", "pre", "pre-wrap"};
         const StringView kTextOverflows[] = {"clip", "ellipsis"};
+        const StringView kPositionKeywords[] = {"center", "top", "bottom", "left", "right"};
+        const StringView kRepeats[] = {"no-repeat", "space", "round", "repeat"};
+        const StringView kSizeTypes[] = {"length", "cover", "contain"};
+        const StringView kOverflowPositions[] = {"end", "start", "middle"};
+        const StringView kClipBoxes[] = {"padding-box", "content-box"};
+        const StringView kCursors[] = {"arrow", "text", "resize-vertical", "resize-horizontal", "link", "slide-arrow", "resize-up-right",
+                                       "resize-up-left", "move-arrow", "rotate-arrow", "scale-arrow", "arrow-plus", "arrow-minus", "pan", "orbit",
+                                       "zoom", "fps", "split-resize-up-down", "split-resize-left-right", "not-allowed", "wait", "crosshair"};
 
         template <usize N>
         Span<const StringView> Words(const StringView (&words)[N])
@@ -57,6 +78,9 @@ namespace helix::ui
         StyleValue Num(f32 n) { return StyleValue::OfNumber(n); }
         StyleValue Col(Color c) { return StyleValue::OfColor(c); }
         StyleValue Key(u32 k) { return StyleValue::OfKeyword(k); }
+        StyleValue Res(Atom a) { return StyleValue::OfResource(a); }
+        // Whether there is an i-th value.
+        bool Has(Span<const StyleValue> v, u32 i) { return i < v.Size(); }
 
         using V = Span<const StyleValue>;
         using S = ComputedStyle;
@@ -152,8 +176,6 @@ namespace helix::ui
              }},
             {"-helix-background-image-tint-color", ValueType::Color, false, false, false, {}, [](S& s, V v) { s.backgroundTint = C(v); },
              [](const S& s) { return Col(s.backgroundTint); }},
-            {"-helix-background-scale-mode", ValueType::Enum, false, false, false, Words(kScaleModes),
-             [](S& s, V v) { s.backgroundScaleMode = BackgroundScaleMode(K(v)); }, [](const S& s) { return Key(u32(s.backgroundScaleMode)); }},
             {"-helix-slice-left", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kLeft] = N(v); }, [](const S& s) { return Num(s.slices[kLeft]); }},
             {"-helix-slice-top", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kTop] = N(v); }, [](const S& s) { return Num(s.slices[kTop]); }},
             {"-helix-slice-right", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kRight] = N(v); },
@@ -193,6 +215,140 @@ namespace helix::ui
             {"word-spacing", ValueType::Length, true, true, false, {}, [](S& s, V v) { s.wordSpacing = L(v); }, [](const S& s) { return Len(s.wordSpacing); }},
             {"-helix-paragraph-spacing", ValueType::Length, true, true, false, {}, [](S& s, V v) { s.paragraphSpacing = L(v); },
              [](const S& s) { return Len(s.paragraphSpacing); }},
+            // ----------------------------------------------------------------------------------- transforms
+            {"translate", ValueType::Length, false, false, false, {},
+             [](S& s, V v) {
+                 s.translate[0] = Has(v, 0) ? v[0].length : Length::Px(0);
+                 s.translate[1] = Has(v, 1) ? v[1].length : Length::Px(0);
+             },
+             [](const S& s) { return Len(s.translate[0]); }, nullptr, 3,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Len(s.translate[0]), o[1] = Len(s.translate[1]);
+                 return 2u;
+             }},
+            {"rotate", ValueType::Angle, false, false, false, {}, [](S& s, V v) { s.rotate = v.Empty() ? 0.0f : AngleDegrees(v[0]); },
+             [](const S& s) { return StyleValue::OfAngle(s.rotate, u32(AngleUnit::Degree)); }},
+            {"scale", ValueType::Number, false, false, false, {},
+             [](S& s, V v) {
+                 s.scale[0] = Has(v, 0) ? v[0].number : 1.0f;
+                 s.scale[1] = Has(v, 1) ? v[1].number : s.scale[0];
+             },
+             [](const S& s) { return Num(s.scale[0]); }, nullptr, 3,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Num(s.scale[0]), o[1] = Num(s.scale[1]);
+                 return 2u;
+             }},
+            {"transform-origin", ValueType::Length, false, false, false, {},
+             [](S& s, V v) {
+                 s.transformOrigin[0] = Has(v, 0) ? v[0].length : Length::Percent(50);
+                 s.transformOrigin[1] = Has(v, 1) ? v[1].length : Length::Percent(50);
+             },
+             [](const S& s) { return Len(s.transformOrigin[0]); }, nullptr, 3,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Len(s.transformOrigin[0]), o[1] = Len(s.transformOrigin[1]);
+                 return 2u;
+             }},
+            // ---------------------------------------------------------------------------------- backgrounds
+            {"background-position-x", ValueType::Compound, false, false, false, Words(kPositionKeywords),
+             [](S& s, V v) {
+                 s.backgroundPositionKeyword[0] = BackgroundPositionKeyword(K(v));
+                 s.backgroundPositionOffset[0] = Has(v, 1) ? v[1].length : Length::Px(0);
+             },
+             [](const S& s) { return Key(u32(s.backgroundPositionKeyword[0])); }, nullptr, 2,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Key(u32(s.backgroundPositionKeyword[0])), o[1] = Len(s.backgroundPositionOffset[0]);
+                 return 2u;
+             }},
+            {"background-position-y", ValueType::Compound, false, false, false, Words(kPositionKeywords),
+             [](S& s, V v) {
+                 s.backgroundPositionKeyword[1] = BackgroundPositionKeyword(K(v));
+                 s.backgroundPositionOffset[1] = Has(v, 1) ? v[1].length : Length::Px(0);
+             },
+             [](const S& s) { return Key(u32(s.backgroundPositionKeyword[1])); }, nullptr, 2,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Key(u32(s.backgroundPositionKeyword[1])), o[1] = Len(s.backgroundPositionOffset[1]);
+                 return 2u;
+             }},
+            {"background-repeat", ValueType::Enum, false, false, false, Words(kRepeats),
+             [](S& s, V v) {
+                 s.backgroundRepeat[0] = BackgroundRepeat(K(v));
+                 s.backgroundRepeat[1] = Has(v, 1) ? BackgroundRepeat(v[1].keyword) : s.backgroundRepeat[0];
+             },
+             [](const S& s) { return Key(u32(s.backgroundRepeat[0])); }, nullptr, 2,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Key(u32(s.backgroundRepeat[0])), o[1] = Key(u32(s.backgroundRepeat[1]));
+                 return 2u;
+             }},
+            {"background-size", ValueType::Compound, false, false, false, Words(kSizeTypes),
+             [](S& s, V v) {
+                 s.backgroundSizeType = BackgroundSizeType(K(v));
+                 s.backgroundSize[0] = Has(v, 1) ? v[1].length : Length::Auto();
+                 s.backgroundSize[1] = Has(v, 2) ? v[2].length : Length::Auto();
+             },
+             [](const S& s) { return Key(u32(s.backgroundSizeType)); }, nullptr, 3,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Key(u32(s.backgroundSizeType)), o[1] = Len(s.backgroundSize[0]), o[2] = Len(s.backgroundSize[1]);
+                 return 3u;
+             }},
+            // ------------------------------------------------------------------------------------ text looks
+            {"text-shadow", ValueType::Compound, true, false, false, {},
+             [](S& s, V v) {
+                 s.textShadowOffset[0] = Has(v, 0) ? v[0].length.value : 0.0f;
+                 s.textShadowOffset[1] = Has(v, 1) ? v[1].length.value : 0.0f;
+                 s.textShadowBlur = Has(v, 2) ? v[2].length.value : 0.0f;
+                 s.textShadowColor = Has(v, 3) ? v[3].color : Color(0, 0, 0, 0);
+             },
+             [](const S& s) { return Len(Length::Px(s.textShadowOffset[0])); }, nullptr, 4,
+             [](const S& s, StyleValue* o) {
+                 o[0] = Len(Length::Px(s.textShadowOffset[0])), o[1] = Len(Length::Px(s.textShadowOffset[1]));
+                 o[2] = Len(Length::Px(s.textShadowBlur)), o[3] = Col(s.textShadowColor);
+                 return 4u;
+             }},
+            {"-helix-text-outline-width", ValueType::Length, true, false, false, {}, [](S& s, V v) { s.textOutlineWidth = Px(v); },
+             [](const S& s) { return Len(Length::Px(s.textOutlineWidth)); }},
+            {"-helix-text-outline-color", ValueType::Color, true, false, false, {}, [](S& s, V v) { s.textOutlineColor = C(v); },
+             [](const S& s) { return Col(s.textOutlineColor); }},
+            {"-helix-text-overflow-position", ValueType::Enum, false, false, false, Words(kOverflowPositions),
+             [](S& s, V v) { s.textOverflowPosition = TextOverflowPosition(K(v)); }, [](const S& s) { return Key(u32(s.textOverflowPosition)); }},
+            {"-helix-overflow-clip-box", ValueType::Enum, false, false, false, Words(kClipBoxes),
+             [](S& s, V v) { s.overflowClipBox = OverflowClipBox(K(v)); }, [](const S& s) { return Key(u32(s.overflowClipBox)); }},
+            // ---------------------------------------------------------------------------------------- cursor
+            {"cursor", ValueType::Compound, true, false, false, Words(kCursors),
+             [](S& s, V v) {
+                 s.cursorSet = false;
+                 s.cursorImage = kNoAtom;
+                 s.cursorHotspot[0] = s.cursorHotspot[1] = 0;
+                 if (v.Empty())
+                     return;
+                 if (v[0].kind == StyleValue::Kind::Keyword)
+                 {
+                     s.cursorShape = CursorShape(v[0].keyword);
+                     s.cursorSet = true;
+                     return;
+                 }
+                 s.cursorImage = v[0].resource;
+                 s.cursorSet = s.cursorImage != kNoAtom;
+                 s.cursorHotspot[0] = Has(v, 1) ? v[1].number : 0.0f;
+                 s.cursorHotspot[1] = Has(v, 2) ? v[2].number : 0.0f;
+             },
+             [](const S& s) { return s.cursorSet && s.cursorImage == kNoAtom ? Key(u32(s.cursorShape)) : Res(s.cursorImage); },
+             [](S& to, const S& from) {
+                 to.cursorSet = from.cursorSet;
+                 to.cursorImage = from.cursorImage;
+                 to.cursorShape = from.cursorShape;
+                 to.cursorHotspot[0] = from.cursorHotspot[0];
+                 to.cursorHotspot[1] = from.cursorHotspot[1];
+             },
+             3,
+             [](const S& s, StyleValue* o) {
+                 if (s.cursorSet && s.cursorImage == kNoAtom)
+                 {
+                     o[0] = Key(u32(s.cursorShape));
+                     return 1u;
+                 }
+                 o[0] = Res(s.cursorImage), o[1] = Num(s.cursorHotspot[0]), o[2] = Num(s.cursorHotspot[1]);
+                 return 3u;
+             }},
             {"transition-property", ValueType::PropertyName, false, false, true, {},
              [](S& s, V v) {
                  s.transitionCount = u8(v.Size() < ComputedStyle::kMaxTransitions ? v.Size() : ComputedStyle::kMaxTransitions);
@@ -242,8 +398,37 @@ namespace helix::ui
         return id ? *id : kNoProperty;
     }
 
+    u32 GetValues(const PropertyInfo& p, const ComputedStyle& style, StyleValue (&out)[kMaxValues])
+    {
+        if (p.getAll)
+            return p.getAll(style, out);
+        out[0] = p.get(style);
+        return 1;
+    }
+
+    bool Animatable(const PropertyInfo& p)
+    {
+        if (p.list)
+            return false;
+        switch (p.type)
+        {
+        case ValueType::Length:
+        case ValueType::Number:
+        case ValueType::Color:
+        case ValueType::Angle: return true;
+        // A compound holding a resource (the cursor) switches as a whole: no transition.
+        case ValueType::Compound: return p.name != StringView("cursor");
+        default: return false;
+        }
+    }
+
     StyleValue Interpolate(const StyleValue& a, const StyleValue& b, f32 t)
     {
+        if (a.kind == StyleValue::Kind::Angle && b.kind == StyleValue::Kind::Angle)
+        {
+            f32 from = AngleDegrees(a), to = AngleDegrees(b);
+            return StyleValue::OfAngle(from + (to - from) * t, u32(AngleUnit::Degree));
+        }
         if (a.kind != b.kind)
             return t < 1 ? a : b;
         StyleValue v = b;
