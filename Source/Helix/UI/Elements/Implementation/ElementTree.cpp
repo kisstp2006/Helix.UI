@@ -21,6 +21,9 @@ namespace helix::ui
             text_.Emplace();
             classes_.Emplace();
             states_.Push(PseudoStates::None);
+            focusable_.Push(0), delegatesFocus_.Push(0);
+            tabIndex_.Push(0);
+            picking_.Push(PickingMode::Position);
             dirty_.Push(Dirty::None);
         }
         live_[i] = 1;
@@ -31,6 +34,9 @@ namespace helix::ui
         text_[i].Clear();
         classes_[i].Clear();
         states_[i] = PseudoStates::None;
+        focusable_[i] = delegatesFocus_[i] = 0;
+        tabIndex_[i] = 0;
+        picking_[i] = PickingMode::Position;
         dirty_[i] = Dirty::Style | Dirty::Layout;
         alive_++;
         version_++;
@@ -238,6 +244,48 @@ namespace helix::ui
             return;
         states_[e.index] = states;
         MarkStyleDirty(e);
+    }
+
+    void ElementTree::SetEnabled(ElementHandle e, bool enabled)
+    {
+        if (!IsAlive(e))
+            return;
+        PseudoStates s = states_[e.index];
+        SetStates(e, enabled ? s & ~PseudoStates::Disabled : s | PseudoStates::Disabled);
+    }
+
+    bool ElementTree::EnabledInHierarchy(ElementHandle e) const
+    {
+        if (!IsAlive(e))
+            return false;
+        for (u32 i = e.index; i != kNone; i = parent_[i])
+            if (Any(states_[i] & PseudoStates::Disabled))
+                return false;
+        return true;
+    }
+
+    void ElementTree::SetFocusable(ElementHandle e, bool focusable)
+    {
+        if (IsAlive(e))
+            focusable_[e.index] = focusable ? 1 : 0;
+    }
+
+    void ElementTree::SetTabIndex(ElementHandle e, i32 index)
+    {
+        if (IsAlive(e))
+            tabIndex_[e.index] = index;
+    }
+
+    void ElementTree::SetDelegatesFocus(ElementHandle e, bool delegates)
+    {
+        if (IsAlive(e))
+            delegatesFocus_[e.index] = delegates ? 1 : 0;
+    }
+
+    void ElementTree::SetPicking(ElementHandle e, PickingMode mode)
+    {
+        if (IsAlive(e))
+            picking_[e.index] = mode;
     }
 
     void ElementTree::MarkStyleDirty(ElementHandle e)

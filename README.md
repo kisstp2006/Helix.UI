@@ -19,6 +19,7 @@ or none).
 | `Source/Helix/UI/Text/Fonts/` | Glyph atlases (SDF, MSDF, coverage, color glyphs), face metrics, the fonts of the machine |
 | `Source/Helix/UI/Text/RichText/` | Rich text tags parsed into styles per character |
 | `Source/Helix/UI/Text/Layout/` | Text layout: lines, alignment, overflow, auto size, and the text info (characters, words, lines, links, pages) |
+| `Source/Helix/UI/Events/` | Events: types from a registry with the reference's names and propagation, the dispatcher (trickle down, bubble up, stops, a queue for events sent while dispatching), picking, pointers and the mouse, click counts, capture, hover, focus and the focus ring, keys, navigation, the input method's composition, drag and drop |
 | `Source/Helix/UI/Rendering/` | The geometry of a panel: rounded boxes with per side borders, images (scale modes, 9-slice), glyphs, painted paths, clips, batches of four textures; the `Painter` (paths of lines, arcs and Bezier curves, filled or stroked with joins, caps and gradients, antialiased) |
 | `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheetAsset` (.hss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component, its drawer in the engine's screen overlay, the image atlas |
 | `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
@@ -81,8 +82,32 @@ their content with vector paths: `RegisterElementType(name, attributes, paint)` 
 with a `Painter` in the element's content box. Layout rectangles sit on the pixel grid. A panel draws with one shader
 and as few draw calls as its textures need (four per call).
 
+## Events
+
+```cpp
+EventSystem& events = view->panel()->events();
+events.RegisterCallback(button, Events().click, [](void* user, EventSystem& events, UIEvent& e) {
+    // e.target, e.currentTarget, e.position, e.clickCount ...
+}, nullptr);
+```
+
+```xml
+<Element name="field" focusable="true" tabindex="1" picking-mode="Position" enabled="true"/>
+```
+
+Each panel turns the input into the reference's events and order: a pointer's events go to the top-most pickable
+element under it (or its capture), from the root down to it and back up; the mouse gets its Mouse events after its
+Pointer events; a move sends Out, Leave, Over and Enter after it; a press and release on one element is a Click.
+Keys go to the focused element (or the root); Tab, the arrows, Enter and Escape send navigation events after them,
+whose default moves the focus around the ring (positive tab indices first, then tree order) or to the nearest element
+that way. :hover, :focus and :disabled follow the state; :active is a control's. Element types take part through
+`RegisterElementType(name, attributes, paint, attach)`: `attach` gives each element of the type its callbacks once a
+panel is built. A focused text element asks for the input method with `SetTextInput` and gets `CompositionEvent`
+while it composes.
+
 A `UIView` component names its markup asset (`m_Source`); it lays the page out in the screen's size and draws it in
-the engine's screen overlay after the cameras, with any render pipeline or none. With `m_WatchFiles` the markup and
+the engine's screen overlay after the cameras, with any render pipeline or none. The views read the engine's input
+each frame without taking it away (a game keeps its input; `UIView::Pick` tells it whether a point is over a view). With `m_WatchFiles` the markup and
 its style sheets are read again while the game runs and the page is built again when they change.
 
 ## Build

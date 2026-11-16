@@ -7,7 +7,8 @@
 // elements at the root, to its parent element inside one); <Template name="..." src="..."/> names another document,
 // which <Instance template="..."> builds in place, with <AttributeOverrides element-name="..." attribute="value"/>
 // changing attributes of its named elements. Other elements are element types from a registry by name; every element
-// takes name, class (names separated by spaces) and style (an inline style), and its type reads the rest.
+// takes name, class (names separated by spaces), style (an inline style), focusable and enabled (true or false),
+// tabindex (a number) and picking-mode (Position or Ignore), and its type reads the rest.
 namespace helix::ui
 {
     struct HxmlError
@@ -17,21 +18,26 @@ namespace helix::ui
     };
 
     class Painter;
+    class EventSystem;
 
     // Reads one attribute of its type; false when the type does not know it.
     using AttributeHandler = bool (*)(ElementTree& tree, ElementHandle element, StringView name, StringView value);
     // Paints an element's own content (vector paths) in its content box (pixels from the box's top left).
     using PaintHandler = void (*)(Painter& painter, const ElementTree& tree, ElementHandle element, f32 width, f32 height);
+    // Gives an element its type's behavior in a panel (its callbacks on the panel's events), once it is built.
+    using AttachHandler = void (*)(EventSystem& events, ElementHandle element);
 
     struct ElementType
     {
         Atom name = kNoAtom;
         AttributeHandler attributes = nullptr;
         PaintHandler paint = nullptr;
+        AttachHandler attach = nullptr;
     };
 
     // Registers (or replaces) an element type; Element, TemplateContainer and Label are there from the start.
-    void RegisterElementType(StringView name, AttributeHandler attributes = nullptr, PaintHandler paint = nullptr);
+    void RegisterElementType(StringView name, AttributeHandler attributes = nullptr, PaintHandler paint = nullptr,
+                             AttachHandler attach = nullptr);
     const ElementType* FindElementType(Atom name);
 
     struct HxmlAttribute

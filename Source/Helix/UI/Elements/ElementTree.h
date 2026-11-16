@@ -37,6 +37,13 @@ namespace helix::ui
     inline PseudoStates operator~(PseudoStates a) { return PseudoStates(~u32(a)); }
     inline bool Any(PseudoStates s) { return u32(s) != 0; }
 
+    // Whether pointers can pick an element (its descendants pick on their own).
+    enum class PickingMode : u8
+    {
+        Position,
+        Ignore
+    };
+
     // What must be computed again.
     enum class Dirty : u8
     {
@@ -93,6 +100,22 @@ namespace helix::ui
         void ClearClasses(ElementHandle e);
         PseudoStates States(ElementHandle e) const { return IsAlive(e) ? states_[e.index] : PseudoStates::None; }
         void SetStates(ElementHandle e, PseudoStates states);
+        // Enabled unless it or an ancestor is disabled (:disabled).
+        void SetEnabled(ElementHandle e, bool enabled);
+        bool EnabledSelf(ElementHandle e) const { return IsAlive(e) && !Any(states_[e.index] & PseudoStates::Disabled); }
+        bool EnabledInHierarchy(ElementHandle e) const;
+
+        // Interaction: whether the element can take the focus, its place in the focus ring (positive first in order,
+        // 0 in tree order, negative out of the ring), whether its focus goes to its first focusable descendant, and
+        // whether pointers pick it.
+        bool Focusable(ElementHandle e) const { return IsAlive(e) && focusable_[e.index]; }
+        void SetFocusable(ElementHandle e, bool focusable);
+        i32 TabIndex(ElementHandle e) const { return IsAlive(e) ? tabIndex_[e.index] : 0; }
+        void SetTabIndex(ElementHandle e, i32 index);
+        bool DelegatesFocus(ElementHandle e) const { return IsAlive(e) && delegatesFocus_[e.index]; }
+        void SetDelegatesFocus(ElementHandle e, bool delegates);
+        PickingMode Picking(ElementHandle e) const { return IsAlive(e) ? picking_[e.index] : PickingMode::Ignore; }
+        void SetPicking(ElementHandle e, PickingMode mode);
 
         Dirty DirtyFlags(ElementHandle e) const { return IsAlive(e) ? dirty_[e.index] : Dirty::None; }
         // The element's style and its subtree's (its ancestors learn that a descendant changed).
@@ -158,6 +181,9 @@ namespace helix::ui
         u32 textVersion_ = 0;
         Array<Array<Atom>> classes_;
         Array<PseudoStates> states_;
+        Array<u8> focusable_, delegatesFocus_;
+        Array<i32> tabIndex_;
+        Array<PickingMode> picking_;
         Array<Dirty> dirty_;
         Array<u32> free_;
         u32 version_ = 0;

@@ -19,6 +19,8 @@ namespace helix::ui
     Panel::Panel() : layout_(tree_), styles_(tree_, layout_)
     {
         root_ = tree_.Create(Intern("Element"));
+        tree_.SetPicking(root_, PickingMode::Ignore);
+        events_.SetRoot(root_);
         // The root fills the panel.
         LayoutStyle s;
         s.width = Length::Percent(100);
@@ -32,6 +34,12 @@ namespace helix::ui
             tree_.Destroy(c);
         styles_.ClearStyleSheets(root_);
         Instantiate(document, tree_, styles_, root_, resolver, errors);
+        events_.Forget();
+        // The types' behavior on the new elements.
+        tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) {
+            if (const ElementType* type = FindElementType(tree_.Type(e)); type && type->attach)
+                type->attach(events_, e);
+        });
     }
 
     void Panel::Settings(const ComputedStyle& style, TextSlot& slot) const

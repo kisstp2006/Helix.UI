@@ -3,6 +3,8 @@
 #include <Helix/Core/Containers/HashMap.h>
 #include <Helix/Core/Strings/Format.h>
 
+#include <cstdlib>
+
 namespace helix::ui
 {
     namespace
@@ -23,6 +25,60 @@ namespace helix::ui
                 return t;
             }();
             return *types;
+        }
+
+        bool ParseBool(StringView v, bool& out)
+        {
+            if (v == StringView("true") || v == StringView("True"))
+                out = true;
+            else if (v == StringView("false") || v == StringView("False"))
+                out = false;
+            else
+                return false;
+            return true;
+        }
+
+        // The attributes every element takes beside name, class and style.
+        struct CommonAttribute
+        {
+            StringView name;
+            bool (*apply)(ElementTree& tree, ElementHandle e, StringView value);
+        };
+
+        const CommonAttribute kCommonAttributes[] = {
+            {"focusable", [](ElementTree& t, ElementHandle e, StringView v) {
+                 bool b = false;
+                 return ParseBool(v, b) ? (t.SetFocusable(e, b), true) : false;
+             }},
+            {"enabled", [](ElementTree& t, ElementHandle e, StringView v) {
+                 bool b = false;
+                 return ParseBool(v, b) ? (t.SetEnabled(e, b), true) : false;
+             }},
+            {"tabindex", [](ElementTree& t, ElementHandle e, StringView v) {
+                 String text(v);
+                 char* end = nullptr;
+                 long n = std::strtol(text.CStr(), &end, 10);
+                 if (text.Empty() || end != text.CStr() + text.Size())
+                     return false;
+                 t.SetTabIndex(e, i32(n));
+                 return true;
+             }},
+            {"picking-mode", [](ElementTree& t, ElementHandle e, StringView v) {
+                 if (v == StringView("Position") || v == StringView("Ignore"))
+                 {
+                     t.SetPicking(e, v == StringView("Ignore") ? PickingMode::Ignore : PickingMode::Position);
+                     return true;
+                 }
+                 return false;
+             }},
+        };
+
+        const CommonAttribute* FindCommon(StringView name)
+        {
+            for (const CommonAttribute& a : kCommonAttributes)
+                if (a.name == name)
+                    return &a;
+            return nullptr;
         }
 
         // Text content without the white space around it (lines of markup indent it).
@@ -205,6 +261,11 @@ namespace helix::ui
                         at = end;
                     }
                 }
+                else if (const CommonAttribute* common = FindCommon(name))
+                {
+                    if (!common->apply(tree, e, value))
+                        Error(n, Format("{}: '{}' is not a value of it", name, value));
+                }
                 else if (name == StringView("style"))
                 {
                     Array<StyleError> found;
@@ -222,10 +283,10 @@ namespace helix::ui
         };
     }
 
-    void RegisterElementType(StringView name, AttributeHandler attributes, PaintHandler paint)
+    void RegisterElementType(StringView name, AttributeHandler attributes, PaintHandler paint, AttachHandler attach)
     {
         Atom a = Intern(name);
-        Types().Set(a, ElementType{a, attributes, paint});
+        Types().Set(a, ElementType{a, attributes, paint, attach});
     }
 
     const ElementType* FindElementType(Atom name) { return Types().Find(name); }

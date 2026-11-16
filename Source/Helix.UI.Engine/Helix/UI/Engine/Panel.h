@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Helix/Math/Color.h>
+#include <Helix/UI/Events/EventSystem.h>
 #include <Helix/UI/Markup/Hxml.h>
 #include <Helix/UI/Rendering/Painter.h>
 #include <Helix/UI/Rendering/UIMesh.h>
@@ -14,7 +15,8 @@ namespace helix::engine
 // A panel: an element tree with its layout and styles, built from markup, laid out in a box of the screen's size and
 // drawn into a UIMesh in tree order: each visible element's box (rounded corners, borders, background color and image),
 // what its type paints, its text; overflow hidden clips the descendants to the padding box. Elements with text are
-// measured by the text layout and set in their content box.
+// measured by the text layout and set in their content box. Its event system takes the host's input; the root is not
+// picked (only the elements of the markup are), and the element types attach their behavior once the panel is built.
 namespace helix::ui
 {
     // What the panel needs from its host: fonts for styles, textures for glyphs and background images.
@@ -38,6 +40,7 @@ namespace helix::ui
         ElementTree& tree() { return tree_; }
         LayoutEngine& layout() { return layout_; }
         StyleEngine& styles() { return styles_; }
+        EventSystem& events() { return events_; }
         ElementHandle root() const { return root_; }
         void SetTextHost(PanelTextHost* host) { host_ = host; }
 
@@ -71,6 +74,7 @@ namespace helix::ui
         ElementTree tree_;
         LayoutEngine layout_;
         StyleEngine styles_;
+        EventSystem events_{tree_, layout_, styles_};
         ElementHandle root_;
         PanelTextHost* host_ = nullptr;
         Array<TextSlot> texts_;

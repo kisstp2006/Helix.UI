@@ -3,6 +3,7 @@
 #include <Support/Golden.h>
 
 #include <Helix/Engine/Asset/Asset.h>
+#include <Helix/Engine/Input/InputFeed.h>
 #include <Helix/Engine/GameObject/GameObject.h>
 #include <Helix/Engine/GameObject/Lifecycle.h>
 #include <Helix/Engine/Rendering/Camera.h>
@@ -460,6 +461,121 @@ HX_TEST(UIView, ShapesImagesPaintingAndClipsDrawOnEveryDevice)
         HX_CHECK(at(48, 49, Rgba(255, 0, 255)));
         HX_CHECK(at(13, 70, Rgba(255, 0, 0)) && at(34, 70, Rgba(0, 0, 255)) && at(13, 85, Rgba(0, 255, 0)) && at(34, 85, Rgba(255, 255, 255)));
         HX_CHECK(engine::testing::MatchGolden("UIViewShapes", pixels.Data(), width, height, 8));
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
+    std::printf("    %u devices\n", devices);
+}
+
+namespace
+{
+    constexpr StringView kInputPage = R"(<HXML>
+  <Style src="input.hss"/>
+  <Element name="button" focusable="true"/>
+</HXML>)";
+
+    constexpr StringView kInputSheet = R"(
+#button { position: absolute; left: 8px; top: 8px; width: 32px; height: 24px; background-color: #ff0000; }
+#button:hover { background-color: #00ff00; }
+)";
+
+    engine::InputEvent Mouse(platform::EventType type, f32 x, f32 y)
+    {
+        engine::InputEvent e;
+        e.event.type = type;
+        e.event.mouse = {x, y, platform::MouseButton::Left};
+        return e;
+    }
+
+    struct Counts
+    {
+        i32 clicks = 0, keys = 0;
+        u32 character = 0;
+    };
+}
+
+HX_TEST(UIView, TheFramesInputReachesTheViewAndTheGameKeepsIt)
+{
+    HX_REQUIRE(RegisterModules());
+    constexpr u32 width = 64, height = 48;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        folder.Write("input.hxml", kInputPage);
+        folder.Write("input.hss", kInputSheet);
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        auto* asset = ScriptableObject::CreateInstanceByName("ClearPipelineAsset");
+        HX_REQUIRE(asset != nullptr);
+        GraphicsSettings::SetDefaultRenderPipeline(asset);
+        GameObject* cameraObject = GameObject::Create("Camera");
+        Camera* camera = cameraObject->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0, 0, 0, 1));
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        HX_REQUIRE(view != nullptr);
+        view->SetSource(LoadAt<UITemplate>("input.hxml"));
+        engine::InputFeed::Reset();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        view->Update();
+        EventSystem& events = view->panel()->events();
+        ElementHandle button = view->panel()->tree().FirstChild(view->panel()->root());
+        HX_REQUIRE(button.IsValid());
+        Counts counts;
+        const EventTypes& t = Events();
+        events.RegisterCallback(button, t.click, [](void* u, EventSystem&, UIEvent&) { static_cast<Counts*>(u)->clicks++; }, &counts);
+        events.RegisterCallback(button, t.keyDown, [](void* u, EventSystem&, UIEvent& e) {
+            static_cast<Counts*>(u)->keys++;
+            if (e.character)
+                static_cast<Counts*>(u)->character = e.character;
+        }, &counts);
+
+        // The mouse over it: hovered, drawn with the hover style.
+        engine::InputEvent move = Mouse(platform::EventType::MouseMove, 20, 20);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(&move, 1), Span<const u32>());
+        view->Update();
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        HX_CHECK(NearColor(Pixel(pixels, width, 20, 20), Rgba(0, 255, 0)));
+        // A second update of the same frame reads nothing again.
+        view->Update();
+
+        // A click: focused and clicked.
+        const engine::InputEvent click[] = {Mouse(platform::EventType::MouseDown, 20, 20), Mouse(platform::EventType::MouseUp, 21, 20)};
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(click, 2), Span<const u32>());
+        view->Update();
+        HX_CHECK(counts.clicks == 1 && events.Focused() == button);
+
+        // Keys to the focus; the game's frame still has them all.
+        engine::InputEvent keys[2];
+        keys[0].event.type = platform::EventType::KeyDown;
+        keys[0].event.key = {platform::KeyCode::A, 0};
+        keys[1].event.type = platform::EventType::Text;
+        keys[1].event.text = {'a'};
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(keys, 2), Span<const u32>());
+        view->Update();
+        HX_CHECK(counts.keys == 2 && counts.character == 'a' && engine::InputFeed::Frame().Size() == 2);
+
+        // The game asks the view what is under a point.
+        HX_CHECK(view->Pick(Vector2(20, 20)) == button && !view->Pick(Vector2(60, 40)).IsValid());
+
+        // A focused text element keeps the input method on, at its caret on the screen.
+        events.SetTextInput(button, Rect(2, 3, 1, 16));
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        view->Update();
+        i32 x = 0, y = 0, h = 0;
+        HX_CHECK(engine::InputFeed::TakeTextInputRequest(x, y, h) && x == 10 && y == 11 && h == 16);
+        engine::InputFeed::Reset();
         Graphics::SetTarget({});
         device.Destroy(color);
         device.Destroy(depth);

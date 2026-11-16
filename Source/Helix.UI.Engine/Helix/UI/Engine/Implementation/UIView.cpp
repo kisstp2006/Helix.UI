@@ -2,6 +2,7 @@
 
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Engine/Asset/Asset.h>
+#include <Helix/Engine/Input/InputFeed.h>
 #include <Helix/Engine/Material/Material.h>
 #include <Helix/Engine/Mesh/Mesh.h>
 #include <Helix/Engine/Rendering/Camera.h>
@@ -51,6 +52,9 @@ namespace helix::ui
         {
             Array<UIView*> list;
             u32 drawer = 0;
+            // The input frame the views read last, and the view the keys go to (the last one pressed in).
+            u64 inputFrame = 0;
+            UIView* keyboard = nullptr;
             // One material per set of textures in the slots.
             Array<MaterialEntry> materials;
             bool missingShader = false;
@@ -212,6 +216,166 @@ namespace helix::ui
             }
         }
 
+        // ----------------------------------------------------------------------------------------------- input
+
+        // The views top-most first: by sorting order, the later enabled over the earlier among equal ones.
+        Array<UIView*> InputOrder()
+        {
+            Array<UIView*> order;
+            for (UIView* view : V().list)
+                if (view->panel())
+                {
+                    usize at = 0;
+                    while (at < order.Size() && order[at]->sortingOrder() > view->sortingOrder())
+                        at++;
+                    order.Insert(at, view);
+                }
+            return order;
+        }
+
+        // A pointer's input to every view, the top-most first: the first one with an element under the point has it,
+        // the views below are covered there (their capture still gets it).
+        template <class F>
+        void ToPointer(Span<UIView* const> order, Vector2 position, bool press, F&& send)
+        {
+            bool covered = false;
+            for (UIView* view : order)
+            {
+                EventSystem& events = view->panel()->events();
+                bool hit = !covered && events.Pick(position).IsValid();
+                send(events, covered);
+                if (hit)
+                {
+                    covered = true;
+                    if (press)
+                        V().keyboard = view;
+                }
+            }
+        }
+
+        // The view keys go to: the last one pressed in while it is there, else the top-most.
+        EventSystem* KeyboardView(Span<UIView* const> order)
+        {
+            for (UIView* view : order)
+                if (view == V().keyboard)
+                    return &view->panel()->events();
+            return order.Empty() ? nullptr : &order[0]->panel()->events();
+        }
+
+        constexpr i32 TouchId(i32 platformId) { return PointerId::touchBase + i32(u32(platformId) % u32(PointerId::touchCount)); }
+
+        Vector2 Where(const platform::MouseData& m) { return Vector2(m.x, m.y); }
+
+        // How each kind of the window's input reaches the views.
+        struct InputRoute
+        {
+            platform::EventType type;
+            void (*route)(Span<UIView* const> order, const engine::InputEvent& e);
+        };
+
+        const InputRoute kInputRoutes[] = {
+            {platform::EventType::MouseMove,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 ToPointer(order, Where(e.event.mouse), false, [&](EventSystem& events, bool covered) {
+                     events.PointerMove(PointerId::mouse, PointerKind::Mouse, Where(e.event.mouse), e.event.modifiers, e.time, covered);
+                 });
+             }},
+            {platform::EventType::MouseDown,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 ToPointer(order, Where(e.event.mouse), true, [&](EventSystem& events, bool covered) {
+                     events.PointerDown(PointerId::mouse, PointerKind::Mouse, i32(e.event.mouse.button), Where(e.event.mouse), e.event.modifiers, e.time,
+                                        covered);
+                 });
+             }},
+            {platform::EventType::MouseUp,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 ToPointer(order, Where(e.event.mouse), false, [&](EventSystem& events, bool covered) {
+                     events.PointerUp(PointerId::mouse, PointerKind::Mouse, i32(e.event.mouse.button), Where(e.event.mouse), e.event.modifiers, e.time,
+                                      covered);
+                 });
+             }},
+            {platform::EventType::MouseWheel,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 for (UIView* view : order)
+                 {
+                     EventSystem& events = view->panel()->events();
+                     Vector2 at = events.PointerPosition(PointerId::mouse);
+                     bool hit = events.Pick(at).IsValid();
+                     events.Wheel(at, Vector2(e.event.wheel.dx, e.event.wheel.dy), e.event.modifiers, e.time);
+                     if (hit)
+                         break;
+                 }
+             }},
+            {platform::EventType::TouchBegin,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 Vector2 at(e.event.touch.x, e.event.touch.y);
+                 ToPointer(order, at, true, [&](EventSystem& events, bool covered) {
+                     events.PointerDown(TouchId(e.event.touch.id), PointerKind::Touch, 0, at, e.event.modifiers, e.time, covered);
+                 });
+             }},
+            {platform::EventType::TouchMove,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 Vector2 at(e.event.touch.x, e.event.touch.y);
+                 ToPointer(order, at, false, [&](EventSystem& events, bool covered) {
+                     events.PointerMove(TouchId(e.event.touch.id), PointerKind::Touch, at, e.event.modifiers, e.time, covered);
+                 });
+             }},
+            {platform::EventType::TouchEnd,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 Vector2 at(e.event.touch.x, e.event.touch.y);
+                 ToPointer(order, at, false, [&](EventSystem& events, bool covered) {
+                     events.PointerUp(TouchId(e.event.touch.id), PointerKind::Touch, 0, at, e.event.modifiers, e.time, covered);
+                 });
+             }},
+            {platform::EventType::TouchCancel,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 for (UIView* view : order)
+                     view->panel()->events().PointerCancel(TouchId(e.event.touch.id), e.time);
+             }},
+            {platform::EventType::KeyDown,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 if (EventSystem* events = KeyboardView(order))
+                     events->KeyDown(u16(e.event.key.key), e.event.modifiers, e.time);
+             }},
+            {platform::EventType::KeyUp,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 if (EventSystem* events = KeyboardView(order))
+                     events->KeyUp(u16(e.event.key.key), e.event.modifiers, e.time);
+             }},
+            {platform::EventType::Text,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 if (EventSystem* events = KeyboardView(order))
+                     events->Character(e.event.text.codepoint, e.event.modifiers, e.time);
+             }},
+            {platform::EventType::Composition,
+             [](Span<UIView* const> order, const engine::InputEvent& e) {
+                 // The feed holds the composition as of the frame's last change.
+                 if (EventSystem* events = KeyboardView(order))
+                     events->SetComposition(engine::InputFeed::Composition(), e.event.composition.cursor, e.time);
+             }},
+        };
+
+        // The frame's input to the views, once a frame (by the first view that updates).
+        void ReadInput()
+        {
+            Views& v = V();
+            u64 frame = engine::InputFeed::FrameNumber();
+            if (frame == v.inputFrame)
+                return;
+            v.inputFrame = frame;
+            Array<UIView*> order = InputOrder();
+            if (order.Empty())
+                return;
+            Span<UIView* const> views(order.Data(), order.Size());
+            for (const engine::InputEvent& e : engine::InputFeed::Frame())
+                for (const InputRoute& r : kInputRoutes)
+                    if (r.type == e.event.type)
+                    {
+                        r.route(views, e);
+                        break;
+                    }
+        }
+
         void AddView(UIView* view)
         {
             Views& v = V();
@@ -229,6 +393,8 @@ namespace helix::ui
                     v.list.RemoveAt(i);
                     break;
                 }
+            if (v.keyboard == view)
+                v.keyboard = nullptr;
             if (v.list.Empty() && v.drawer)
             {
                 engine::Graphics::screenOverlayRendering().Remove(v.drawer);
@@ -472,8 +638,14 @@ namespace helix::ui
         }
         if (!built_)
             Build();
+        // The input on what was shown, then the panel as it is now.
+        ReadInput();
         panel_->Update(engine::Time::deltaTime(), f32(engine::Screen::width()), f32(engine::Screen::height()));
         panel_->Draw(uiMesh_);
+        // The input method stays on while a text element of this view has the focus.
+        Rect caret;
+        if (panel_->events().TextInput(caret))
+            engine::InputFeed::RequestTextInput(i32(caret.x), i32(caret.y), i32(caret.height));
 
         engine::Mesh* m = mesh_.Get();
         if (!m)
