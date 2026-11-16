@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Helix/Core/Basics/Tags.h>
+
 #include <Helix/Core/Strings/String.h>
 
 #include <Helix/Core/Basics/Span.h>
@@ -38,6 +40,7 @@ namespace helix::ui
     inline bool Any(PseudoStates s) { return u32(s) != 0; }
 
     // Whether pointers can pick an element (its descendants pick on their own).
+    HX_ENUM(Namespace = "HelixEngine.UI")
     enum class PickingMode : u8
     {
         Position,
@@ -64,8 +67,20 @@ namespace helix::ui
     {
     public:
         ElementHandle Create(Atom type);
-        // Destroys the element and its descendants (taken from its parent first).
+        // Destroys the element and its descendants (taken from its parent first). Those the hooks keep (a script holds
+        // them) are taken out with their subtrees instead and stay as elements of no parent.
         void Destroy(ElementHandle element);
+
+        // Who else knows elements (the script objects of elements): whether an element must outlive a destroyed
+        // ancestor, each element destroyed (before its slot is freed), and each element that got or lost its parent.
+        struct Hooks
+        {
+            bool (*keep)(void* user, ElementHandle e) = nullptr;
+            void (*destroyed)(void* user, ElementHandle e) = nullptr;
+            void (*moved)(void* user, ElementHandle e) = nullptr;
+            void* user = nullptr;
+        };
+        void SetHooks(const Hooks& hooks) { hooks_ = hooks; }
         bool IsAlive(ElementHandle element) const;
 
         // A child goes to the end (or to index) of its new parent's children, taken from its old parent first. An
@@ -186,6 +201,7 @@ namespace helix::ui
         Array<PickingMode> picking_;
         Array<Dirty> dirty_;
         Array<u32> free_;
+        Hooks hooks_;
         u32 version_ = 0;
         u32 alive_ = 0;
     };

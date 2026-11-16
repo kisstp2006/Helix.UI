@@ -128,6 +128,68 @@ namespace helix::ui
         tree_.MarkStyleDirty(e);
     }
 
+    bool StyleEngine::SetInlineProperty(ElementHandle e, PropertyId property, StringView value, String* error)
+    {
+        if (!tree_.IsAlive(e) || property == kNoProperty)
+            return false;
+        Declaration d;
+        d.property = property;
+        String reason;
+        if (!ParseValue(property, value, d.values, reason))
+        {
+            if (error)
+                *error = Move(reason);
+            return false;
+        }
+        ClearInlineProperty(e, property);
+        At(e).inlineStyle.Push(Move(d));
+        tree_.MarkStyleDirty(e);
+        return true;
+    }
+
+    void StyleEngine::SetInlineInitial(ElementHandle e, PropertyId property)
+    {
+        if (!tree_.IsAlive(e) || property == kNoProperty)
+            return;
+        ClearInlineProperty(e, property);
+        Declaration d;
+        d.property = property;
+        d.initial = true;
+        At(e).inlineStyle.Push(Move(d));
+        tree_.MarkStyleDirty(e);
+    }
+
+    void StyleEngine::ClearInlineProperty(ElementHandle e, PropertyId property)
+    {
+        if (!tree_.IsAlive(e))
+            return;
+        Array<Declaration>& list = At(e).inlineStyle;
+        for (usize i = 0; i < list.Size();)
+            if (list[i].property == property)
+                list.RemoveAt(i);
+            else
+                i++;
+        tree_.MarkStyleDirty(e);
+    }
+
+    bool StyleEngine::InlineProperty(ElementHandle e, PropertyId property, Array<StyleValue>& out, bool* initial) const
+    {
+        out.Clear();
+        if (!tree_.IsAlive(e) || e.index >= slots_.Size() || slots_[e.index].generation != e.generation)
+            return false;
+        const Array<Declaration>& list = slots_[e.index].inlineStyle;
+        for (usize i = list.Size(); i-- > 0;)
+            if (list[i].property == property)
+            {
+                for (const StyleValue& v : list[i].values)
+                    out.Push(v);
+                if (initial)
+                    *initial = list[i].initial;
+                return true;
+            }
+        return false;
+    }
+
     void StyleEngine::Update(ElementHandle root, f32 dt)
     {
         if (!tree_.IsAlive(root))

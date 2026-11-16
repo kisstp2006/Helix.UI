@@ -23,8 +23,12 @@ or none).
 | `Source/Helix/UI/Events/` | Events: types from a registry with the reference's names and propagation, the dispatcher (trickle down, bubble up, stops, a queue for events sent while dispatching), picking, pointers and the mouse, click counts, capture, hover, focus and the focus ring, keys, navigation, the input method's composition, drag and drop |
 | `Source/Helix/UI/Rendering/` | The geometry of a panel: rounded boxes with per side borders, images (scale modes, 9-slice), glyphs, painted paths, clips, batches of four textures; the `Painter` (paths of lines, arcs and Bezier curves, filled or stroked with joins, caps and gradients, antialiased) |
 | `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheetAsset` (.hss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component, its drawer in the engine's screen overlay, the image atlas |
+| `Source/Helix.UI.Engine/Helix/UI/Engine/Element.h` | `CallbackEventHandler`, `Focusable`, `Element`: the elements for scripts (C# and the C++ script API), made when a script first needs them; an element lives while it is in a tree or a script holds it |
+| `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` |
 | `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
 | `Tests/Core/` | Tests of the core, with every case of the Unicode bidi and line break tests |
+| `Tests/Managed/` | C# tests run by the engine tests on the .NET host |
+| `Tests/Api/Helix.UI.csv` | The public surface of the C# side (Helix.ScriptCore's inventory tool) |
 | `Tests/Engine/` | The assets and views in the engine, drawn on every device through a test pipeline (golden images in `Tests/Golden/`) |
 | `Benchmarks/` | The element store, the layout of 10 000 elements (full and incremental), a page of text |
 | `ThirdParty/Unicode/` | Files of the Unicode Character Database, see `THIRD-PARTY.txt` |

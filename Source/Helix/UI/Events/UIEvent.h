@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Helix/Math/Geometry.h>
 #include <Helix/Math/Vector.h>
 #include <Helix/UI/Elements/ElementTree.h>
 
@@ -50,6 +51,9 @@ namespace helix::ui
         // Helix's: the text an input method composes changed (EventSystem::Composition), to the focused element (the
         // reference's text fields read it from the input each frame).
         EventTypeId composition;
+        // The panel's own, to their target only: its box changed (oldRect, newRect), it came into a panel or left one,
+        // its custom style properties were resolved.
+        EventTypeId geometryChanged, attachToPanel, detachFromPanel, customStyleResolved;
     };
     const EventTypes& Events();
 
@@ -132,6 +136,8 @@ namespace helix::ui
         Vector2 move;
 
         bool propagationStopped = false, immediatePropagationStopped = false;
+        // A box's change (GeometryChangedEvent).
+        Rect oldRect, newRect;
 
         // No elements after this one get it (the current one's other callbacks still do).
         void StopPropagation() { propagationStopped = true; }

@@ -1,4 +1,5 @@
 #include <Engine/Support/TestPipeline.h>
+#include <Engine/Support/UIHost.h>
 #include <Support/Devices.h>
 #include <Support/Golden.h>
 
@@ -22,37 +23,16 @@
 #include <UIShadersAssembly.h>
 
 #include <cstdio>
+#include <initializer_list>
 
-HX_BINDINGS_EXPORT void HxBindings_UIEngineTests_Publish();
-extern "C" void HxBindings_HelixUI_Publish();
 
 using namespace helix;
 using namespace helix::engine;
 using namespace helix::ui;
+using helix::ui::testing::RegisterModules;
 
 namespace
 {
-    // The UI's module and the tests' (registered once per process).
-    bool RegisterModules()
-    {
-        static int state = 0;
-        if (state == 0)
-        {
-            state = -1;
-            HxBindings_HelixUI_Publish();
-            HxBindings_UIEngineTests_Publish();
-            String error;
-            for (const char* module : {"HelixUI", "UIEngineTests"})
-                if (!RegisterLinkedGameModule(module, error))
-                {
-                    std::printf("    %.*s\n", int(error.Size()), error.Data());
-                    return false;
-                }
-            state = 1;
-        }
-        return state > 0;
-    }
-
     // A folder of assets: the UI's shaders and the files a test writes, listed by a folder source.
     struct AssetFolder
     {
@@ -232,7 +212,9 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         HX_CHECK(view->errors().Empty());
         // The root, the card, its inner element, the faded one; quads: the card's fill and its border ring (one
         // color), the inner's fill, the faded one's.
-        HX_CHECK(view->panel()->tree().Count() == 4);
+        u32 inPanel = 0;
+        view->panel()->tree().ForEachInSubtree(view->panel()->root(), [&](ElementHandle, u32) { inPanel++; });
+        HX_CHECK(inPanel == 4);
         HX_REQUIRE(view->mesh() != nullptr);
         HX_CHECK(view->mesh()->vertexCount() == 4 * 4 && view->uiMesh().DrawCalls() == 1);
         Graphics::RenderFrame();
@@ -581,4 +563,49 @@ HX_TEST(UIView, TheFramesInputReachesTheViewAndTheGameKeepsIt)
         device.Destroy(depth);
     });
     std::printf("    %u devices\n", devices);
+}
+
+HX_TEST(UIScripts, CSharpCallbacksGetTheViewsEventsInTheirOrder)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    AssetFolder folder;
+    folder.Write("page.hxml", R"(<HXML><Element name="button" focusable="true" style="position: absolute; left: 8px; top: 8px; width: 32px; height: 24px;"/></HXML>)");
+    folder.Open();
+    ReportScreen(64, 48);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("page.hxml"));
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    // The C# script on the view's GameObject: its callbacks, an element it adds, a scheduled item.
+    ui->AddComponent(ui::testing::CSharp("CsEventTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    // The phase updates the view too (a GameBehaviour): the element the script added comes into the panel.
+    HX_CHECK(ui::testing::NotesAre({"found:button:1", "attached:extra", "geometry:40"}));
+    // The scheduler ticks with the next frame's input.
+    frame({});
+    HX_CHECK(ui::testing::NotesAre({"scheduled"}));
+    // A click: the root's trickle down callback first, then the button's; the focus after the press; the click.
+    frame({Mouse(platform::EventType::MouseDown, 20, 20), Mouse(platform::EventType::MouseUp, 20, 20)});
+    HX_CHECK(ui::testing::NotesAre({"root-down:TrickleDown:button", "button-down:BubbleUp:0:20", "focus:True", "click:1:12"}));
+    engine::InputEvent keys[2];
+    keys[0].event.type = platform::EventType::KeyDown;
+    keys[0].event.key = {platform::KeyCode::A, 0};
+    keys[1].event.type = platform::EventType::Text;
+    keys[1].event.text = {'a'};
+    frame({keys[0], keys[1]});
+    HX_CHECK(ui::testing::NotesAre({"key:A:0", "key:None:97"}));
+    // From C#: the focus, an event sent, capture.
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"focused:button", "submit:button", "capture:True:button", "released:False:button"}));
+    engine::InputFeed::Reset();
 }

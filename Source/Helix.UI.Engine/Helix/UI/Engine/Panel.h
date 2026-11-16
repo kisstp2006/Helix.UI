@@ -78,6 +78,7 @@ namespace helix::ui
         static Vector2 Measure(void* user, ElementHandle e, f32 width, MeasureMode widthMode, f32 height, MeasureMode heightMode);
         void Settings(const ComputedStyle& style, TextSlot& slot) const;
         void DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity);
+        void SendPanelEvents();
 
         ElementWorld& world_;
         ElementTree& tree_;
@@ -88,6 +89,8 @@ namespace helix::ui
         PanelTextHost* host_ = nullptr;
         // The text of the panel's text elements, by their slot in the world.
         HashMap<u32, TextSlot> texts_;
+        // The elements in the panel at the last update with their boxes (for the panel's own events).
+        HashMap<u64, Rect> members_;
         Array<ElementHandle> textElements_;
         TextGenerator generator_;
         Painter painter_;

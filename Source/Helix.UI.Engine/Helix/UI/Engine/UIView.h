@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Helix/Engine/Script/GameBehaviour.h>
+#include <Helix/UI/Engine/Element.h>
 #include <Helix/UI/Engine/Panel.h>
 #include <Helix/UI/Engine/UIAssets.h>
 
@@ -43,6 +44,8 @@ namespace helix::ui
 
         // The panel (null while the view is disabled).
         Panel* panel() const { return panel_.get(); }
+        // The root of the view's elements (null while the view is disabled).
+        HX_PROPERTY() Element* rootElement() const { return panel_ ? Element::Of(panel_->world(), panel_->root()) : nullptr; }
         // The top-most element of the view under a point of the screen (pixels from the top left), none when nothing
         // of it is there: a game asks its views whether the pointer is over them (the UI reads the input, it does not
         // take it from the game).

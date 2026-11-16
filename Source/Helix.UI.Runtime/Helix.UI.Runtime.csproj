@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The UI's C# side: the bindings of its native module HelixUI and the C# written by hand, over the engine's C# side. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>HelixEngine.UI</RootNamespace>
+    <AssemblyName>Helix.UI.Runtime</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="HelixEngine.CoreModule">
+      <HintPath>$(HelixCoreModule)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Helix.Mathematics">
+      <HintPath>$([System.IO.Path]::GetDirectoryName($(HelixCoreModule)))/Helix.Mathematics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Helix.Scripting.Runtime">
+      <HintPath>$(HelixScriptingRuntime)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <!-- The C# bindings of the native module HelixUI (Helix.Bindgen's output). -->
+  <ItemGroup Condition="'$(HelixModuleBindings)' != ''">
+    <Compile Include="$(HelixModuleBindings)" />
+  </ItemGroup>
+</Project>

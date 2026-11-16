@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The C# tests of the UI: scripts the C++ test program runs in the engine. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Message methods are found by reflection: unused private members are expected. -->
+    <NoWarn>IDE0051;CS0169;CS0649</NoWarn>
+    <AssemblyName>Helix.UI.Tests</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="HelixEngine.CoreModule">
+      <HintPath>$(HelixCoreModule)</HintPath>
+    </Reference>
+    <Reference Include="Helix.Mathematics">
+      <HintPath>$([System.IO.Path]::GetDirectoryName($(HelixCoreModule)))/Helix.Mathematics.dll</HintPath>
+    </Reference>
+    <Reference Include="Helix.UI.Runtime">
+      <HintPath>$(HelixUIRuntime)</HintPath>
+    </Reference>
+    <Reference Include="Helix.Scripting.Runtime">
+      <HintPath>$(HelixScriptingRuntime)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

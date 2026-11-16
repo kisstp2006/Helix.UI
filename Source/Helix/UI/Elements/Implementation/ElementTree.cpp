@@ -58,9 +58,25 @@ namespace helix::ui
         if (!IsAlive(e))
             return;
         Detach(e);
-        // The subtree's slots, children before their parent is freed.
-        Array<u32> slots;
-        ForEachInSubtree(e, [&](ElementHandle h, u32) { slots.Push(h.index); });
+        auto keep = [&](u32 i) { return hooks_.keep && hooks_.keep(hooks_.user, ElementHandle{i, generation_[i]}); };
+        if (keep(e.index))
+            return;
+        // The subtree's slots; the elements kept go out with their subtrees.
+        Array<u32> slots, kept, open;
+        open.Push(e.index);
+        while (!open.Empty())
+        {
+            u32 i = open.Back();
+            open.Pop();
+            slots.Push(i);
+            for (u32 c = firstChild_[i]; c != kNone; c = next_[c])
+                (keep(c) ? kept : open).Push(c);
+        }
+        for (u32 i : kept)
+            Detach(ElementHandle{i, generation_[i]});
+        for (u32 i : slots)
+            if (hooks_.destroyed)
+                hooks_.destroyed(hooks_.user, ElementHandle{i, generation_[i]});
         for (u32 i : slots)
         {
             live_[i] = 0;
@@ -148,6 +164,8 @@ namespace helix::ui
         version_++;
         MarkStyleDirty(child);
         MarkLayoutDirty(child);
+        if (hooks_.moved)
+            hooks_.moved(hooks_.user, child);
         return true;
     }
 
@@ -159,6 +177,8 @@ namespace helix::ui
         Unlink(child.index);
         version_++;
         MarkStyleDirty(child);
+        if (hooks_.moved)
+            hooks_.moved(hooks_.user, child);
     }
 
     ElementHandle ElementTree::ChildAt(ElementHandle e, u32 index) const

@@ -86,3 +86,38 @@ HX_TEST(ElementTree, NamesClassesStatesAndWhatMustBeComputedAgain)
     tree.MarkLayoutDirty(b);
     HX_CHECK(Any(tree.DirtyFlags(b) & Dirty::Layout) && Any(tree.DirtyFlags(a) & Dirty::Layout) && Any(tree.DirtyFlags(root) & Dirty::Layout));
 }
+
+namespace
+{
+    struct Watch
+    {
+        ElementHandle held;
+        Array<ElementHandle> destroyed;
+    };
+}
+
+HX_TEST(ElementTree, DestroyingKeepsWhatAScriptHoldsAndTellsWhatWent)
+{
+    ElementTree tree;
+    ElementHandle root = tree.Create(Intern("Element"));
+    ElementHandle a = tree.Create(Intern("Element")), held = tree.Create(Intern("Element")), inner = tree.Create(Intern("Element"));
+    tree.Append(root, a);
+    tree.Append(a, held);
+    tree.Append(held, inner);
+    Watch w;
+    w.held = held;
+    ElementTree::Hooks hooks;
+    hooks.keep = [](void* u, ElementHandle e) { return static_cast<Watch*>(u)->held == e; };
+    hooks.destroyed = [](void* u, ElementHandle e) { static_cast<Watch*>(u)->destroyed.Push(e); };
+    hooks.user = &w;
+    tree.SetHooks(hooks);
+    tree.Destroy(a);
+    // a went; the held element and its child stay, now without a parent.
+    HX_CHECK(!tree.IsAlive(a) && tree.IsAlive(held) && tree.IsAlive(inner));
+    HX_CHECK(!tree.Parent(held).IsValid() && tree.Parent(inner) == held && tree.ChildCount(root) == 0);
+    HX_CHECK(w.destroyed.Size() == 1 && w.destroyed[0] == a);
+    // Let go, it goes with its subtree.
+    w.held = {};
+    tree.Destroy(held);
+    HX_CHECK(!tree.IsAlive(held) && !tree.IsAlive(inner) && w.destroyed.Size() == 3);
+}

@@ -32,6 +32,7 @@ helix_add_benchmark_suite(helix_ui_bench DEPS Helix::UI Helix::Jobs Helix::Platf
 # The UI in the engine: a native module (HelixUI) with the UI's assets and views, a shared library beside the engine's
 # (a static one linked into the app on the Web).
 helix_require(Engine)
+helix_require(ScriptCore)
 include("${HELIX_BINDGEN_ROOT}/CMake/HelixBindgen.cmake")
 find_program(HELIX_DOTNET NAMES dotnet HINTS "$ENV{HELIX_DOTNET_ROOT}" "$ENV{DOTNET_ROOT}" REQUIRED)
 helix_dependency_dir(shaders_dir Shaders)
@@ -64,17 +65,33 @@ target_include_directories(helix_ui_engine PUBLIC "${ui_engine_source}")
 helix_apply_options(helix_ui_engine)
 
 # The headers whose tagged types C# sees, and the engine's they name.
-set(ui_bound_headers "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h"
-    "${ui_engine_source}/Helix/UI/Engine/UIView.h")
+set(ui_bound_headers "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix/UI/Elements/ElementTree.h" "${ui_engine_source}/Helix/UI/Engine/Element.h"
+    "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h" "${ui_engine_source}/Helix/UI/Engine/UIView.h")
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
     "${engine_source}/Helix/Engine/GameObject/GameObject.h" "${engine_source}/Helix/Engine/Script/GameBehaviour.h"
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"
-    "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h")
-helix_bindgen(helix_ui_engine MODULE HelixUI NAMESPACE HelixEngine.UI KIND NativeGame HEADERS ${ui_bound_headers}
+    "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h"
+    "${math_dir}/Source/Helix/Math/Geometry.h")
+helix_bindgen(helix_ui_engine MODULE HelixUI NAMESPACE HelixEngine.UI KIND NativeGame API HEADERS ${ui_bound_headers}
               REFERENCES ${ui_engine_references} REFERENCE_NAMESPACE HelixEngine
               INCLUDE_ROOTS "${ui_engine_source}" "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${engine_source}" "${math_dir}/Source"
               CS_OUTPUT ui_cs)
 set(HELIX_UI_BINDINGS "${ui_cs}" CACHE INTERNAL "")
+
+# The C# side: the generated bindings and the C# written by hand in the reference's shape, over HelixEngine.CoreModule.
+set(runtime_dir "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix.UI.Runtime")
+set(ui_runtime_dll "${ui_artifacts}/bin/Helix.UI.Runtime/release/Helix.UI.Runtime.dll")
+file(GLOB_RECURSE ui_runtime_sources CONFIGURE_DEPENDS "${runtime_dir}/*.cs" "${runtime_dir}/*.csproj")
+list(FILTER ui_runtime_sources EXCLUDE REGEX "/(bin|obj)/")
+add_custom_command(
+    OUTPUT "${ui_runtime_dll}"
+    COMMAND "${HELIX_DOTNET}" build "${runtime_dir}/Helix.UI.Runtime.csproj" -c Release --artifacts-path "${ui_artifacts}" --nologo -v quiet
+            "-p:HelixCoreModule=${HELIX_CORE_MODULE}" "-p:HelixScriptingRuntime=${HELIX_SCRIPTING_RUNTIME}" "-p:HelixModuleBindings=${ui_cs}"
+    DEPENDS ${ui_runtime_sources} "${HELIX_CORE_MODULE}" "${ui_cs}"
+    COMMENT "Building Helix.UI.Runtime")
+add_custom_target(helix_ui_runtime ALL DEPENDS "${ui_runtime_dll}")
+add_dependencies(helix_ui_runtime helix_core_module helix_ui_engine)
+set(HELIX_UI_RUNTIME "${ui_runtime_dll}" CACHE INTERNAL "")
 
 # The UI's C# shaders: an assembly loaded as a shader asset.
 set(ui_shaders_dll "${ui_artifacts}/bin/Helix.UI.Shaders/release/Helix.UI.Shaders.dll")
@@ -93,14 +110,14 @@ set(HELIX_UI_SHADERS "${ui_shaders_dll}" CACHE INTERNAL "")
 
 # Tests of the UI in the engine: views drawn by a scriptable pipeline of the tests on every device.
 if(HELIX_PLATFORM STREQUAL "web")
-    helix_add_test_suite(helix_ui_engine_tests EXCLUDE "/Tests/Core/" DEPS Helix::UIEngine Helix::Engine)
+    helix_add_test_suite(helix_ui_engine_tests DOTNET EXCLUDE "/Tests/Core/" DEPS Helix::UIEngine Helix::Engine)
 else()
     helix_add_test_suite(helix_ui_engine_tests EXCLUDE "/Tests/Core/" DEPS Helix::UIEngine Helix::EngineShared)
 endif()
 if(TARGET helix_ui_engine_tests)
     set(tests_dir "${CMAKE_CURRENT_SOURCE_DIR}/Tests")
     helix_bindgen(helix_ui_engine_tests MODULE UIEngineTests NAMESPACE UIEngineTests KIND NativeGame HEADERS "${tests_dir}/Engine/Support/TestPipeline.h"
-                  REFERENCES ${ui_engine_references} REFERENCE_NAMESPACE HelixEngine INCLUDE_ROOTS "${tests_dir}" "${engine_source}" "${math_dir}/Source")
+                  "${tests_dir}/Engine/Support/CppScripts.h" REFERENCES ${ui_engine_references} REFERENCE_NAMESPACE HelixEngine INCLUDE_ROOTS "${tests_dir}" "${engine_source}" "${math_dir}/Source")
     set(tests_generated "${CMAKE_CURRENT_BINARY_DIR}/Generated")
     add_custom_command(
         OUTPUT "${tests_generated}/UIShadersAssembly.h"
@@ -113,4 +130,34 @@ if(TARGET helix_ui_engine_tests)
     helix_dependency_dir(font_tests_root Font)
     target_include_directories(helix_ui_engine_tests PRIVATE "${tests_generated}" "${engine_dir}/Tests" "${font_tests_root}/Tests")
     target_compile_definitions(helix_ui_engine_tests PRIVATE "HELIX_ENGINE_GOLDEN_DIR=\"${tests_dir}/Golden\"")
+
+    # The C# tests: GameBehaviours over the UI's C# side, run by the C++ tests on the .NET host.
+    set(ui_tests_dll "${ui_artifacts}/bin/Helix.UI.Tests/release/Helix.UI.Tests.dll")
+    get_filename_component(ui_tests_bin "${ui_tests_dll}" DIRECTORY)
+    file(GLOB_RECURSE ui_test_sources CONFIGURE_DEPENDS "${tests_dir}/Managed/*.cs" "${tests_dir}/Managed/*.csproj")
+    list(FILTER ui_test_sources EXCLUDE REGEX "/(bin|obj)/")
+    add_custom_command(
+        OUTPUT "${ui_tests_dll}"
+        COMMAND "${HELIX_DOTNET}" build "${tests_dir}/Managed/Helix.UI.Tests.csproj" -c Release --artifacts-path "${ui_artifacts}" --nologo -v quiet
+                "-p:HelixCoreModule=${HELIX_CORE_MODULE}" "-p:HelixScriptingRuntime=${HELIX_SCRIPTING_RUNTIME}" "-p:HelixUIRuntime=${ui_runtime_dll}"
+        DEPENDS ${ui_test_sources} "${ui_runtime_dll}"
+        COMMENT "Building the C# tests of Helix.UI")
+    add_custom_target(helix_ui_test_scripts DEPENDS "${ui_tests_dll}")
+    add_dependencies(helix_ui_test_scripts helix_ui_runtime)
+    add_dependencies(helix_ui_engine_tests helix_ui_test_scripts)
+    target_compile_definitions(helix_ui_engine_tests PRIVATE "HX_TEST_RUNTIME_ASSEMBLY=\"${HELIX_SCRIPTING_RUNTIME}\""
+                                                            "HX_TEST_CORE_MODULE=\"${HELIX_CORE_MODULE}\"" "HX_TEST_SCRIPTS=\"${ui_tests_dll}\""
+                                                            "HX_TEST_UI_RUNTIME=\"${ui_tests_bin}/Helix.UI.Runtime.dll\"")
+    set_property(TARGET helix_ui_engine_tests APPEND PROPERTY HELIX_DOTNET_ASSEMBLIES "${HELIX_CORE_MODULE}" ${HELIX_CORE_MODULE_REFERENCES}
+                                                                                     "${ui_runtime_dll}" "${ui_tests_dll}")
+    if(TARGET helix_ui_engine_tests_web)
+        add_dependencies(helix_ui_engine_tests_web helix_ui_test_scripts helix_core_module)
+    endif()
+endif()
+
+# The public surface of the C# side against its inventory (Tests/Api/Helix.UI.csv), with Helix.ScriptCore's tool.
+if(HELIX_BUILD_TESTS AND PROJECT_IS_TOP_LEVEL AND HELIX_API_INVENTORY AND TARGET helix_ui_runtime)
+    add_test(NAME helix_ui_api COMMAND "${HELIX_DOTNET}" "${HELIX_API_INVENTORY}" --assembly "${ui_runtime_dll}" --reference "${HELIX_CORE_MODULE}"
+             --reference "${HELIX_SCRIPTING_RUNTIME}" --inventory "${CMAKE_CURRENT_SOURCE_DIR}/Tests/Api/Helix.UI.csv")
+    add_dependencies(helix_ui_runtime helix_api_inventory)
 endif()

@@ -1,5 +1,7 @@
 #include <Helix/UI/Engine/Panel.h>
 
+#include <Helix/UI/Engine/Element.h>
+
 namespace helix::ui
 {
     namespace
@@ -23,6 +25,8 @@ namespace helix::ui
         root_ = tree_.Create(Intern("Element"));
         tree_.SetPicking(root_, PickingMode::Ignore);
         events_.SetRoot(root_);
+        // Its root counts as being in a tree, and its elements take the focus through this panel's events.
+        Element::SetAnchored(world_, root_, &events_);
         // The root fills the panel.
         LayoutStyle s;
         s.width = Length::Percent(100);
@@ -32,6 +36,7 @@ namespace helix::ui
 
     Panel::~Panel()
     {
+        Element::SetAnchored(world_, root_, nullptr);
         tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) { world_.callbacks().Clear(e); });
         styles_.ClearStyleSheets(root_);
         tree_.Destroy(root_);
@@ -162,6 +167,52 @@ namespace helix::ui
             slot.laidOut = slot.settings;
             slot.laidOutFallbacks = slot.fallbacks;
         }
+        SendPanelEvents();
+    }
+
+    void Panel::SendPanelEvents()
+    {
+        // To the elements that listen: those that came into the panel or left it, and boxes that changed.
+        const EventTypes& t = Events();
+        EventCallbacks& callbacks = world_.callbacks();
+        auto listens = [&](ElementHandle e, EventTypeId type) { return callbacks.Has(e, type, false) || callbacks.Has(e, type, true); };
+        auto key = [](ElementHandle e) { return u64(e.index) << 32 | e.generation; };
+        auto send = [&](EventTypeId type, ElementHandle e, Rect from, Rect to) {
+            UIEvent ev;
+            ev.type = type;
+            ev.target = e;
+            ev.oldRect = from;
+            ev.newRect = to;
+            events_.SendEvent(ev);
+        };
+        HashMap<u64, Rect> now;
+        Array<ElementHandle> came, moved;
+        tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) {
+            Rect r = layout_.WorldRect(e);
+            now.Set(key(e), r);
+            const Rect* before = members_.Find(key(e));
+            if (!before)
+                came.Push(e);
+            else if (before->x != r.x || before->y != r.y || before->width != r.width || before->height != r.height)
+                moved.Push(e);
+        });
+        for (auto entry : members_)
+        {
+            ElementHandle e{u32(entry.key >> 32), u32(entry.key)};
+            if (!now.Contains(entry.key) && tree_.IsAlive(e) && listens(e, t.detachFromPanel))
+                send(t.detachFromPanel, e, entry.value, entry.value);
+        }
+        for (ElementHandle e : came)
+        {
+            if (listens(e, t.attachToPanel))
+                send(t.attachToPanel, e, Rect(), layout_.WorldRect(e));
+            if (listens(e, t.geometryChanged))
+                send(t.geometryChanged, e, Rect(), layout_.WorldRect(e));
+        }
+        for (ElementHandle e : moved)
+            if (listens(e, t.geometryChanged))
+                send(t.geometryChanged, e, *members_.Find(key(e)), layout_.WorldRect(e));
+        members_ = Move(now);
     }
 
     const TextInfo* Panel::TextOf(ElementHandle e) const

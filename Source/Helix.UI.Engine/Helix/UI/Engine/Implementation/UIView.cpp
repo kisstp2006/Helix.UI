@@ -15,6 +15,7 @@
 #include <Helix/Engine/Time/Time.h>
 #include <Helix/Platform/Time/Time.h>
 #include <Helix/Engine/Rendering/Graphics.h>
+#include <Helix/UI/Engine/Element.h>
 #include <Helix/UI/Engine/FontAsset.h>
 #include <Helix/UI/Engine/ImageAtlas.h>
 
@@ -363,6 +364,8 @@ namespace helix::ui
             if (frame == v.inputFrame)
                 return;
             v.inputFrame = frame;
+            // The scripts' scheduled items, once a frame.
+            Element::TickScripts(engine::Time::realtimeSinceStartupAsDouble());
             Array<UIView*> order = InputOrder();
             if (order.Empty())
                 return;

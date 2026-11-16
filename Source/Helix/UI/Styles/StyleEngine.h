@@ -23,6 +23,13 @@ namespace helix::ui
         void ClearStyleSheets(ElementHandle owner);
         // An element's inline style (declarations, as in a style attribute); errors are returned.
         void SetInlineStyle(ElementHandle e, StringView declarations, Array<StyleError>* errors = nullptr);
+        // One property of the inline style, as scripts set it: its value's text (false with the reason when it is no
+        // value of the property), `initial`, or gone (the sheets decide again).
+        bool SetInlineProperty(ElementHandle e, PropertyId property, StringView value, String* error = nullptr);
+        void SetInlineInitial(ElementHandle e, PropertyId property);
+        void ClearInlineProperty(ElementHandle e, PropertyId property);
+        // The inline values of a property (false when the inline style does not set it; `initial` gives no values).
+        bool InlineProperty(ElementHandle e, PropertyId property, Array<StyleValue>& out, bool* initial = nullptr) const;
 
         // Computes the dirty styles under root and advances the transitions by dt seconds.
         void Update(ElementHandle root, f32 dt);

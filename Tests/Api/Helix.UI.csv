@@ -1,0 +1,530 @@
+type,member,signature
+EventModifiers,Alt,EventModifiers.Alt = 4
+EventModifiers,CapsLock,EventModifiers.CapsLock = 32
+EventModifiers,Command,EventModifiers.Command = 8
+EventModifiers,Control,EventModifiers.Control = 2
+EventModifiers,FunctionKey,EventModifiers.FunctionKey = 64
+EventModifiers,None,EventModifiers.None = 0
+EventModifiers,Numeric,EventModifiers.Numeric = 16
+EventModifiers,Shift,EventModifiers.Shift = 1
+FontStyle,Bold,FontStyle.Bold = 1
+FontStyle,BoldAndItalic,FontStyle.BoldAndItalic = 3
+FontStyle,Italic,FontStyle.Italic = 2
+FontStyle,Normal,FontStyle.Normal = 0
+Text.FontAsset,.ctor,FontAsset()
+Text.FontAsset,HasCharacter,"bool HasCharacter(int, bool = False)"
+Text.FontAsset,TryAddCharacters,bool TryAddCharacters(string)
+Text.FontAsset,atlasHeight,int atlasHeight { get; }
+Text.FontAsset,atlasPadding,int atlasPadding { get; set; }
+Text.FontAsset,atlasWidth,int atlasWidth { get; }
+Text.FontAsset,samplingPointSize,int samplingPointSize { get; set; }
+TextAnchor,LowerCenter,TextAnchor.LowerCenter = 7
+TextAnchor,LowerLeft,TextAnchor.LowerLeft = 6
+TextAnchor,LowerRight,TextAnchor.LowerRight = 8
+TextAnchor,MiddleCenter,TextAnchor.MiddleCenter = 4
+TextAnchor,MiddleLeft,TextAnchor.MiddleLeft = 3
+TextAnchor,MiddleRight,TextAnchor.MiddleRight = 5
+TextAnchor,UpperCenter,TextAnchor.UpperCenter = 1
+TextAnchor,UpperLeft,TextAnchor.UpperLeft = 0
+TextAnchor,UpperRight,TextAnchor.UpperRight = 2
+UI.Align,Auto,UI.Align.Auto = 0
+UI.Align,Center,UI.Align.Center = 2
+UI.Align,FlexEnd,UI.Align.FlexEnd = 3
+UI.Align,FlexStart,UI.Align.FlexStart = 1
+UI.Align,SpaceAround,UI.Align.SpaceAround = 6
+UI.Align,SpaceBetween,UI.Align.SpaceBetween = 5
+UI.Align,SpaceEvenly,UI.Align.SpaceEvenly = 7
+UI.Align,Stretch,UI.Align.Stretch = 4
+UI.AttachToPanelEvent,.ctor,AttachToPanelEvent()
+UI.AttachToPanelEvent,destinationPanel,IPanel destinationPanel { get; }
+UI.AttachToPanelEvent,originPanel,IPanel originPanel { get; }
+UI.BlurEvent,.ctor,BlurEvent()
+UI.CallbackEventHandler,HasBubbleUpHandlers,bool HasBubbleUpHandlers()
+UI.CallbackEventHandler,HasTrickleDownHandlers,bool HasTrickleDownHandlers()
+UI.CallbackEventHandler,RegisterCallback,"void RegisterCallback<TEventType>(EventCallback<TEventType>, TrickleDown = NoTrickleDown) / void RegisterCallback<TEventType, TUserArgsType>(EventCallback<TEventType, TUserArgsType>, TUserArgsType, TrickleDown = NoTrickleDown)"
+UI.CallbackEventHandler,RegisterCallbackOnce,"void RegisterCallbackOnce<TEventType>(EventCallback<TEventType>, TrickleDown = NoTrickleDown)"
+UI.CallbackEventHandler,SendEvent,void SendEvent(EventBase)
+UI.CallbackEventHandler,UnregisterCallback,"void UnregisterCallback<TEventType>(EventCallback<TEventType>, TrickleDown = NoTrickleDown) / void UnregisterCallback<TEventType, TUserArgsType>(EventCallback<TEventType, TUserArgsType>, TrickleDown = NoTrickleDown)"
+UI.CallbackEventHandler,operators,"Equality(CallbackEventHandler, CallbackEventHandler) / Inequality(CallbackEventHandler, CallbackEventHandler) / Implicit(CallbackEventHandler)"
+UI.ClickEvent,.ctor,ClickEvent()
+UI.CompositionEvent,.ctor,CompositionEvent()
+UI.ContextType,Editor,UI.ContextType.Editor = 1
+UI.ContextType,Player,UI.ContextType.Player = 0
+UI.DetachFromPanelEvent,.ctor,DetachFromPanelEvent()
+UI.DetachFromPanelEvent,destinationPanel,IPanel destinationPanel { get; }
+UI.DetachFromPanelEvent,originPanel,IPanel originPanel { get; }
+UI.DisplayStyle,Flex,UI.DisplayStyle.Flex = 0
+UI.DisplayStyle,None,UI.DisplayStyle.None = 1
+UI.DragEnterEvent,.ctor,DragEnterEvent()
+UI.DragExitedEvent,.ctor,DragExitedEvent()
+UI.DragLeaveEvent,.ctor,DragLeaveEvent()
+UI.DragPerformEvent,.ctor,DragPerformEvent()
+UI.DragUpdatedEvent,.ctor,DragUpdatedEvent()
+UI.Element,.ctor,Element()
+UI.Element,Add,void Add(Element)
+UI.Element,AddToClassList,void AddToClassList(string)
+UI.Element,Blur,void Blur()
+UI.Element,BringToFront,void BringToFront()
+UI.Element,ChangeCoordinatesTo,"Vector2 ChangeCoordinatesTo(Element, Vector2)"
+UI.Element,Children,IEnumerable<Element> Children()
+UI.Element,ClassListContains,bool ClassListContains(string)
+UI.Element,Clear,void Clear()
+UI.Element,ClearClassList,void ClearClassList()
+UI.Element,Contains,bool Contains(Element)
+UI.Element,ContainsPoint,bool ContainsPoint(Vector2)
+UI.Element,ElementAt,Element ElementAt(int)
+UI.Element,EnableInClassList,"void EnableInClassList(string, bool)"
+UI.Element,FindCommonAncestor,Element FindCommonAncestor(Element)
+UI.Element,Focus,void Focus()
+UI.Element,GetClassNames,IEnumerable<string> GetClassNames()
+UI.Element,GetClasses,string[] GetClasses()
+UI.Element,GetFirstAncestorOfType,T GetFirstAncestorOfType<T>()
+UI.Element,GetFirstOfType,T GetFirstOfType<T>()
+UI.Element,IndexOf,int IndexOf(Element)
+UI.Element,Insert,"void Insert(int, Element)"
+UI.Element,LocalToWorld,Vector2 LocalToWorld(Vector2)
+UI.Element,MarkDirtyRepaint,void MarkDirtyRepaint()
+UI.Element,PlaceBehind,void PlaceBehind(Element)
+UI.Element,PlaceInFront,void PlaceInFront(Element)
+UI.Element,Remove,void Remove(Element)
+UI.Element,RemoveAt,void RemoveAt(int)
+UI.Element,RemoveFromClassList,void RemoveFromClassList(string)
+UI.Element,RemoveFromHierarchy,void RemoveFromHierarchy()
+UI.Element,SendToBack,void SendToBack()
+UI.Element,SetEnabled,void SetEnabled(bool)
+UI.Element,Sort,void Sort(Comparison<Element>)
+UI.Element,ToggleInClassList,void ToggleInClassList(string)
+UI.Element,WorldToLocal,Vector2 WorldToLocal(Vector2)
+UI.Element,canGrabFocus,bool canGrabFocus { get; }
+UI.Element,childCount,int childCount { get; }
+UI.Element,contentContainer,Element contentContainer { get; }
+UI.Element,contentRect,Rect contentRect { get; }
+UI.Element,delegatesFocus,bool delegatesFocus { get; set; }
+UI.Element,enabledInHierarchy,bool enabledInHierarchy { get; }
+UI.Element,enabledSelf,bool enabledSelf { get; }
+UI.Element,focusController,FocusController focusController { get; }
+UI.Element,focusable,bool focusable { get; set; }
+UI.Element,hierarchy,Element.Hierarchy hierarchy { get; }
+UI.Element,layout,Rect layout { get; }
+UI.Element,localBound,Rect localBound { get; }
+UI.Element,name,string name { get; set; }
+UI.Element,paddingRect,Rect paddingRect { get; }
+UI.Element,panel,IPanel panel { get; }
+UI.Element,parent,Element parent { get; }
+UI.Element,pickingMode,PickingMode pickingMode { get; set; }
+UI.Element,resolvedStyle,IResolvedStyle resolvedStyle { get; }
+UI.Element,schedule,IVisualElementScheduler schedule { get; }
+UI.Element,style,IStyle style { get; }
+UI.Element,tabIndex,int tabIndex { get; set; }
+UI.Element,this[],Element this[][int] { get; }
+UI.Element,tooltip,string tooltip { get; set; }
+UI.Element,userData,object userData { get; set; }
+UI.Element,viewDataKey,string viewDataKey { get; set; }
+UI.Element,visible,bool visible { get; set; }
+UI.Element,worldBound,Rect worldBound { get; }
+UI.Element.Hierarchy,Add,void Add(Element)
+UI.Element.Hierarchy,Children,IEnumerable<Element> Children()
+UI.Element.Hierarchy,ElementAt,Element ElementAt(int)
+UI.Element.Hierarchy,IndexOf,int IndexOf(Element)
+UI.Element.Hierarchy,Insert,"void Insert(int, Element)"
+UI.Element.Hierarchy,Remove,void Remove(Element)
+UI.Element.Hierarchy,RemoveAt,void RemoveAt(int)
+UI.Element.Hierarchy,childCount,int childCount { get; }
+UI.Element.Hierarchy,parent,Element parent { get; }
+UI.Element.Hierarchy,this[],Element this[][int] { get; }
+UI.ElementQueryExtensions,Find,"static T Find<T>(Element, string = null, params string[]) / static Element Find(Element, string = null, params string[])"
+UI.ElementQueryExtensions,FindAll,"static List<T> FindAll<T>(Element, string = null, params string[]) / static List<Element> FindAll(Element, string = null, params string[])"
+UI.EventBase,Dispose,void Dispose() / void Dispose()
+UI.EventBase,GetPooled,static T GetPooled()
+UI.EventBase,RegisterEventType,static long RegisterEventType()
+UI.EventBase,StopImmediatePropagation,void StopImmediatePropagation()
+UI.EventBase,StopPropagation,void StopPropagation()
+UI.EventBase,TypeId,static long TypeId()
+UI.EventBase,bubbles,bool bubbles { get; }
+UI.EventBase,currentTarget,IEventHandler currentTarget { get; }
+UI.EventBase,dispatch,bool dispatch { get; }
+UI.EventBase,eventTypeId,long eventTypeId { get; } / long eventTypeId { get; }
+UI.EventBase,isImmediatePropagationStopped,bool isImmediatePropagationStopped { get; }
+UI.EventBase,isPropagationStopped,bool isPropagationStopped { get; }
+UI.EventBase,pooled,bool pooled { get; }
+UI.EventBase,propagationPhase,PropagationPhase propagationPhase { get; }
+UI.EventBase,target,IEventHandler target { get; set; }
+UI.EventBase,timestamp,long timestamp { get; }
+UI.EventBase,tricklesDown,bool tricklesDown { get; }
+UI.EventCallback,delegate,"void (TEventType) / void (TEventType, TCallbackArgs)"
+UI.FlexDirection,Column,UI.FlexDirection.Column = 0
+UI.FlexDirection,ColumnReverse,UI.FlexDirection.ColumnReverse = 1
+UI.FlexDirection,Row,UI.FlexDirection.Row = 2
+UI.FlexDirection,RowReverse,UI.FlexDirection.RowReverse = 3
+UI.FocusChangeDirection,none,static FocusChangeDirection none { get; }
+UI.FocusChangeDirection,operators,Implicit(FocusChangeDirection)
+UI.FocusChangeDirection,unspecified,static FocusChangeDirection unspecified { get; }
+UI.FocusController,IgnoreEvent,void IgnoreEvent(EventBase)
+UI.FocusController,focusedElement,Focusable focusedElement { get; }
+UI.FocusEvent,.ctor,FocusEvent()
+UI.FocusEventBase,direction,FocusChangeDirection direction { get; }
+UI.FocusEventBase,relatedTarget,Focusable relatedTarget { get; }
+UI.FocusInEvent,.ctor,FocusInEvent()
+UI.FocusOutEvent,.ctor,FocusOutEvent()
+UI.GeometryChangedEvent,.ctor,GeometryChangedEvent()
+UI.GeometryChangedEvent,GetPooled,"static GeometryChangedEvent GetPooled(Rect, Rect)"
+UI.GeometryChangedEvent,layoutPass,int layoutPass { get; }
+UI.GeometryChangedEvent,newRect,Rect newRect { get; }
+UI.GeometryChangedEvent,oldRect,Rect oldRect { get; }
+UI.IEventHandler,HandleEvent,void HandleEvent(EventBase)
+UI.IEventHandler,HasBubbleUpHandlers,bool HasBubbleUpHandlers()
+UI.IEventHandler,HasTrickleDownHandlers,bool HasTrickleDownHandlers()
+UI.IEventHandler,SendEvent,void SendEvent(EventBase)
+UI.IFocusEvent,direction,FocusChangeDirection direction { get; }
+UI.IFocusEvent,relatedTarget,Focusable relatedTarget { get; }
+UI.IKeyboardEvent,actionKey,bool actionKey { get; }
+UI.IKeyboardEvent,altKey,bool altKey { get; }
+UI.IKeyboardEvent,character,Char character { get; }
+UI.IKeyboardEvent,commandKey,bool commandKey { get; }
+UI.IKeyboardEvent,ctrlKey,bool ctrlKey { get; }
+UI.IKeyboardEvent,keyCode,KeyCode keyCode { get; }
+UI.IKeyboardEvent,modifiers,EventModifiers modifiers { get; }
+UI.IKeyboardEvent,shiftKey,bool shiftKey { get; }
+UI.IMouseEvent,actionKey,bool actionKey { get; }
+UI.IMouseEvent,altKey,bool altKey { get; }
+UI.IMouseEvent,button,int button { get; }
+UI.IMouseEvent,clickCount,int clickCount { get; }
+UI.IMouseEvent,commandKey,bool commandKey { get; }
+UI.IMouseEvent,ctrlKey,bool ctrlKey { get; }
+UI.IMouseEvent,localMousePosition,Vector2 localMousePosition { get; }
+UI.IMouseEvent,modifiers,EventModifiers modifiers { get; }
+UI.IMouseEvent,mouseDelta,Vector2 mouseDelta { get; }
+UI.IMouseEvent,mousePosition,Vector2 mousePosition { get; }
+UI.IMouseEvent,pressedButtons,int pressedButtons { get; }
+UI.IMouseEvent,shiftKey,bool shiftKey { get; }
+UI.INavigationEvent,actionKey,bool actionKey { get; }
+UI.INavigationEvent,altKey,bool altKey { get; }
+UI.INavigationEvent,commandKey,bool commandKey { get; }
+UI.INavigationEvent,ctrlKey,bool ctrlKey { get; }
+UI.INavigationEvent,modifiers,EventModifiers modifiers { get; }
+UI.INavigationEvent,shiftKey,bool shiftKey { get; }
+UI.IPanel,Pick,Element Pick(Vector2)
+UI.IPanel,PickAll,"Element PickAll(Vector2, List<Element>)"
+UI.IPanel,contextType,ContextType contextType { get; }
+UI.IPanel,focusController,FocusController focusController { get; }
+UI.IPanel,isDirty,bool isDirty { get; }
+UI.IPanel,scaledPixelsPerPoint,float scaledPixelsPerPoint { get; }
+UI.IPanel,visualTree,Element visualTree { get; }
+UI.IPointerEvent,actionKey,bool actionKey { get; }
+UI.IPointerEvent,altKey,bool altKey { get; }
+UI.IPointerEvent,altitudeAngle,float altitudeAngle { get; }
+UI.IPointerEvent,azimuthAngle,float azimuthAngle { get; }
+UI.IPointerEvent,button,int button { get; }
+UI.IPointerEvent,clickCount,int clickCount { get; }
+UI.IPointerEvent,commandKey,bool commandKey { get; }
+UI.IPointerEvent,ctrlKey,bool ctrlKey { get; }
+UI.IPointerEvent,deltaPosition,Vector3 deltaPosition { get; }
+UI.IPointerEvent,deltaTime,float deltaTime { get; }
+UI.IPointerEvent,isPrimary,bool isPrimary { get; }
+UI.IPointerEvent,localPosition,Vector3 localPosition { get; }
+UI.IPointerEvent,modifiers,EventModifiers modifiers { get; }
+UI.IPointerEvent,penStatus,PenStatus penStatus { get; }
+UI.IPointerEvent,pointerId,int pointerId { get; }
+UI.IPointerEvent,pointerType,string pointerType { get; }
+UI.IPointerEvent,position,Vector3 position { get; }
+UI.IPointerEvent,pressedButtons,int pressedButtons { get; }
+UI.IPointerEvent,pressure,float pressure { get; }
+UI.IPointerEvent,radius,Vector2 radius { get; }
+UI.IPointerEvent,radiusVariance,Vector2 radiusVariance { get; }
+UI.IPointerEvent,shiftKey,bool shiftKey { get; }
+UI.IPointerEvent,tangentialPressure,float tangentialPressure { get; }
+UI.IPointerEvent,tilt,Vector2 tilt { get; }
+UI.IPointerEvent,twist,float twist { get; }
+UI.IResolvedStyle,backgroundColor,Color backgroundColor { get; }
+UI.IResolvedStyle,borderBottomWidth,float borderBottomWidth { get; }
+UI.IResolvedStyle,borderLeftWidth,float borderLeftWidth { get; }
+UI.IResolvedStyle,borderRightWidth,float borderRightWidth { get; }
+UI.IResolvedStyle,borderTopWidth,float borderTopWidth { get; }
+UI.IResolvedStyle,color,Color color { get; }
+UI.IResolvedStyle,display,DisplayStyle display { get; }
+UI.IResolvedStyle,flexGrow,float flexGrow { get; }
+UI.IResolvedStyle,flexShrink,float flexShrink { get; }
+UI.IResolvedStyle,fontSize,float fontSize { get; }
+UI.IResolvedStyle,height,float height { get; }
+UI.IResolvedStyle,left,float left { get; }
+UI.IResolvedStyle,opacity,float opacity { get; }
+UI.IResolvedStyle,paddingBottom,float paddingBottom { get; }
+UI.IResolvedStyle,paddingLeft,float paddingLeft { get; }
+UI.IResolvedStyle,paddingRight,float paddingRight { get; }
+UI.IResolvedStyle,paddingTop,float paddingTop { get; }
+UI.IResolvedStyle,top,float top { get; }
+UI.IResolvedStyle,visibility,Visibility visibility { get; }
+UI.IResolvedStyle,width,float width { get; }
+UI.IStyle,alignContent,StyleEnum<Align> alignContent { get; set; }
+UI.IStyle,alignItems,StyleEnum<Align> alignItems { get; set; }
+UI.IStyle,alignSelf,StyleEnum<Align> alignSelf { get; set; }
+UI.IStyle,backgroundColor,StyleColor backgroundColor { get; set; }
+UI.IStyle,borderBottomColor,StyleColor borderBottomColor { get; set; }
+UI.IStyle,borderBottomLeftRadius,StyleLength borderBottomLeftRadius { get; set; }
+UI.IStyle,borderBottomRightRadius,StyleLength borderBottomRightRadius { get; set; }
+UI.IStyle,borderBottomWidth,StyleFloat borderBottomWidth { get; set; }
+UI.IStyle,borderLeftColor,StyleColor borderLeftColor { get; set; }
+UI.IStyle,borderLeftWidth,StyleFloat borderLeftWidth { get; set; }
+UI.IStyle,borderRightColor,StyleColor borderRightColor { get; set; }
+UI.IStyle,borderRightWidth,StyleFloat borderRightWidth { get; set; }
+UI.IStyle,borderTopColor,StyleColor borderTopColor { get; set; }
+UI.IStyle,borderTopLeftRadius,StyleLength borderTopLeftRadius { get; set; }
+UI.IStyle,borderTopRightRadius,StyleLength borderTopRightRadius { get; set; }
+UI.IStyle,borderTopWidth,StyleFloat borderTopWidth { get; set; }
+UI.IStyle,bottom,StyleLength bottom { get; set; }
+UI.IStyle,color,StyleColor color { get; set; }
+UI.IStyle,display,StyleEnum<DisplayStyle> display { get; set; }
+UI.IStyle,flexBasis,StyleLength flexBasis { get; set; }
+UI.IStyle,flexDirection,StyleEnum<FlexDirection> flexDirection { get; set; }
+UI.IStyle,flexGrow,StyleFloat flexGrow { get; set; }
+UI.IStyle,flexShrink,StyleFloat flexShrink { get; set; }
+UI.IStyle,flexWrap,StyleEnum<Wrap> flexWrap { get; set; }
+UI.IStyle,fontSize,StyleLength fontSize { get; set; }
+UI.IStyle,height,StyleLength height { get; set; }
+UI.IStyle,helixBackgroundImageTintColor,StyleColor helixBackgroundImageTintColor { get; set; }
+UI.IStyle,helixFontStyleAndWeight,StyleEnum<FontStyle> helixFontStyleAndWeight { get; set; }
+UI.IStyle,helixParagraphSpacing,StyleLength helixParagraphSpacing { get; set; }
+UI.IStyle,helixSliceBottom,StyleInt helixSliceBottom { get; set; }
+UI.IStyle,helixSliceLeft,StyleInt helixSliceLeft { get; set; }
+UI.IStyle,helixSliceRight,StyleInt helixSliceRight { get; set; }
+UI.IStyle,helixSliceScale,StyleFloat helixSliceScale { get; set; }
+UI.IStyle,helixSliceTop,StyleInt helixSliceTop { get; set; }
+UI.IStyle,helixTextAlign,StyleEnum<TextAnchor> helixTextAlign { get; set; }
+UI.IStyle,justifyContent,StyleEnum<Justify> justifyContent { get; set; }
+UI.IStyle,left,StyleLength left { get; set; }
+UI.IStyle,letterSpacing,StyleLength letterSpacing { get; set; }
+UI.IStyle,marginBottom,StyleLength marginBottom { get; set; }
+UI.IStyle,marginLeft,StyleLength marginLeft { get; set; }
+UI.IStyle,marginRight,StyleLength marginRight { get; set; }
+UI.IStyle,marginTop,StyleLength marginTop { get; set; }
+UI.IStyle,maxHeight,StyleLength maxHeight { get; set; }
+UI.IStyle,maxWidth,StyleLength maxWidth { get; set; }
+UI.IStyle,minHeight,StyleLength minHeight { get; set; }
+UI.IStyle,minWidth,StyleLength minWidth { get; set; }
+UI.IStyle,opacity,StyleFloat opacity { get; set; }
+UI.IStyle,overflow,StyleEnum<Overflow> overflow { get; set; }
+UI.IStyle,paddingBottom,StyleLength paddingBottom { get; set; }
+UI.IStyle,paddingLeft,StyleLength paddingLeft { get; set; }
+UI.IStyle,paddingRight,StyleLength paddingRight { get; set; }
+UI.IStyle,paddingTop,StyleLength paddingTop { get; set; }
+UI.IStyle,position,StyleEnum<Position> position { get; set; }
+UI.IStyle,right,StyleLength right { get; set; }
+UI.IStyle,textOverflow,StyleEnum<TextOverflow> textOverflow { get; set; }
+UI.IStyle,top,StyleLength top { get; set; }
+UI.IStyle,visibility,StyleEnum<Visibility> visibility { get; set; }
+UI.IStyle,whiteSpace,StyleEnum<WhiteSpace> whiteSpace { get; set; }
+UI.IStyle,width,StyleLength width { get; set; }
+UI.IStyle,wordSpacing,StyleLength wordSpacing { get; set; }
+UI.IStyleValue,keyword,StyleKeyword keyword { get; set; }
+UI.IStyleValue,value,T value { get; set; }
+UI.IVisualElementScheduledItem,Every,IVisualElementScheduledItem Every(long)
+UI.IVisualElementScheduledItem,ExecuteLater,void ExecuteLater(long)
+UI.IVisualElementScheduledItem,ForDuration,IVisualElementScheduledItem ForDuration(long)
+UI.IVisualElementScheduledItem,Pause,void Pause()
+UI.IVisualElementScheduledItem,Resume,void Resume()
+UI.IVisualElementScheduledItem,StartingIn,IVisualElementScheduledItem StartingIn(long)
+UI.IVisualElementScheduledItem,Until,IVisualElementScheduledItem Until(Func<bool>)
+UI.IVisualElementScheduledItem,element,Element element { get; }
+UI.IVisualElementScheduledItem,isActive,bool isActive { get; }
+UI.IVisualElementScheduler,Execute,IVisualElementScheduledItem Execute(Action<TimerState>) / IVisualElementScheduledItem Execute(Action)
+UI.Justify,Center,UI.Justify.Center = 1
+UI.Justify,FlexEnd,UI.Justify.FlexEnd = 2
+UI.Justify,FlexStart,UI.Justify.FlexStart = 0
+UI.Justify,SpaceAround,UI.Justify.SpaceAround = 4
+UI.Justify,SpaceBetween,UI.Justify.SpaceBetween = 3
+UI.Justify,SpaceEvenly,UI.Justify.SpaceEvenly = 5
+UI.KeyDownEvent,.ctor,KeyDownEvent()
+UI.KeyUpEvent,.ctor,KeyUpEvent()
+UI.KeyboardEventBase,GetPooled,"static T GetPooled(Char, KeyCode, EventModifiers)"
+UI.KeyboardEventBase,actionKey,bool actionKey { get; }
+UI.KeyboardEventBase,altKey,bool altKey { get; }
+UI.KeyboardEventBase,character,Char character { get; }
+UI.KeyboardEventBase,commandKey,bool commandKey { get; }
+UI.KeyboardEventBase,ctrlKey,bool ctrlKey { get; }
+UI.KeyboardEventBase,keyCode,KeyCode keyCode { get; }
+UI.KeyboardEventBase,modifiers,EventModifiers modifiers { get; }
+UI.KeyboardEventBase,shiftKey,bool shiftKey { get; }
+UI.Length,.ctor,"Length(float) / Length(float, LengthUnit)"
+UI.Length,Auto,static Length Auto()
+UI.Length,IsAuto,bool IsAuto()
+UI.Length,IsNone,bool IsNone()
+UI.Length,None,static Length None()
+UI.Length,Percent,static Length Percent(float)
+UI.Length,ToString,string ToString()
+UI.Length,operators,"Implicit(float) / Equality(Length, Length) / Inequality(Length, Length)"
+UI.Length,unit,LengthUnit unit { get; set; }
+UI.Length,value,float value { get; set; }
+UI.LengthUnit,Percent,UI.LengthUnit.Percent = 1
+UI.LengthUnit,Pixel,UI.LengthUnit.Pixel = 0
+UI.MouseCaptureController,CaptureMouse,static void CaptureMouse(IEventHandler)
+UI.MouseCaptureController,HasMouseCapture,static bool HasMouseCapture(IEventHandler)
+UI.MouseCaptureController,IsMouseCaptured,static bool IsMouseCaptured()
+UI.MouseCaptureController,ReleaseMouse,static void ReleaseMouse(IEventHandler)
+UI.MouseCaptureEvent,.ctor,MouseCaptureEvent()
+UI.MouseCaptureOutEvent,.ctor,MouseCaptureOutEvent()
+UI.MouseDownEvent,.ctor,MouseDownEvent()
+UI.MouseEnterEvent,.ctor,MouseEnterEvent()
+UI.MouseEventBase,actionKey,bool actionKey { get; }
+UI.MouseEventBase,altKey,bool altKey { get; }
+UI.MouseEventBase,button,int button { get; }
+UI.MouseEventBase,clickCount,int clickCount { get; }
+UI.MouseEventBase,commandKey,bool commandKey { get; }
+UI.MouseEventBase,ctrlKey,bool ctrlKey { get; }
+UI.MouseEventBase,localMousePosition,Vector2 localMousePosition { get; }
+UI.MouseEventBase,modifiers,EventModifiers modifiers { get; }
+UI.MouseEventBase,mouseDelta,Vector2 mouseDelta { get; }
+UI.MouseEventBase,mousePosition,Vector2 mousePosition { get; }
+UI.MouseEventBase,pressedButtons,int pressedButtons { get; }
+UI.MouseEventBase,shiftKey,bool shiftKey { get; }
+UI.MouseLeaveEvent,.ctor,MouseLeaveEvent()
+UI.MouseMoveEvent,.ctor,MouseMoveEvent()
+UI.MouseOutEvent,.ctor,MouseOutEvent()
+UI.MouseOverEvent,.ctor,MouseOverEvent()
+UI.MouseUpEvent,.ctor,MouseUpEvent()
+UI.NavigationCancelEvent,.ctor,NavigationCancelEvent()
+UI.NavigationEventBase,GetPooled,static T GetPooled(EventModifiers = None)
+UI.NavigationEventBase,actionKey,bool actionKey { get; }
+UI.NavigationEventBase,altKey,bool altKey { get; }
+UI.NavigationEventBase,commandKey,bool commandKey { get; }
+UI.NavigationEventBase,ctrlKey,bool ctrlKey { get; }
+UI.NavigationEventBase,modifiers,EventModifiers modifiers { get; }
+UI.NavigationEventBase,shiftKey,bool shiftKey { get; }
+UI.NavigationMoveDirection,Down,UI.NavigationMoveDirection.Down = 4
+UI.NavigationMoveDirection,Left,UI.NavigationMoveDirection.Left = 1
+UI.NavigationMoveDirection,Next,UI.NavigationMoveDirection.Next = 5
+UI.NavigationMoveDirection,None,UI.NavigationMoveDirection.None = 0
+UI.NavigationMoveDirection,Previous,UI.NavigationMoveDirection.Previous = 6
+UI.NavigationMoveDirection,Right,UI.NavigationMoveDirection.Right = 3
+UI.NavigationMoveDirection,Up,UI.NavigationMoveDirection.Up = 2
+UI.NavigationMoveEvent,.ctor,NavigationMoveEvent()
+UI.NavigationMoveEvent,GetPooled,"static NavigationMoveEvent GetPooled(NavigationMoveDirection, EventModifiers = None)"
+UI.NavigationMoveEvent,direction,NavigationMoveDirection direction { get; }
+UI.NavigationMoveEvent,move,Vector2 move { get; }
+UI.NavigationSubmitEvent,.ctor,NavigationSubmitEvent()
+UI.Overflow,Hidden,UI.Overflow.Hidden = 1
+UI.Overflow,Visible,UI.Overflow.Visible = 0
+UI.PenStatus,Barrel,UI.PenStatus.Barrel = 2
+UI.PenStatus,Contact,UI.PenStatus.Contact = 1
+UI.PenStatus,Eraser,UI.PenStatus.Eraser = 8
+UI.PenStatus,Inverted,UI.PenStatus.Inverted = 4
+UI.PenStatus,None,UI.PenStatus.None = 0
+UI.PickingMode,Ignore,UI.PickingMode.Ignore = 1
+UI.PickingMode,Position,UI.PickingMode.Position = 0
+UI.PointerCancelEvent,.ctor,PointerCancelEvent()
+UI.PointerCaptureEvent,.ctor,PointerCaptureEvent()
+UI.PointerCaptureEventBase,pointerId,int pointerId { get; }
+UI.PointerCaptureEventBase,relatedTarget,IEventHandler relatedTarget { get; }
+UI.PointerCaptureHelper,CapturePointer,"static void CapturePointer(IEventHandler, int)"
+UI.PointerCaptureHelper,GetCapturingElement,"static IEventHandler GetCapturingElement(IPanel, int)"
+UI.PointerCaptureHelper,HasPointerCapture,"static bool HasPointerCapture(IEventHandler, int)"
+UI.PointerCaptureHelper,ReleasePointer,"static void ReleasePointer(IEventHandler, int) / static void ReleasePointer(IPanel, int)"
+UI.PointerCaptureOutEvent,.ctor,PointerCaptureOutEvent()
+UI.PointerDownEvent,.ctor,PointerDownEvent()
+UI.PointerEnterEvent,.ctor,PointerEnterEvent()
+UI.PointerEventBase,GetPooled,static T GetPooled(IPointerEvent)
+UI.PointerEventBase,actionKey,bool actionKey { get; }
+UI.PointerEventBase,altKey,bool altKey { get; }
+UI.PointerEventBase,altitudeAngle,float altitudeAngle { get; }
+UI.PointerEventBase,azimuthAngle,float azimuthAngle { get; }
+UI.PointerEventBase,button,int button { get; }
+UI.PointerEventBase,clickCount,int clickCount { get; }
+UI.PointerEventBase,commandKey,bool commandKey { get; }
+UI.PointerEventBase,ctrlKey,bool ctrlKey { get; }
+UI.PointerEventBase,deltaPosition,Vector3 deltaPosition { get; }
+UI.PointerEventBase,deltaTime,float deltaTime { get; }
+UI.PointerEventBase,isPrimary,bool isPrimary { get; }
+UI.PointerEventBase,localPosition,Vector3 localPosition { get; }
+UI.PointerEventBase,modifiers,EventModifiers modifiers { get; }
+UI.PointerEventBase,penStatus,PenStatus penStatus { get; }
+UI.PointerEventBase,pointerId,int pointerId { get; }
+UI.PointerEventBase,pointerType,string pointerType { get; }
+UI.PointerEventBase,position,Vector3 position { get; }
+UI.PointerEventBase,pressedButtons,int pressedButtons { get; }
+UI.PointerEventBase,pressure,float pressure { get; }
+UI.PointerEventBase,radius,Vector2 radius { get; }
+UI.PointerEventBase,radiusVariance,Vector2 radiusVariance { get; }
+UI.PointerEventBase,shiftKey,bool shiftKey { get; }
+UI.PointerEventBase,tangentialPressure,float tangentialPressure { get; }
+UI.PointerEventBase,tilt,Vector2 tilt { get; }
+UI.PointerEventBase,twist,float twist { get; }
+UI.PointerId,invalidPointerId,static int invalidPointerId
+UI.PointerId,maxPointers,static int maxPointers
+UI.PointerId,mousePointerId,static int mousePointerId
+UI.PointerId,penPointerCount,static int penPointerCount
+UI.PointerId,penPointerIdBase,static int penPointerIdBase
+UI.PointerId,touchPointerCount,static int touchPointerCount
+UI.PointerId,touchPointerIdBase,static int touchPointerIdBase
+UI.PointerId,trackedPointerCount,static int trackedPointerCount
+UI.PointerId,trackedPointerIdBase,static int trackedPointerIdBase
+UI.PointerLeaveEvent,.ctor,PointerLeaveEvent()
+UI.PointerMoveEvent,.ctor,PointerMoveEvent()
+UI.PointerOutEvent,.ctor,PointerOutEvent()
+UI.PointerOverEvent,.ctor,PointerOverEvent()
+UI.PointerStationaryEvent,.ctor,PointerStationaryEvent()
+UI.PointerType,mouse,static string mouse
+UI.PointerType,pen,static string pen
+UI.PointerType,touch,static string touch
+UI.PointerType,tracked,static string tracked
+UI.PointerType,unknown,static string unknown
+UI.PointerUpEvent,.ctor,PointerUpEvent()
+UI.Position,Absolute,UI.Position.Absolute = 1
+UI.Position,Relative,UI.Position.Relative = 0
+UI.PropagationPhase,BubbleUp,UI.PropagationPhase.BubbleUp = 3
+UI.PropagationPhase,None,UI.PropagationPhase.None = 0
+UI.PropagationPhase,TrickleDown,UI.PropagationPhase.TrickleDown = 1
+UI.StyleColor,.ctor,StyleColor(Color) / StyleColor(StyleKeyword)
+UI.StyleColor,ToString,string ToString()
+UI.StyleColor,keyword,StyleKeyword keyword { get; set; }
+UI.StyleColor,operators,"Implicit(StyleKeyword) / Implicit(Color) / Equality(StyleColor, StyleColor) / Inequality(StyleColor, StyleColor) / Equality(StyleColor, Color) / Inequality(StyleColor, Color)"
+UI.StyleColor,value,Color value { get; set; }
+UI.StyleEnum,.ctor,StyleEnum(T) / StyleEnum(StyleKeyword)
+UI.StyleEnum,ToString,string ToString()
+UI.StyleEnum,keyword,StyleKeyword keyword { get; set; }
+UI.StyleEnum,operators,"Implicit(StyleKeyword) / Implicit(T) / Equality(StyleEnum, StyleEnum) / Inequality(StyleEnum, StyleEnum)"
+UI.StyleEnum,value,T value { get; set; }
+UI.StyleFloat,.ctor,StyleFloat(float) / StyleFloat(StyleKeyword)
+UI.StyleFloat,ToString,string ToString()
+UI.StyleFloat,keyword,StyleKeyword keyword { get; set; }
+UI.StyleFloat,operators,"Implicit(StyleKeyword) / Implicit(float) / Equality(StyleFloat, StyleFloat) / Inequality(StyleFloat, StyleFloat)"
+UI.StyleFloat,value,float value { get; set; }
+UI.StyleInt,.ctor,StyleInt(int) / StyleInt(StyleKeyword)
+UI.StyleInt,ToString,string ToString()
+UI.StyleInt,keyword,StyleKeyword keyword { get; set; }
+UI.StyleInt,operators,"Implicit(StyleKeyword) / Implicit(int) / Equality(StyleInt, StyleInt) / Inequality(StyleInt, StyleInt)"
+UI.StyleInt,value,int value { get; set; }
+UI.StyleKeyword,Auto,UI.StyleKeyword.Auto = 2
+UI.StyleKeyword,Initial,UI.StyleKeyword.Initial = 4
+UI.StyleKeyword,None,UI.StyleKeyword.None = 3
+UI.StyleKeyword,Null,UI.StyleKeyword.Null = 1
+UI.StyleKeyword,Undefined,UI.StyleKeyword.Undefined = 0
+UI.StyleLength,.ctor,StyleLength(float) / StyleLength(Length) / StyleLength(StyleKeyword)
+UI.StyleLength,ToString,string ToString()
+UI.StyleLength,keyword,StyleKeyword keyword { get; set; }
+UI.StyleLength,operators,"Implicit(StyleKeyword) / Implicit(float) / Implicit(Length) / Equality(StyleLength, StyleLength) / Inequality(StyleLength, StyleLength)"
+UI.StyleLength,value,Length value { get; set; }
+UI.StyleSheetAsset,.ctor,StyleSheetAsset()
+UI.TextOverflow,Clip,UI.TextOverflow.Clip = 0
+UI.TextOverflow,Ellipsis,UI.TextOverflow.Ellipsis = 1
+UI.TimerState,deltaTime,long deltaTime { get; }
+UI.TimerState,now,long now { get; set; }
+UI.TimerState,start,long start { get; set; }
+UI.TrickleDown,NoTrickleDown,UI.TrickleDown.NoTrickleDown = 0
+UI.TrickleDown,TrickleDown,UI.TrickleDown.TrickleDown = 1
+UI.UITemplate,.ctor,UITemplate()
+UI.UIView,.ctor,UIView()
+UI.UIView,rootElement,Element rootElement { get; }
+UI.UIView,sortingOrder,int sortingOrder { get; set; }
+UI.UIView,source,UITemplate source { get; set; }
+UI.UIView,watchFiles,bool watchFiles { get; set; }
+UI.Visibility,Hidden,UI.Visibility.Hidden = 1
+UI.Visibility,Visible,UI.Visibility.Visible = 0
+UI.WheelEvent,.ctor,WheelEvent()
+UI.WheelEvent,delta,Vector3 delta { get; }
+UI.WheelEvent,scrollDeltaPerTick,const float scrollDeltaPerTick
+UI.WhiteSpace,NoWrap,UI.WhiteSpace.NoWrap = 1
+UI.WhiteSpace,Normal,UI.WhiteSpace.Normal = 0
+UI.WhiteSpace,Pre,UI.WhiteSpace.Pre = 2
+UI.WhiteSpace,PreWrap,UI.WhiteSpace.PreWrap = 3
+UI.Wrap,NoWrap,UI.Wrap.NoWrap = 0
+UI.Wrap,Wrap,UI.Wrap.Wrap = 1
+UI.Wrap,WrapReverse,UI.Wrap.WrapReverse = 2

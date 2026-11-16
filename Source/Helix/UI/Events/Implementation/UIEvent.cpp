@@ -58,6 +58,10 @@ namespace helix::ui
             {&EventTypes::dragPerform, "DragPerformEvent", true, true, EventFamily::Drag},
             {&EventTypes::dragExited, "DragExitedEvent", true, true, EventFamily::Drag},
             {&EventTypes::composition, "CompositionEvent", true, true, EventFamily::Keyboard},
+            {&EventTypes::geometryChanged, "GeometryChangedEvent", false, false, EventFamily::Other},
+            {&EventTypes::attachToPanel, "AttachToPanelEvent", false, false, EventFamily::Other},
+            {&EventTypes::detachFromPanel, "DetachFromPanelEvent", false, false, EventFamily::Other},
+            {&EventTypes::customStyleResolved, "CustomStyleResolvedEvent", false, false, EventFamily::Other},
         };
     }
 
