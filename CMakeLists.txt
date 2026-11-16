@@ -155,6 +155,12 @@ if(TARGET helix_ui_engine_tests)
     endif()
 endif()
 
+# The .NET runtime is never unloaded: LeakSanitizer is told about its modules (as in Helix.Scripting's tests).
+if(TEST helix_ui_engine_tests AND HELIX_ENABLE_ASAN AND HELIX_PLATFORM STREQUAL "linux")
+    helix_dependency_dir(scripting_dir Scripting)
+    set_tests_properties(helix_ui_engine_tests PROPERTIES ENVIRONMENT "LSAN_OPTIONS=suppressions=${scripting_dir}/Tests/Support/LeakSuppressions.txt")
+endif()
+
 # The public surface of the C# side against its inventory (Tests/Api/Helix.UI.csv), with Helix.ScriptCore's tool.
 if(HELIX_BUILD_TESTS AND PROJECT_IS_TOP_LEVEL AND HELIX_API_INVENTORY AND TARGET helix_ui_runtime)
     add_test(NAME helix_ui_api COMMAND "${HELIX_DOTNET}" "${HELIX_API_INVENTORY}" --assembly "${ui_runtime_dll}" --reference "${HELIX_CORE_MODULE}"
