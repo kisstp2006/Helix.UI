@@ -16,7 +16,9 @@ namespace helix::ui
         }
     }
 
-    Panel::Panel() : layout_(tree_), styles_(tree_, layout_)
+    Panel::Panel(ElementWorld& world)
+        : world_(world), tree_(world.tree()), layout_(world.layout()), styles_(world.styles()),
+          events_(world.tree(), world.layout(), world.styles(), &world.callbacks())
     {
         root_ = tree_.Create(Intern("Element"));
         tree_.SetPicking(root_, PickingMode::Ignore);
@@ -26,6 +28,13 @@ namespace helix::ui
         s.width = Length::Percent(100);
         s.height = Length::Percent(100);
         layout_.SetStyle(root_, s);
+    }
+
+    Panel::~Panel()
+    {
+        tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) { world_.callbacks().Clear(e); });
+        styles_.ClearStyleSheets(root_);
+        tree_.Destroy(root_);
     }
 
     void Panel::Build(const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors)
@@ -69,9 +78,10 @@ namespace helix::ui
     Vector2 Panel::Measure(void* user, ElementHandle e, f32 width, MeasureMode widthMode, f32, MeasureMode)
     {
         auto* panel = static_cast<Panel*>(user);
-        if (e.index >= panel->texts_.Size())
+        const TextSlot* found = panel->texts_.Find(e.index);
+        if (!found || found->generation != e.generation)
             return Vector2(0, 0);
-        const TextSlot& slot = panel->texts_[e.index];
+        const TextSlot& slot = *found;
         if (!slot.font)
             return Vector2(0, 0);
         // A generator per thread: the layout may measure on several jobs at once.
@@ -91,15 +101,13 @@ namespace helix::ui
         tree_.ForEachInSubtree(root_, [&](ElementHandle e, u32) {
             if (tree_.Text(e).Empty())
             {
-                if (e.index < texts_.Size() && texts_[e.index].measured && texts_[e.index].generation == e.generation)
-                {
+                TextSlot* old = texts_.Find(e.index);
+                if (old && old->measured && old->generation == e.generation)
                     layout_.SetMeasure(e, nullptr, nullptr);
-                    texts_[e.index] = TextSlot();
-                }
+                if (old)
+                    texts_.Remove(e.index);
                 return;
             }
-            if (e.index >= texts_.Size())
-                texts_.Resize(e.index + 1);
             TextSlot& slot = texts_[e.index];
             if (slot.generation != e.generation)
             {
@@ -123,7 +131,10 @@ namespace helix::ui
         });
         // The fallback spans point into the slots, which may have moved while the list grew.
         for (ElementHandle e : textElements_)
-            texts_[e.index].settings.fallbacks = Span<TextFont* const>(texts_[e.index].fallbacks.Data(), texts_[e.index].fallbacks.Size());
+        {
+            TextSlot& slot = texts_[e.index];
+            slot.settings.fallbacks = Span<TextFont* const>(slot.fallbacks.Data(), slot.fallbacks.Size());
+        }
         layout_.Update(root_, width, height);
         // Each text in its element's content box, laid out again when the text or the box changed.
         for (ElementHandle e : textElements_)
@@ -155,9 +166,10 @@ namespace helix::ui
 
     const TextInfo* Panel::TextOf(ElementHandle e) const
     {
-        if (!tree_.IsAlive(e) || e.index >= texts_.Size() || texts_[e.index].generation != e.generation || !texts_[e.index].font)
+        const TextSlot* slot = tree_.IsAlive(e) ? texts_.Find(e.index) : nullptr;
+        if (!slot || slot->generation != e.generation || !slot->font)
             return nullptr;
-        return &texts_[e.index].info;
+        return &slot->info;
     }
 
     void Panel::Draw(UIMesh& mesh)

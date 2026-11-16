@@ -1,7 +1,9 @@
 #pragma once
 
+#include <Helix/Core/Containers/HashMap.h>
 #include <Helix/Math/Color.h>
 #include <Helix/UI/Events/EventSystem.h>
+#include <Helix/UI/World/ElementWorld.h>
 #include <Helix/UI/Markup/Hxml.h>
 #include <Helix/UI/Rendering/Painter.h>
 #include <Helix/UI/Rendering/UIMesh.h>
@@ -12,7 +14,8 @@ namespace helix::engine
     class Texture2D;
 }
 
-// A panel: an element tree with its layout and styles, built from markup, laid out in a box of the screen's size and
+// A panel: a root in an element world (the process's by default) with the elements under it, built from markup, laid
+// out in a box of the screen's size and
 // drawn into a UIMesh in tree order: each visible element's box (rounded corners, borders, background color and image),
 // what its type paints, its text; overflow hidden clips the descendants to the padding box. Elements with text are
 // measured by the text layout and set in their content box. Its event system takes the host's input; the root is not
@@ -35,11 +38,16 @@ namespace helix::ui
     class Panel
     {
     public:
-        Panel();
+        explicit Panel(ElementWorld& world = ElementWorld::Main());
+        // Its root and the elements under it go.
+        ~Panel();
+        Panel(const Panel&) = delete;
+        Panel& operator=(const Panel&) = delete;
 
-        ElementTree& tree() { return tree_; }
-        LayoutEngine& layout() { return layout_; }
-        StyleEngine& styles() { return styles_; }
+        ElementWorld& world() { return world_; }
+        ElementTree& tree() { return world_.tree(); }
+        LayoutEngine& layout() { return world_.layout(); }
+        StyleEngine& styles() { return world_.styles(); }
         EventSystem& events() { return events_; }
         ElementHandle root() const { return root_; }
         void SetTextHost(PanelTextHost* host) { host_ = host; }
@@ -71,13 +79,15 @@ namespace helix::ui
         void Settings(const ComputedStyle& style, TextSlot& slot) const;
         void DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity);
 
-        ElementTree tree_;
-        LayoutEngine layout_;
-        StyleEngine styles_;
-        EventSystem events_{tree_, layout_, styles_};
+        ElementWorld& world_;
+        ElementTree& tree_;
+        LayoutEngine& layout_;
+        StyleEngine& styles_;
+        EventSystem events_;
         ElementHandle root_;
         PanelTextHost* host_ = nullptr;
-        Array<TextSlot> texts_;
+        // The text of the panel's text elements, by their slot in the world.
+        HashMap<u32, TextSlot> texts_;
         Array<ElementHandle> textElements_;
         TextGenerator generator_;
         Painter painter_;

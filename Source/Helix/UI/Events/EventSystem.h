@@ -3,6 +3,7 @@
 #include <Helix/Core/Basics/Span.h>
 #include <Helix/Core/Containers/Array.h>
 #include <Helix/Math/Geometry.h>
+#include <Helix/UI/Events/EventCallbacks.h>
 #include <Helix/UI/Events/UIEvent.h>
 
 // The events of a panel: the host's input (pointers, keys, typed and composed text) becomes the reference's events,
@@ -18,20 +19,13 @@ namespace helix::ui
 {
     class LayoutEngine;
     class StyleEngine;
-    class EventSystem;
-
-    using EventCallback = void (*)(void* user, EventSystem& events, UIEvent& e);
-
-    enum class TrickleDown : u8
-    {
-        NoTrickleDown,
-        TrickleDown
-    };
 
     class EventSystem
     {
     public:
-        EventSystem(ElementTree& tree, LayoutEngine& layout, StyleEngine& styles);
+        // The callbacks are the elements' (an element world's store, shared by its panels); without a store the
+        // system keeps its own.
+        EventSystem(ElementTree& tree, LayoutEngine& layout, StyleEngine& styles, EventCallbacks* callbacks = nullptr);
         // The root keys go to when nothing has the focus (its parent's events stop at it).
         void SetRoot(ElementHandle root) { root_ = root; }
         ElementTree& tree() { return tree_; }
@@ -112,15 +106,6 @@ namespace helix::ui
         void Forget();
 
     private:
-        struct Callback
-        {
-            u32 generation = 0;
-            EventTypeId type = kNoEventType;
-            bool trickleDown = false;
-            EventCallback function = nullptr;
-            void* user = nullptr;
-        };
-
         using DefaultAction = void (*)(EventSystem& events, const UIEvent& e);
 
         struct Queued
@@ -176,8 +161,9 @@ namespace helix::ui
         ElementTree& tree_;
         LayoutEngine& layout_;
         StyleEngine& styles_;
+        EventCallbacks ownCallbacks_;
+        EventCallbacks& callbacks_;
         ElementHandle root_;
-        Array<Array<Callback>> callbacks_;
         Array<Queued> queue_;
         bool dispatching_ = false;
         Pointer pointers_[PointerId::max];

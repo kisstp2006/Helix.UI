@@ -56,7 +56,10 @@ namespace helix::ui
         }
     }
 
-    EventSystem::EventSystem(ElementTree& tree, LayoutEngine& layout, StyleEngine& styles) : tree_(tree), layout_(layout), styles_(styles) {}
+    EventSystem::EventSystem(ElementTree& tree, LayoutEngine& layout, StyleEngine& styles, EventCallbacks* callbacks)
+        : tree_(tree), layout_(layout), styles_(styles), callbacks_(callbacks ? *callbacks : ownCallbacks_)
+    {
+    }
 
     EventSystem::Pointer& EventSystem::At(i32 pointerId)
     {
@@ -73,37 +76,13 @@ namespace helix::ui
 
     void EventSystem::RegisterCallback(ElementHandle e, EventTypeId type, EventCallback callback, void* user, TrickleDown phase)
     {
-        if (!tree_.IsAlive(e) || !callback)
-            return;
-        if (callbacks_.Size() <= e.index)
-            callbacks_.Resize(e.index + 1);
-        Array<Callback>& list = callbacks_[e.index];
-        // Callbacks of an element that was in this slot before go.
-        for (usize i = 0; i < list.Size();)
-            if (list[i].generation != e.generation)
-                list.RemoveAt(i);
-            else
-                i++;
-        bool trickle = phase == TrickleDown::TrickleDown;
-        for (const Callback& c : list)
-            if (c.type == type && c.function == callback && c.user == user && c.trickleDown == trickle)
-                return;
-        list.Push(Callback{e.generation, type, trickle, callback, user});
+        if (tree_.IsAlive(e))
+            callbacks_.Register(e, type, callback, user, phase);
     }
 
     void EventSystem::UnregisterCallback(ElementHandle e, EventTypeId type, EventCallback callback, void* user, TrickleDown phase)
     {
-        if (e.index >= callbacks_.Size())
-            return;
-        Array<Callback>& list = callbacks_[e.index];
-        bool trickle = phase == TrickleDown::TrickleDown;
-        for (usize i = 0; i < list.Size(); i++)
-            if (list[i].generation == e.generation && list[i].type == type && list[i].function == callback && list[i].user == user &&
-                list[i].trickleDown == trickle)
-            {
-                list.RemoveAt(i);
-                return;
-            }
+        callbacks_.Unregister(e, type, callback, user, phase);
     }
 
     // -------------------------------------------------------------------------------------------------- dispatch
@@ -154,19 +133,17 @@ namespace helix::ui
 
     bool EventSystem::Invoke(ElementHandle element, UIEvent& e, bool trickleDown)
     {
-        if (element.index >= callbacks_.Size() || !tree_.IsAlive(element) || !tree_.EnabledInHierarchy(element))
-            return false;
-        bool any = false;
-        for (const Callback& c : callbacks_[element.index])
-            any = any || (c.generation == element.generation && c.type == e.type && c.trickleDown == trickleDown);
-        if (!any)
+        if (!tree_.IsAlive(element) || !callbacks_.Has(element, e.type, trickleDown) || !tree_.EnabledInHierarchy(element))
             return false;
         e.currentTarget = element;
         Rect r = layout_.WorldRect(element);
         e.localPosition = Vector2(e.position.x - r.x, e.position.y - r.y);
         // A copy: callbacks may add and remove callbacks.
-        Array<Callback> list(callbacks_[element.index]);
-        for (const Callback& c : list)
+        Span<const EventCallbacks::Callback> of = callbacks_.Of(element);
+        Array<EventCallbacks::Callback> list;
+        for (const EventCallbacks::Callback& c : of)
+            list.Push(c);
+        for (const EventCallbacks::Callback& c : list)
         {
             if (c.generation != element.generation || c.type != e.type || c.trickleDown != trickleDown)
                 continue;

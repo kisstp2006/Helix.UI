@@ -19,6 +19,7 @@ or none).
 | `Source/Helix/UI/Text/Fonts/` | Glyph atlases (SDF, MSDF, coverage, color glyphs), face metrics, the fonts of the machine |
 | `Source/Helix/UI/Text/RichText/` | Rich text tags parsed into styles per character |
 | `Source/Helix/UI/Text/Layout/` | Text layout: lines, alignment, overflow, auto size, and the text info (characters, words, lines, links, pages) |
+| `Source/Helix/UI/World/` | The element world: one tree, layout, style engine and callback store per process; an element exists without a panel and keeps its callbacks and state when it moves between panels, which are roots in the world |
 | `Source/Helix/UI/Events/` | Events: types from a registry with the reference's names and propagation, the dispatcher (trickle down, bubble up, stops, a queue for events sent while dispatching), picking, pointers and the mouse, click counts, capture, hover, focus and the focus ring, keys, navigation, the input method's composition, drag and drop |
 | `Source/Helix/UI/Rendering/` | The geometry of a panel: rounded boxes with per side borders, images (scale modes, 9-slice), glyphs, painted paths, clips, batches of four textures; the `Painter` (paths of lines, arcs and Bezier curves, filled or stroked with joins, caps and gradients, antialiased) |
 | `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheetAsset` (.hss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component, its drawer in the engine's screen overlay, the image atlas |
