@@ -17,6 +17,8 @@ namespace helix::ui
     {
     public:
         static constexpr u32 kPageSize = 2048, kMaxSide = 256;
+        // The edge pixels repeated around each image (filtering at its edges stays inside it).
+        static constexpr u32 kExtrude = 1;
 
         ImageAtlas();
         ~ImageAtlas();

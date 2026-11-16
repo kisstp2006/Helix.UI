@@ -39,14 +39,25 @@ namespace helix::ui
                 return;
             }
             Array<Color32> pixels = texture->GetPixels32(0);
+            // The image with its edge pixels repeated once around it, so filtering at its edges stays inside it (as
+            // the texture's own clamp would).
             font::GlyphBitmap bitmap;
-            bitmap.width = w;
-            bitmap.height = h;
+            bitmap.width = w + 2 * kExtrude;
+            bitmap.height = h + 2 * kExtrude;
             bitmap.channels = 4;
-            bitmap.pixels.Resize(usize(w) * h * 4);
-            // The texture's rows go up, the atlas's down.
-            for (u32 y = 0; y < h; y++)
-                std::memcpy(bitmap.pixels.Data() + usize(y) * w * 4, pixels.Data() + usize(h - 1 - y) * w, usize(w) * 4);
+            bitmap.pixels.Resize(usize(bitmap.width) * bitmap.height * 4);
+            for (u32 y = 0; y < bitmap.height; y++)
+            {
+                // The texture's rows go up, the atlas's down.
+                u32 sy = y < kExtrude ? 0 : y - kExtrude >= h ? h - 1 : y - kExtrude;
+                const Color32* row = pixels.Data() + usize(h - 1 - sy) * w;
+                u8* to = bitmap.pixels.Data() + usize(y) * bitmap.width * 4;
+                for (u32 x = 0; x < bitmap.width; x++)
+                {
+                    u32 sx = x < kExtrude ? 0 : x - kExtrude >= w ? w - 1 : x - kExtrude;
+                    std::memcpy(to + usize(x) * 4, row + sx, 4);
+                }
+            }
             font::AtlasPlace placed;
             if (!atlas_.Add(key, bitmap, placed))
             {
@@ -65,7 +76,8 @@ namespace helix::ui
             out.texture = pages_[place->page].Get();
             out.rowsUp = false;
             f32 s = 1.0f / f32(kPageSize);
-            out.uv = Rect(f32(place->x) * s, f32(place->y) * s, f32(place->width) * s, f32(place->height) * s);
+            out.uv = Rect(f32(place->x + kExtrude) * s, f32(place->y + kExtrude) * s, f32(place->width - 2 * kExtrude) * s,
+                          f32(place->height - 2 * kExtrude) * s);
         }
     }
 
