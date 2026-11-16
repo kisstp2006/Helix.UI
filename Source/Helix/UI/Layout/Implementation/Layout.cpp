@@ -150,7 +150,7 @@ namespace helix::ui
     Rect LayoutEngine::WorldRect(ElementHandle e) const
     {
         const Slot* s = Find(e);
-        return s ? Rect(s->world.x, s->world.y, s->box.width, s->box.height) : Rect();
+        return s ? s->pixel : Rect();
     }
 
     void LayoutEngine::Update(ElementHandle root, f32 width, f32 height)
@@ -175,6 +175,12 @@ namespace helix::ui
         if (!force && !moved && s.laidPass != pass_)
             return;
         s.world = world;
+        // Rounding the edges (not the size) keeps neighbours touching; text rounds up so it never wraps anew.
+        f32 x0 = std::round(world.x), y0 = std::round(world.y);
+        f32 right = world.x + s.box.width, bottom = world.y + s.box.height;
+        f32 x1 = s.measure ? std::ceil(right - 0.001f) : std::round(right);
+        f32 y1 = s.measure ? std::ceil(bottom - 0.001f) : std::round(bottom);
+        s.pixel = Rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0);
         for (ElementHandle c = tree_.FirstChild(e); c.IsValid(); c = tree_.NextSibling(c))
             UpdateWorld(c, world, moved);
     }

@@ -33,6 +33,7 @@ namespace helix::ui
         const StringView kVisibility[] = {"visible", "hidden"};
         const StringView kOverflow[] = {"visible", "hidden"};
         const StringView kEasings[] = {"ease", "linear", "ease-in", "ease-out", "ease-in-out"};
+        const StringView kScaleModes[] = {"stretch-to-fill", "scale-and-crop", "scale-to-fit"};
         const StringView kFontStyles[] = {"normal", "bold", "italic", "bold-and-italic"};
         const StringView kTextAnchors[] = {"upper-left", "upper-center", "upper-right", "middle-left", "middle-center",
                                            "middle-right", "lower-left", "lower-center", "lower-right"};
@@ -149,6 +150,17 @@ namespace helix::ui
                  r.resource = s.backgroundImage;
                  return r;
              }},
+            {"-helix-background-image-tint-color", ValueType::Color, false, false, false, {}, [](S& s, V v) { s.backgroundTint = C(v); },
+             [](const S& s) { return Col(s.backgroundTint); }},
+            {"-helix-background-scale-mode", ValueType::Enum, false, false, false, Words(kScaleModes),
+             [](S& s, V v) { s.backgroundScaleMode = BackgroundScaleMode(K(v)); }, [](const S& s) { return Key(u32(s.backgroundScaleMode)); }},
+            {"-helix-slice-left", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kLeft] = N(v); }, [](const S& s) { return Num(s.slices[kLeft]); }},
+            {"-helix-slice-top", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kTop] = N(v); }, [](const S& s) { return Num(s.slices[kTop]); }},
+            {"-helix-slice-right", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kRight] = N(v); },
+             [](const S& s) { return Num(s.slices[kRight]); }},
+            {"-helix-slice-bottom", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.slices[kBottom] = N(v); },
+             [](const S& s) { return Num(s.slices[kBottom]); }},
+            {"-helix-slice-scale", ValueType::Number, false, false, false, {}, [](S& s, V v) { s.sliceScale = N(v); }, [](const S& s) { return Num(s.sliceScale); }},
             {"-helix-font-definition", ValueType::Resource, true, true, false, {},
              [](S& s, V v) { s.fontDefinition = v.Empty() ? kNoAtom : v[0].resource; },
              [](const S& s) {

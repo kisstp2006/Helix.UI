@@ -30,7 +30,8 @@ namespace helix::ui
         void Update(ElementHandle root, f32 width, f32 height);
 
         const LayoutBox& Box(ElementHandle e) const;
-        // The border box in the root's space.
+        // The border box in the root's space with its edges on the pixel grid, as the reference's layout rounds them:
+        // each edge to the nearest pixel, a measured element's right and bottom up (its text keeps its room).
         Rect WorldRect(ElementHandle e) const;
 
         // How many elements the last Update laid out or measured (the cache's misses).
@@ -60,6 +61,8 @@ namespace helix::ui
             Cache measured[kMeasured], laidOut;
             u32 nextMeasured = 0;
             Vector2 world;
+            // The border box in the root's space on the pixel grid.
+            Rect pixel;
             // The Update that laid out its subtree for real (not from the cache).
             u32 laidPass = 0;
         };

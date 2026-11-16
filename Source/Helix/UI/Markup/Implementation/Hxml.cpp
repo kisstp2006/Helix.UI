@@ -12,14 +12,14 @@ namespace helix::ui
             static HashMap<Atom, ElementType>* types = [] {
                 auto* t = new HashMap<Atom, ElementType>();
                 for (StringView name : {StringView("Element"), StringView("TemplateContainer")})
-                    t->Set(Intern(name), ElementType{Intern(name), nullptr});
+                    t->Set(Intern(name), ElementType{Intern(name), nullptr, nullptr});
                 // A label: its text from the text attribute or the element's content.
                 t->Set(Intern("Label"), ElementType{Intern("Label"), [](ElementTree& tree, ElementHandle e, StringView name, StringView value) {
                            if (name != StringView("text"))
                                return false;
                            tree.SetText(e, value);
                            return true;
-                       }});
+                       }, nullptr});
                 return t;
             }();
             return *types;
@@ -222,10 +222,10 @@ namespace helix::ui
         };
     }
 
-    void RegisterElementType(StringView name, AttributeHandler attributes)
+    void RegisterElementType(StringView name, AttributeHandler attributes, PaintHandler paint)
     {
         Atom a = Intern(name);
-        Types().Set(a, ElementType{a, attributes});
+        Types().Set(a, ElementType{a, attributes, paint});
     }
 
     const ElementType* FindElementType(Atom name) { return Types().Find(name); }

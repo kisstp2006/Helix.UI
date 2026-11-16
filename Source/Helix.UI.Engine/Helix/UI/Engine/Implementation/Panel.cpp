@@ -152,84 +152,121 @@ namespace helix::ui
         return &texts_[e.index].info;
     }
 
-    void Panel::Draw(Array<PanelVertex>& vertices, Array<u32>& indices, Array<PanelBatch>& batches)
+    void Panel::Draw(UIMesh& mesh)
     {
-        vertices.Clear();
-        indices.Clear();
-        batches.Clear();
-        auto premultiply = [](Color c, f32 opacity) {
-            f32 a = c.a * opacity;
-            return Color(c.r * a, c.g * a, c.b * a, a);
+        mesh.Clear();
+        DrawElement(mesh, root_, 1.0f);
+    }
+
+    void Panel::DrawElement(UIMesh& mesh, ElementHandle e, f32 opacity)
+    {
+        const ComputedStyle& s = styles_.Computed(e);
+        if (s.layout.display == Display::None)
+            return;
+        opacity *= s.opacity;
+        Rect r = layout_.WorldRect(e);
+        const LayoutBox& b = layout_.Box(e);
+        // Radii in pixels (percentages of the smaller side), no larger than half the box.
+        f32 smaller = r.width < r.height ? r.width : r.height;
+        auto radius = [&](const Length& l) {
+            f32 v = l.unit == Length::Unit::Percent ? l.value * smaller / 100.0f : l.unit == Length::Unit::Pixel ? l.value : 0.0f;
+            return v < 0 ? 0 : v > smaller * 0.5f ? smaller * 0.5f : v;
         };
-        // A quad into the current batch (a new one when its texture differs; flat quads go with any).
-        auto quad = [&](const Vector2 (&p)[4], const Rect& uv, Color color, engine::Texture2D* texture, f32 kind, f32 edge, f32 scale) {
-            if (color.a <= 0)
-                return;
-            if (batches.Empty() || (texture && batches.Back().texture && batches.Back().texture != texture))
-                batches.Push({texture, u32(indices.Size()), 0});
-            if (texture && !batches.Back().texture)
-                batches.Back().texture = texture;
-            u32 base = u32(vertices.Size());
-            f32 us[4] = {uv.x, uv.x + uv.width, uv.x + uv.width, uv.x};
-            f32 vs[4] = {uv.y, uv.y, uv.y + uv.height, uv.y + uv.height};
+        Vector4 radii(radius(s.borderRadius[kTopLeft]), radius(s.borderRadius[kTopRight]), radius(s.borderRadius[kBottomRight]),
+                      radius(s.borderRadius[kBottomLeft]));
+        const f32 borders[4] = {b.border[kLeft], b.border[kTop], b.border[kRight], b.border[kBottom]};
+        if (s.visibility == Visibility::Visible && opacity > 0)
+        {
+            UIShape shape;
+            shape.rect = r;
+            shape.radii = radii;
             for (u32 k = 0; k < 4; k++)
-                vertices.Push({p[k].x, p[k].y, color, us[k], vs[k], kind, edge, scale, 0});
-            for (u32 k : {0u, 1u, 2u, 0u, 2u, 3u})
-                indices.Push(base + k);
-            batches.Back().indexCount += 6;
-        };
-        auto rect = [&](f32 x0, f32 y0, f32 x1, f32 y1, Color c) {
-            if (x1 <= x0 || y1 <= y0)
-                return;
-            const Vector2 p[4] = {Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, y1), Vector2(x0, y1)};
-            quad(p, Rect(), c, nullptr, 0, 0, 0);
-        };
-        auto walk = [&](auto& self, ElementHandle e, f32 opacity) -> void {
-            const ComputedStyle& s = styles_.Computed(e);
-            if (s.layout.display == Display::None)
-                return;
-            opacity *= s.opacity;
-            Rect r = layout_.WorldRect(e);
-            const LayoutBox& b = layout_.Box(e);
-            if (s.visibility == Visibility::Visible)
             {
-                f32 x0 = r.x, y0 = r.y, x1 = r.x + r.width, y1 = r.y + r.height;
-                rect(x0 + b.border[kLeft], y0 + b.border[kTop], x1 - b.border[kRight], y1 - b.border[kBottom], premultiply(s.backgroundColor, opacity));
-                rect(x0, y0, x1, y0 + b.border[kTop], premultiply(s.borderColor[kTop], opacity));
-                rect(x0, y1 - b.border[kBottom], x1, y1, premultiply(s.borderColor[kBottom], opacity));
-                rect(x0, y0 + b.border[kTop], x0 + b.border[kLeft], y1 - b.border[kBottom], premultiply(s.borderColor[kLeft], opacity));
-                rect(x1 - b.border[kRight], y0 + b.border[kTop], x1, y1 - b.border[kBottom], premultiply(s.borderColor[kRight], opacity));
-                if (const TextInfo* text = TextOf(e); text && host_)
+                shape.borders[k] = borders[k];
+                shape.borderColors[k] = s.borderColor[k];
+            }
+            shape.fill = s.backgroundColor;
+            mesh.Shape(shape, opacity);
+            if (s.backgroundImage != kNoAtom && host_)
+            {
+                UIImage image;
+                if (host_->Image(s.backgroundImage, image))
                 {
-                    f32 ox = r.x + b.border[kLeft] + b.padding[kLeft], oy = r.y + b.border[kTop] + b.padding[kTop];
-                    for (const TextRect& t : text->rects)
-                        if (t.behind)
-                            rect(ox + t.rect.x, oy + t.rect.y, ox + t.rect.x + t.rect.width, oy + t.rect.y + t.rect.height, premultiply(t.color, opacity));
-                    for (const TextQuad& q : text->quads)
-                    {
-                        engine::Texture2D* texture = host_->Texture(q);
-                        if (!texture)
-                            continue;
-                        f32 kind = q.colorGlyph ? 3.0f : 1.0f;
-                        f32 scale = 1;
-                        if (!q.colorGlyph && q.font)
-                        {
-                            GlyphRenderMode mode = q.font->Cache().Mode();
-                            kind = mode == GlyphRenderMode::Sdf ? 1.0f : mode == GlyphRenderMode::Msdf ? 2.0f : 4.0f;
-                            scale = 2.0f * f32(q.font->Cache().Padding()) * q.sdfScale;
-                        }
-                        const Vector2 p[4] = {Vector2(ox + q.corners[0].x, oy + q.corners[0].y), Vector2(ox + q.corners[1].x, oy + q.corners[1].y),
-                                              Vector2(ox + q.corners[2].x, oy + q.corners[2].y), Vector2(ox + q.corners[3].x, oy + q.corners[3].y)};
-                        quad(p, q.uv, premultiply(q.color, opacity), texture, kind, 0.5f - (q.bold ? kBoldEdge : 0.0f), scale);
-                    }
-                    for (const TextRect& t : text->rects)
-                        if (!t.behind)
-                            rect(ox + t.rect.x, oy + t.rect.y, ox + t.rect.x + t.rect.width, oy + t.rect.y + t.rect.height, premultiply(t.color, opacity));
+                    image.tint = s.backgroundTint;
+                    image.scaleMode = UIScaleMode(u8(s.backgroundScaleMode));
+                    for (u32 k = 0; k < 4; k++)
+                        image.slices[k] = s.slices[k];
+                    image.sliceScale = s.sliceScale;
+                    mesh.Image(r, image, radii, borders, opacity);
                 }
             }
-            for (ElementHandle c = tree_.FirstChild(e); c.IsValid(); c = tree_.NextSibling(c))
-                self(self, c, opacity);
-        };
-        walk(walk, root_, 1.0f);
+            f32 ox = r.x + b.border[kLeft] + b.padding[kLeft], oy = r.y + b.border[kTop] + b.padding[kTop];
+            f32 cw = r.width - b.border[kLeft] - b.border[kRight] - b.padding[kLeft] - b.padding[kRight];
+            f32 ch = r.height - b.border[kTop] - b.border[kBottom] - b.padding[kTop] - b.padding[kBottom];
+            // What the element's type paints, in its content box.
+            if (const ElementType* type = FindElementType(tree_.Type(e)); type && type->paint)
+            {
+                painter_.Clear();
+                painter_.opacity = opacity;
+                type->paint(painter_, tree_, e, cw > 0 ? cw : 0, ch > 0 ? ch : 0);
+                Span<const Vector2> positions = painter_.Positions();
+                Array<Vector2> moved;
+                moved.Reserve(positions.Size());
+                for (Vector2 p : positions)
+                    moved.Push(Vector2(p.x + ox, p.y + oy));
+                mesh.Triangles(Span<const Vector2>(moved.Data(), moved.Size()), painter_.Colors(), painter_.Indices());
+            }
+            if (const TextInfo* text = TextOf(e); text && host_)
+            {
+                auto premultiply = [&](Color c) {
+                    f32 a = c.a * opacity;
+                    return Color(c.r * a, c.g * a, c.b * a, a);
+                };
+                auto rect = [&](const TextRect& t) {
+                    Color c = t.color;
+                    c.a *= opacity;
+                    mesh.Rectangle(Rect(ox + t.rect.x, oy + t.rect.y, t.rect.width, t.rect.height), Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
+                };
+                for (const TextRect& t : text->rects)
+                    if (t.behind)
+                        rect(t);
+                for (const TextQuad& q : text->quads)
+                {
+                    engine::Texture2D* texture = host_->Texture(q);
+                    if (!texture)
+                        continue;
+                    UIVertexKind kind = UIVertexKind::Image;
+                    f32 scale = 1;
+                    if (!q.colorGlyph && q.font)
+                    {
+                        GlyphRenderMode mode = q.font->Cache().Mode();
+                        kind = mode == GlyphRenderMode::Sdf ? UIVertexKind::GlyphSdf : mode == GlyphRenderMode::Msdf ? UIVertexKind::GlyphMsdf : UIVertexKind::GlyphCoverage;
+                        scale = 2.0f * f32(q.font->Cache().Padding()) * q.sdfScale;
+                    }
+                    const Vector2 p[4] = {Vector2(ox + q.corners[0].x, oy + q.corners[0].y), Vector2(ox + q.corners[1].x, oy + q.corners[1].y),
+                                          Vector2(ox + q.corners[2].x, oy + q.corners[2].y), Vector2(ox + q.corners[3].x, oy + q.corners[3].y)};
+                    mesh.TexturedQuad(p, q.uv, premultiply(q.color), texture, kind, 0.5f - (q.bold ? kBoldEdge : 0.0f), scale);
+                }
+                for (const TextRect& t : text->rects)
+                    if (!t.behind)
+                        rect(t);
+            }
+        }
+        // Overflow hidden: the descendants inside the padding box, its corners rounded inside the borders.
+        UIClip saved = mesh.Clip();
+        if (s.overflow == Overflow::Hidden)
+        {
+            Rect inner(r.x + borders[0], r.y + borders[1], r.width - borders[0] - borders[2], r.height - borders[1] - borders[3]);
+            auto in = [](f32 radius, f32 a, f32 c) {
+                f32 m = a > c ? a : c;
+                return radius > m ? radius - m : 0.0f;
+            };
+            Vector4 innerRadii(in(radii.x, borders[0], borders[1]), in(radii.y, borders[2], borders[1]), in(radii.z, borders[2], borders[3]),
+                               in(radii.w, borders[0], borders[3]));
+            mesh.SetClip(saved.Within(inner, innerRadii));
+        }
+        for (ElementHandle c = tree_.FirstChild(e); c.IsValid(); c = tree_.NextSibling(c))
+            DrawElement(mesh, c, opacity);
+        mesh.SetClip(saved);
     }
 }

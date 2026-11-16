@@ -13,7 +13,9 @@
 #include <Helix/Engine/Texture/Texture.h>
 #include <Helix/Engine/Time/Time.h>
 #include <Helix/Platform/Time/Time.h>
+#include <Helix/Engine/Rendering/Graphics.h>
 #include <Helix/UI/Engine/FontAsset.h>
+#include <Helix/UI/Engine/ImageAtlas.h>
 
 #include <cstring>
 #include <utility>
@@ -40,7 +42,8 @@ namespace helix::ui
 
         struct MaterialEntry
         {
-            engine::PPtr<engine::Texture2D> texture;
+            const void* textures[UIBatch::kSlots] = {};
+            engine::PPtr<engine::Texture2D> alive[UIBatch::kSlots];
             engine::PPtr<engine::Material> material;
         };
 
@@ -48,9 +51,10 @@ namespace helix::ui
         {
             Array<UIView*> list;
             u32 drawer = 0;
-            // One material per texture (the first without one).
+            // One material per set of textures in the slots.
             Array<MaterialEntry> materials;
             bool missingShader = false;
+            ImageAtlas* atlas = nullptr;
         };
 
         Views& V()
@@ -59,13 +63,30 @@ namespace helix::ui
             return *v;
         }
 
-        engine::Material* MaterialFor(engine::Texture2D* texture)
+        engine::Material* MaterialFor(const UIBatch& batch)
         {
             Views& v = V();
-            for (usize i = 0; i < v.materials.Size(); i++)
+            // Entries whose textures went make room.
+            for (usize i = 0; i < v.materials.Size();)
             {
-                MaterialEntry& e = v.materials[i];
-                if (e.texture.Get() == texture && e.material.Get())
+                bool gone = !v.materials[i].material.Get();
+                for (u32 k = 0; k < UIBatch::kSlots; k++)
+                    gone = gone || (v.materials[i].textures[k] && !v.materials[i].alive[k].Get());
+                if (gone)
+                {
+                    if (engine::Material* m = v.materials[i].material.Get())
+                        engine::Object::DestroyImmediate(m);
+                    v.materials.RemoveAt(i);
+                }
+                else
+                    i++;
+            }
+            for (const MaterialEntry& e : v.materials)
+            {
+                bool same = true;
+                for (u32 k = 0; k < UIBatch::kSlots; k++)
+                    same = same && e.textures[k] == batch.textures[k];
+                if (same)
                     return e.material.Get();
             }
             engine::Shader* shader = engine::Shader::Find("Hidden/UI/Default");
@@ -78,16 +99,27 @@ namespace helix::ui
             }
             engine::Material* m = engine::Material::Create(shader);
             m->hideFlags = engine::HideFlags::DontSave;
-            if (texture)
-                m->SetTexture("_MainTex", texture);
-            // Entries of destroyed textures make room.
-            for (usize i = 0; i < v.materials.Size();)
-                if (!v.materials[i].material.Get() || (!v.materials[i].texture.Get() && i > 0))
-                    v.materials.RemoveAt(i);
-                else
-                    i++;
-            v.materials.Push({engine::PPtr<engine::Texture2D>(texture), engine::PPtr<engine::Material>(m)});
+            static const char* kNames[UIBatch::kSlots] = {"_Tex0", "_Tex1", "_Tex2", "_Tex3"};
+            MaterialEntry entry;
+            for (u32 k = 0; k < UIBatch::kSlots; k++)
+            {
+                auto* t = static_cast<engine::Texture2D*>(const_cast<void*>(batch.textures[k]));
+                entry.textures[k] = batch.textures[k];
+                entry.alive[k] = engine::PPtr<engine::Texture2D>(t);
+                if (t)
+                    m->SetTexture(kNames[k], t);
+            }
+            entry.material = engine::PPtr<engine::Material>(m);
+            v.materials.Push(entry);
             return m;
+        }
+
+        ImageAtlas& Atlas()
+        {
+            Views& v = V();
+            if (!v.atlas)
+                v.atlas = new ImageAtlas();
+            return *v.atlas;
         }
 
         // The folder part of a path (with its slash), empty for a file at the root.
@@ -151,48 +183,40 @@ namespace helix::ui
             Array<String>& read_;
         };
 
-        // The views' quads over a game camera's image: pixels from the top left mapped to the camera's target.
-        void Draw(void*, engine::ScriptableRenderContext& context, engine::Camera* camera)
+        // The views over the screen, once a frame after the cameras: pixels from the top left mapped to the target.
+        void Draw(void*, engine::CommandBuffer& cmd)
         {
             Views& v = V();
-            if (!camera || camera->cameraType() != engine::CameraType::Game || camera->targetTexture() || v.list.Empty())
+            if (v.list.Empty())
                 return;
-            f32 w = f32(camera->pixelWidth()), h = f32(camera->pixelHeight());
-            engine::CommandBuffer cmd;
-            cmd.SetName("UI");
-            cmd.SetRenderTarget(engine::RenderTargetIdentifier(engine::BuiltinRenderTextureType::CameraTarget));
-            cmd.SetViewport(Rect(0, 0, w, h));
+            const engine::RenderTarget& target = engine::Graphics::Target();
+            f32 w = f32(engine::Screen::width()), h = f32(engine::Screen::height());
+            if (w <= 0 || h <= 0)
+                return;
+            cmd.SetViewport(Rect(0, 0, f32(target.width), f32(target.height)));
             cmd.SetViewProjectionMatrices(Matrix4x4::identity, Matrix4x4::Ortho(0, w, h, 0, -1, 1));
             // By sorting order, the order of enabling among equal ones.
             Array<UIView*> order(v.list);
             for (usize i = 1; i < order.Size(); i++)
                 for (usize j = i; j > 0 && order[j - 1]->sortingOrder() > order[j]->sortingOrder(); j--)
                     std::swap(order[j - 1], order[j]);
-            bool any = false;
             for (UIView* view : order)
             {
                 engine::Mesh* mesh = view->mesh();
                 if (!mesh || mesh->vertexCount() == 0)
                     continue;
-                Span<const PanelBatch> batches = view->batches();
+                Span<const UIBatch> batches = view->uiMesh().Batches();
                 for (u32 b = 0; b < batches.Size(); b++)
-                    if (engine::Material* m = MaterialFor(batches[b].texture))
-                    {
+                    if (engine::Material* m = MaterialFor(batches[b]))
                         cmd.DrawMesh(mesh, Matrix4x4::identity, m, i32(b));
-                        any = true;
-                    }
             }
-            if (!any)
-                return;
-            context.ExecuteCommandBuffer(cmd);
-            context.Submit();
         }
 
         void AddView(UIView* view)
         {
             Views& v = V();
             if (v.list.Empty())
-                v.drawer = engine::RenderPipelineManager::endCameraRendering().Add(&Draw);
+                v.drawer = engine::Graphics::screenOverlayRendering().Add(&Draw);
             v.list.Push(view);
         }
 
@@ -207,7 +231,7 @@ namespace helix::ui
                 }
             if (v.list.Empty() && v.drawer)
             {
-                engine::RenderPipelineManager::endCameraRendering().Remove(v.drawer);
+                engine::Graphics::screenOverlayRendering().Remove(v.drawer);
                 v.drawer = 0;
             }
         }
@@ -258,7 +282,43 @@ namespace helix::ui
             return a ? a->AtlasTexture(quad.page, quad.colorGlyph) : nullptr;
         }
 
-        void Forget() { definitions_.Clear(); }
+        bool Image(Atom path, UIImage& out) override
+        {
+            engine::Texture2D* texture = nullptr;
+            bool known = false;
+            for (const ImageEntry& e : images_)
+                if (e.path == path)
+                {
+                    texture = e.texture.Get();
+                    known = true;
+                }
+            if (!known)
+            {
+                if (UITemplate* t = view_.source())
+                {
+                    String resolved = Resolve(t->path(), AtomName(path));
+                    if (const engine::AssetEntry* e = engine::FindAssetAtPath(resolved.View()))
+                    {
+                        engine::Object* o = engine::LoadAsset(e->guid);
+                        if (o && o->Is<engine::Texture2D>())
+                            texture = static_cast<engine::Texture2D*>(o);
+                    }
+                    if (!texture)
+                        HX_LOG_WARNING(UILog, "{}: no texture at {}", t->path(), resolved.View());
+                }
+                images_.Push({path, engine::PPtr<engine::Texture2D>(texture)});
+            }
+            if (!texture)
+                return false;
+            Atlas().Place(texture, out);
+            return true;
+        }
+
+        void Forget()
+        {
+            definitions_.Clear();
+            images_.Clear();
+        }
 
     private:
         FontAsset* Definition(Atom path)
@@ -284,8 +344,14 @@ namespace helix::ui
             Atom path;
             engine::PPtr<FontAsset> asset;
         };
+        struct ImageEntry
+        {
+            Atom path;
+            engine::PPtr<engine::Texture2D> texture;
+        };
         UIView& view_;
         Array<Entry> definitions_;
+        Array<ImageEntry> images_;
     };
 
     UIView::UIView(const UIView& other)
@@ -325,7 +391,7 @@ namespace helix::ui
         panel_.reset();
         host_.reset();
         watched_.Clear();
-        batches_.Clear();
+        uiMesh_.Clear();
     }
 
     void UIView::Build()
@@ -407,7 +473,7 @@ namespace helix::ui
         if (!built_)
             Build();
         panel_->Update(engine::Time::deltaTime(), f32(engine::Screen::width()), f32(engine::Screen::height()));
-        panel_->Draw(vertices_, indices_, batches_);
+        panel_->Draw(uiMesh_);
 
         engine::Mesh* m = mesh_.Get();
         if (!m)
@@ -417,29 +483,36 @@ namespace helix::ui
             m->MarkDynamic();
             mesh_ = engine::PPtr<engine::Mesh>(m);
         }
-        usize n = vertices_.Size();
+        Span<const UIVertex> vertices = uiMesh_.Vertices();
+        usize n = vertices.Size();
         Array<Vector3> positions;
         Array<Color> colors;
-        Array<Vector2> uvs;
-        Array<Vector4> parameters;
+        Array<Vector4> channels[6];
         positions.Reserve(n);
         colors.Reserve(n);
-        uvs.Reserve(n);
-        parameters.Reserve(n);
-        for (const PanelVertex& q : vertices_)
+        for (Array<Vector4>& c : channels)
+            c.Reserve(n);
+        for (const UIVertex& v : vertices)
         {
-            positions.Push(Vector3(q.x, q.y, 0));
-            colors.Push(q.color);
-            uvs.Push(Vector2(q.u, q.v));
-            parameters.Push(Vector4(q.kind, q.edge, q.scale, q.unused));
+            positions.Push(Vector3(v.position.x, v.position.y, 0));
+            colors.Push(v.color);
+            channels[0].Push(v.uvLocal);
+            channels[1].Push(v.parameters);
+            channels[2].Push(v.size);
+            channels[3].Push(v.radii);
+            channels[4].Push(v.borders);
+            channels[5].Push(v.clipRect);
         }
         m->Clear();
         m->SetVertices(Span<const Vector3>(positions.Data(), positions.Size()));
         m->SetColors(Span<const Color>(colors.Data(), colors.Size()));
-        m->SetUVs(0, Span<const Vector2>(uvs.Data(), uvs.Size()));
-        m->SetUVs(1, Span<const Vector4>(parameters.Data(), parameters.Size()));
-        m->SetSubMeshCount(i32(batches_.Size() > 0 ? batches_.Size() : 1));
-        for (u32 b = 0; b < batches_.Size(); b++)
-            m->SetTriangles(Span<const i32>(reinterpret_cast<const i32*>(indices_.Data()) + batches_[b].firstIndex, batches_[b].indexCount), i32(b));
+        for (i32 c = 0; c < 6; c++)
+            m->SetUVs(c, Span<const Vector4>(channels[c].Data(), channels[c].Size()));
+        Span<const UIBatch> batches = uiMesh_.Batches();
+        Span<const u32> indices = uiMesh_.Indices();
+        m->SetSubMeshCount(i32(batches.Size() > 0 ? batches.Size() : 1));
+        for (u32 b = 0; b < batches.Size(); b++)
+            m->SetTriangles(Span<const i32>(reinterpret_cast<const i32*>(indices.Data()) + batches[b].firstIndex, batches[b].indexCount), i32(b));
+        Atlas().Upload();
     }
 }

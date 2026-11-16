@@ -352,3 +352,20 @@ HX_TEST(Layout, ManySubtreesOnTheJobsGiveTheSameBoxes)
     }
     HX_CHECK(all);
 }
+
+HX_TEST(Layout, WorldRectsSitOnThePixelGridAndStillTouch)
+{
+    LayoutStyle rs;
+    rs.direction = FlexDirection::Row;
+    Fixture f(rs);
+    LayoutStyle grow;
+    grow.grow = 1;
+    ElementHandle items[3] = {f.Add(f.root, grow), f.Add(f.root, grow), f.Add(f.root, grow)};
+    f.layout.Update(f.root, 100, 20);
+    // The boxes keep their thirds; their world rects round the edges.
+    HX_CHECK(Near(f.layout.Box(items[1]).x, 33.333f) && Near(f.layout.Box(items[1]).width, 33.333f));
+    Rect a = f.layout.WorldRect(items[0]), b = f.layout.WorldRect(items[1]), c = f.layout.WorldRect(items[2]);
+    HX_CHECK(Near(a.x, 0) && Near(a.width, 33));
+    HX_CHECK(Near(b.x, 33) && Near(b.width, 34));
+    HX_CHECK(Near(c.x, 67) && Near(c.width, 33));
+}

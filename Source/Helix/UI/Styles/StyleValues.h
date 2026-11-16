@@ -91,6 +91,13 @@ namespace helix::ui
         EaseInOut,
     };
 
+    enum class BackgroundScaleMode : u8
+    {
+        StretchToFill,
+        ScaleAndCrop,
+        ScaleToFit,
+    };
+
     enum class FontStyle : u8
     {
         Normal,
@@ -159,6 +166,11 @@ namespace helix::ui
         Overflow overflow = Overflow::Visible;
         Length fontSize = Length::Px(12);
         Atom backgroundImage = kNoAtom;
+        // The background image's tint, scale mode and 9-slice (texture pixels from the edges; screen pixels per them).
+        Color backgroundTint = Color(1, 1, 1, 1);
+        BackgroundScaleMode backgroundScaleMode = BackgroundScaleMode::StretchToFill;
+        f32 slices[4] = {0, 0, 0, 0};
+        f32 sliceScale = 1;
         // Text: a font asset (url or resource), the machine's font families after it, and how the text is set.
         static constexpr u32 kMaxFontFamilies = 6;
         Atom fontDefinition = kNoAtom;

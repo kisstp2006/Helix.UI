@@ -16,17 +16,22 @@ namespace helix::ui
         String message;
     };
 
+    class Painter;
+
     // Reads one attribute of its type; false when the type does not know it.
     using AttributeHandler = bool (*)(ElementTree& tree, ElementHandle element, StringView name, StringView value);
+    // Paints an element's own content (vector paths) in its content box (pixels from the box's top left).
+    using PaintHandler = void (*)(Painter& painter, const ElementTree& tree, ElementHandle element, f32 width, f32 height);
 
     struct ElementType
     {
         Atom name = kNoAtom;
         AttributeHandler attributes = nullptr;
+        PaintHandler paint = nullptr;
     };
 
-    // Registers (or replaces) an element type; Element and TemplateContainer are there from the start.
-    void RegisterElementType(StringView name, AttributeHandler attributes = nullptr);
+    // Registers (or replaces) an element type; Element, TemplateContainer and Label are there from the start.
+    void RegisterElementType(StringView name, AttributeHandler attributes = nullptr, PaintHandler paint = nullptr);
     const ElementType* FindElementType(Atom name);
 
     struct HxmlAttribute

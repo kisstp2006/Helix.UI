@@ -12,8 +12,8 @@ namespace helix::engine
     class Mesh;
 }
 
-// A view: a panel built from a markup asset, laid out in the screen's size and drawn over the image of the game's
-// cameras (after each camera, in the order of the views' sorting orders). With watchFiles the markup and its sheets
+// A view: a panel built from a markup asset, laid out in the screen's size and drawn over the screen in the engine's
+// screen overlay (after every camera, with any pipeline or none), in the order of the views' sorting orders. With watchFiles the markup and its sheets
 // are read again from their source while the game runs and the panel built again when they change.
 namespace helix::ui
 {
@@ -48,9 +48,9 @@ namespace helix::ui
 
         // The views that draw, in drawing order (for the drawer).
         static Span<UIView* const> Views();
-        // The quads of the last Update in a mesh (null before the first), a submesh per batch.
+        // The geometry of the last Update in a mesh (null before the first), a submesh per batch.
         engine::Mesh* mesh() const;
-        Span<const PanelBatch> batches() const { return Span<const PanelBatch>(batches_.Data(), batches_.Size()); }
+        const UIMesh& uiMesh() const { return uiMesh_; }
 
     private:
         class TextHost;
@@ -73,9 +73,7 @@ namespace helix::ui
         Array<Watched> watched_;
         f64 lastWatch_ = 0;
         bool built_ = false;
-        Array<PanelVertex> vertices_;
-        Array<u32> indices_;
-        Array<PanelBatch> batches_;
+        UIMesh uiMesh_;
         engine::PPtr<engine::Mesh> mesh_;
     };
 }

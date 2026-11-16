@@ -229,11 +229,11 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         view->SetSource(LoadAt<UITemplate>("page.hxml"));
         view->Update();
         HX_CHECK(view->errors().Empty());
-        // The root, the card, its inner element, the faded one; quads: the card's background and borders, the inner's
-        // background, the faded one's.
+        // The root, the card, its inner element, the faded one; quads: the card's fill and its border ring (one
+        // color), the inner's fill, the faded one's.
         HX_CHECK(view->panel()->tree().Count() == 4);
         HX_REQUIRE(view->mesh() != nullptr);
-        HX_CHECK(view->mesh()->vertexCount() == 7 * 4);
+        HX_CHECK(view->mesh()->vertexCount() == 4 * 4 && view->uiMesh().DrawCalls() == 1);
         Graphics::RenderFrame();
         Array<u32> pixels;
         pixels.Resize(width * height);
@@ -340,6 +340,126 @@ HX_TEST(UIView, LabelsDrawTheirTextOnEveryDevice)
         HX_CHECK(NearColor(Pixel(pixels, width, 9, 15), Rgba(255, 255, 255), 8) && NearColor(Pixel(pixels, width, 14, 15), Rgba(0, 0, 0), 8));
         HX_CHECK(NearColor(Pixel(pixels, width, 9, 6), Rgba(0, 0, 0), 8) && NearColor(Pixel(pixels, width, 19, 15), Rgba(255, 255, 255), 8));
         HX_CHECK(engine::testing::MatchGolden("UIViewText", pixels.Data(), width, height, 8));
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
+    std::printf("    %u devices\n", devices);
+}
+
+namespace
+{
+    // A triangle filling the lower right half of the element's content box.
+    void PaintTriangle(Painter& p, const ElementTree&, ElementHandle, f32 width, f32 height)
+    {
+        p.fillColor = Color(1, 1, 1, 1);
+        p.MoveTo(Vector2(0, height));
+        p.LineTo(Vector2(width, height));
+        p.LineTo(Vector2(width, 0));
+        p.ClosePath();
+        p.Fill();
+    }
+
+    // A 2 by 2 image: red, blue on top, green, white below.
+    Array<u8> QuadrantsPng()
+    {
+        Texture2D* t = Texture2D::Create(2, 2, TextureFormat::RGBA32, false);
+        t->SetPixel(0, 1, Color(1, 0, 0, 1));
+        t->SetPixel(1, 1, Color(0, 0, 1, 1));
+        t->SetPixel(0, 0, Color(0, 1, 0, 1));
+        t->SetPixel(1, 0, Color(1, 1, 1, 1));
+        Array<u8> png;
+        t->EncodeToPNG(png);
+        Object::DestroyImmediate(t, true);
+        return png;
+    }
+
+    constexpr StringView kShapesPage = R"(<HXML>
+  <Style src="shapes.hss"/>
+  <Element name="card"/>
+  <Element name="photo"/>
+  <TestTriangle name="chart"/>
+  <Element name="clip"><Element name="inside"/></Element>
+  <Element name="raw"/>
+</HXML>)";
+
+    constexpr StringView kShapesSheet = R"(
+#card { position: absolute; left: 4px; top: 4px; width: 40px; height: 30px; background-color: #0000ff; border-radius: 10px;
+        border-width: 2px; border-left-color: #ff0000; border-top-color: #00ff00; border-right-color: #ffffff; border-bottom-color: #ffff00; }
+#photo { position: absolute; left: 48px; top: 4px; width: 40px; height: 30px; border-radius: 15px; background-image: url("Images/quadrants.png"); }
+#chart { position: absolute; left: 4px; top: 38px; width: 40px; height: 22px; }
+#clip { position: absolute; left: 48px; top: 38px; width: 40px; height: 22px; overflow: hidden; border-radius: 8px; }
+#inside { position: absolute; left: -10px; top: -10px; width: 60px; height: 42px; background-color: #ff00ff; }
+#raw { position: absolute; left: 4px; top: 64px; width: 40px; height: 28px; background-image: url("Images/raw.png"); }
+)";
+}
+
+HX_TEST(UIView, ShapesImagesPaintingAndClipsDrawOnEveryDevice)
+{
+    HX_REQUIRE(RegisterModules());
+    RegisterElementType("TestTriangle", nullptr, &PaintTriangle);
+    constexpr u32 width = 96, height = 96;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        folder.Write("shapes.hxml", kShapesPage);
+        folder.Write("shapes.hss", kShapesSheet);
+        folder.Folder("Images");
+        Array<u8> png = QuadrantsPng();
+        folder.Write("Images/quadrants.png", StringView(reinterpret_cast<const char*>(png.Data()), png.Size()));
+        // Readable, so it goes into the UI's atlas.
+        folder.Write("Images/quadrants.png.meta", "TextureImporter:\n  mipmaps:\n    enableMipMap: 0\n  sRGBTexture: 0\n  isReadable: 1\n");
+        // Not readable: drawn from its own texture (clamped, as images in a UI are).
+        folder.Write("Images/raw.png", StringView(reinterpret_cast<const char*>(png.Data()), png.Size()));
+        folder.Write("Images/raw.png.meta", "TextureImporter:\n  mipmaps:\n    enableMipMap: 0\n  sRGBTexture: 0\n  textureSettings:\n    wrapU: 1\n    wrapV: 1\n");
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        auto* asset = ScriptableObject::CreateInstanceByName("ClearPipelineAsset");
+        HX_REQUIRE(asset != nullptr);
+        GraphicsSettings::SetDefaultRenderPipeline(asset);
+        GameObject* cameraObject = GameObject::Create("Camera");
+        Camera* camera = cameraObject->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0, 0, 0, 1));
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        HX_REQUIRE(view != nullptr);
+        view->SetSource(LoadAt<UITemplate>("shapes.hxml"));
+        view->Update();
+        HX_CHECK(view->errors().Empty());
+        // One batch: the atlas page and the texture that is not readable.
+        HX_CHECK(view->uiMesh().DrawCalls() == 1);
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        auto at = [&](u32 x, u32 y, u32 expected, i32 tolerance = 12) {
+            u32 p = Pixel(pixels, width, x, y);
+            bool ok = NearColor(p, expected, tolerance);
+            if (!ok)
+                std::printf("    pixel %u %u is %08x, expected %08x\n", x, y, p, expected);
+            return ok;
+        };
+        // The card: its rounded corner leaves the background, each side its color, the fill inside.
+        HX_CHECK(at(5, 5, Rgba(0, 0, 0)));
+        HX_CHECK(at(4, 19, Rgba(255, 0, 0)) && at(24, 4, Rgba(0, 255, 0)) && at(43, 19, Rgba(255, 255, 255)) && at(24, 33, Rgba(255, 255, 0)));
+        HX_CHECK(at(24, 19, Rgba(0, 0, 255)));
+        // The image's quadrants (top left red), cut to the pill shape.
+        HX_CHECK(at(57, 11, Rgba(255, 0, 0)) && at(78, 11, Rgba(0, 0, 255)) && at(57, 26, Rgba(0, 255, 0)) && at(78, 26, Rgba(255, 255, 255)));
+        HX_CHECK(at(49, 5, Rgba(0, 0, 0)) && at(86, 32, Rgba(0, 0, 0)));
+        // The painted triangle: the lower right half.
+        HX_CHECK(at(40, 56, Rgba(255, 255, 255)) && at(8, 42, Rgba(0, 0, 0)));
+        // The child cut to its parent's rounded box.
+        HX_CHECK(at(68, 49, Rgba(255, 0, 255)) && at(48, 38, Rgba(0, 0, 0)) && at(45, 49, Rgba(0, 0, 0)) && at(90, 49, Rgba(0, 0, 0)));
+        HX_CHECK(at(48, 49, Rgba(255, 0, 255)));
+        HX_CHECK(at(13, 70, Rgba(255, 0, 0)) && at(34, 70, Rgba(0, 0, 255)) && at(13, 85, Rgba(0, 255, 0)) && at(34, 85, Rgba(255, 255, 255)));
+        HX_CHECK(engine::testing::MatchGolden("UIViewShapes", pixels.Data(), width, height, 8));
         Graphics::SetTarget({});
         device.Destroy(color);
         device.Destroy(depth);

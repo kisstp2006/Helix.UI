@@ -1,7 +1,8 @@
 # Helix.UI
 
 The user interface of the Helix engine: a native C++ core (elements, layout, styles, markup, text) and the module that
-puts it in the engine (assets, fonts, views drawn over the game's cameras in both render pipelines).
+puts it in the engine (assets, fonts, views drawn over the screen after the game's cameras, with any render pipeline
+or none).
 
 ## Contents
 
@@ -18,8 +19,9 @@ puts it in the engine (assets, fonts, views drawn over the game's cameras in bot
 | `Source/Helix/UI/Text/Fonts/` | Glyph atlases (SDF, MSDF, coverage, color glyphs), face metrics, the fonts of the machine |
 | `Source/Helix/UI/Text/RichText/` | Rich text tags parsed into styles per character |
 | `Source/Helix/UI/Text/Layout/` | Text layout: lines, alignment, overflow, auto size, and the text info (characters, words, lines, links, pages) |
-| `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheetAsset` (.hss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component and its drawer |
-| `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: flat quads, distance field, coverage and color glyphs) |
+| `Source/Helix/UI/Rendering/` | The geometry of a panel: rounded boxes with per side borders, images (scale modes, 9-slice), glyphs, painted paths, clips, batches of four textures; the `Painter` (paths of lines, arcs and Bezier curves, filled or stroked with joins, caps and gradients, antialiased) |
+| `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheetAsset` (.hss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component, its drawer in the engine's screen overlay, the image atlas |
+| `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
 | `Tests/Core/` | Tests of the core, with every case of the Unicode bidi and line break tests |
 | `Tests/Engine/` | The assets and views in the engine, drawn on every device through a test pipeline (golden images in `Tests/Golden/`) |
 | `Benchmarks/` | The element store, the layout of 10 000 elements (full and incremental), a page of text |
@@ -61,9 +63,27 @@ and drawn from glyph atlases filled as glyphs are first used. Rich text takes th
 font, align, mark, sub, sup, line-height, cspace, mspace, indent, margin, voffset, space, pos, nobr, noparse, br,
 lowercase, uppercase, smallcaps, link, style, sprite, gradient, width, rotate and page.
 
-A `UIView` component names its markup asset (`m_Source`); it lays the page out in the screen's size and draws it after
-each game camera. With `m_WatchFiles` the markup and its style sheets are read again while the game runs and the page
-is built again when they change.
+## Drawing
+
+```css
+.card { border-radius: 14px; border-left-width: 3px; border-left-color: #4f9dff; overflow: hidden; }
+.photo { background-image: url("../Images/Photo.png"); -helix-background-scale-mode: scale-and-crop;
+         -helix-background-image-tint-color: #ffffffc0; }
+.button { background-image: url("../Images/Frame.png"); -helix-slice-left: 16; -helix-slice-top: 16;
+          -helix-slice-right: 16; -helix-slice-bottom: 16; -helix-slice-scale: 1; }
+```
+
+Boxes are quads whose pixels compute the distance of the rounded box, so corners and borders are antialiased at any
+size; a border of four colors joins on the corners' diagonals. Images stretch, crop or fit, or are cut in nine parts,
+inside the rounded corners; readable textures of up to 256 pixels are copied into shared atlas pages, others draw
+from their own texture. `overflow: hidden` clips the descendants to the rounded padding box. Element types can paint
+their content with vector paths: `RegisterElementType(name, attributes, paint)` gives a type a function that draws
+with a `Painter` in the element's content box. Layout rectangles sit on the pixel grid. A panel draws with one shader
+and as few draw calls as its textures need (four per call).
+
+A `UIView` component names its markup asset (`m_Source`); it lays the page out in the screen's size and draws it in
+the engine's screen overlay after the cameras, with any render pipeline or none. With `m_WatchFiles` the markup and
+its style sheets are read again while the game runs and the page is built again when they change.
 
 ## Build
 
