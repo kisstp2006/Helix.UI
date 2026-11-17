@@ -197,6 +197,14 @@ HX_TEST(UIMesh, VerticesCarryTheirClip)
     HX_CHECK(Near(flat.size.z, 6));
     HX_CHECK(Near(m.Vertices()[4].size.z, 6) && Near(m.Vertices()[4].size.x, 100));
 
+    // Elliptical corners: the largest of each axis, both on the vertices.
+    UIClip oval = outer.Within(Rect(10, 10, 50, 50), Vector4(8, 2, 0, 0), Vector4(3, 5, 0, 0), Affine());
+    HX_CHECK(Near(oval.radius, 8) && Near(oval.radiusY, 5));
+    UIMesh ovalMesh;
+    ovalMesh.SetClip(oval);
+    ovalMesh.Rectangle(Rect(20, 20, 4, 4), Color(1, 1, 1, 1));
+    HX_CHECK(Near(ovalMesh.Vertices()[0].size.z, 8) && Near(ovalMesh.Vertices()[0].size.w, 5));
+
     // Disjoint clips leave nothing.
     UIClip empty = outer.Within(Rect(200, 200, 10, 10), Vector4());
     HX_CHECK(Near(empty.rect.width, 0) && Near(empty.rect.height, 0));

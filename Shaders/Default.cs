@@ -12,7 +12,7 @@ namespace HelixEngine.UI.Shaders;
 /// rounded box's fill, 6 its border (parameters.y: the side, or -1 for all), 7 an image inside a rounded box. Rounded
 /// boxes come as their size, corner radii and border widths, the point as its place in the box; their edges are
 /// antialiased from the box's distance (the mesh scales a transformed box's distances to pixels). Every fragment is
-/// clipped to a rounded rectangle (one corner radius, in size.z): the vertex gives its place in it and its size, in
+/// clipped to a rounded rectangle (one elliptical corner for all four: its radii in size.z and size.w): the vertex gives its place in it and its size, in
 /// the space of the element that clips (rotated and scaled with it). Four texture
 /// slots (parameters.w names the vertex's). Colors come premultiplied by their alpha.
 /// </summary>
@@ -66,31 +66,44 @@ public sealed class Default : ShaderDefinition
             return o;
         }
 
-        // The distance of p from a box of half size h with corner radii (top left, top right, bottom right, bottom left;
-        // y down), negative inside.
-        static float RoundedBox(float2 p, float2 h, float4 r)
+        // The distance of p from a box of half size h with elliptical corners (horizontal radii rx, vertical ry: top left,
+        // top right, bottom right, bottom left; y down), negative inside. In a corner the ellipse's implicit function over
+        // its gradient (exact for circles).
+        static float RoundedBox(float2 p, float2 h, float4 rx, float4 ry)
         {
-            float radius = p.x > 0.0f ? (p.y > 0.0f ? r.z : r.y) : (p.y > 0.0f ? r.w : r.x);
-            float2 q = Abs(p) - h + new float2(radius, radius);
-            return Min(Max(q.x, q.y), 0.0f) + Length(Max(q, new float2(0.0f, 0.0f))) - radius;
+            float cx = p.x > 0.0f ? (p.y > 0.0f ? rx.z : rx.y) : (p.y > 0.0f ? rx.w : rx.x);
+            float cy = p.x > 0.0f ? (p.y > 0.0f ? ry.z : ry.y) : (p.y > 0.0f ? ry.w : ry.x);
+            float2 a = Abs(p);
+            float2 r = new float2(Max(cx, 0.0001f), Max(cy, 0.0001f));
+            float2 q = a - h + r;
+            float box = Max(a.x - h.x, a.y - h.y);
+            float2 e = new float2(q.x / r.x, q.y / r.y);
+            float k = Length(e);
+            float2 g = new float2(q.x / (r.x * r.x), q.y / (r.y * r.y));
+            float corner = (k - 1.0f) * k / Max(Length(g), 0.000001f);
+            bool inCorner = q.x > 0.0f && q.y > 0.0f && cx > 0.0f && cy > 0.0f;
+            return inCorner ? corner : box;
         }
 
-        // Coverage of a point at `local` in a box of `size` (antialiased over a pixel).
-        static float Inside(float2 local, float2 size, float4 radii)
+        // Coverage of a point at `local` in a box of `size` with elliptical corners (antialiased over a pixel).
+        static float Inside(float2 local, float2 size, float4 rx, float4 ry)
         {
             float2 h = size * 0.5f;
-            return Saturate(0.5f - RoundedBox(local - h, h, radii));
+            return Saturate(0.5f - RoundedBox(local - h, h, rx, ry));
         }
 
-        // The box inside the borders: its place, size and radii.
+        // The box inside the borders: its place, size and corners (as CSS's: each corner's horizontal radius less the
+        // side's border, its vertical radius less the top's or the bottom's).
         static float InsideBorders(float2 local, float2 size, float4 radii, float4 borders)
         {
             float2 inner = new float2(Max(size.x - borders.x - borders.z, 0.0f), Max(size.y - borders.y - borders.w, 0.0f));
-            float4 r = new float4(Max(radii.x - Max(borders.x, borders.y), 0.0f), Max(radii.y - Max(borders.z, borders.y), 0.0f),
-                                  Max(radii.z - Max(borders.z, borders.w), 0.0f), Max(radii.w - Max(borders.x, borders.w), 0.0f));
+            float4 rx = new float4(Max(radii.x - borders.x, 0.0f), Max(radii.y - borders.z, 0.0f), Max(radii.z - borders.z, 0.0f),
+                                   Max(radii.w - borders.x, 0.0f));
+            float4 ry = new float4(Max(radii.x - borders.y, 0.0f), Max(radii.y - borders.y, 0.0f), Max(radii.z - borders.w, 0.0f),
+                                   Max(radii.w - borders.w, 0.0f));
             if (inner.x <= 0.0f || inner.y <= 0.0f)
                 return 0.0f;
-            return Inside(local - new float2(borders.x, borders.y), inner, r);
+            return Inside(local - new float2(borders.x, borders.y), inner, rx, ry);
         }
 
         // How much a point of the border belongs to a side (0 left, 1 top, 2 right, 3 bottom): the sides meet where their
@@ -131,9 +144,9 @@ public sealed class Default : ShaderDefinition
         {
             float kind = input.parameters.x;
             // The clip: a rounded rectangle on the screen.
-            float clipRadius = input.size.z;
-            float clip = Inside(new float2(input.clipLocal.x, input.clipLocal.y), new float2(input.clipLocal.z, input.clipLocal.w),
-                                new float4(clipRadius, clipRadius, clipRadius, clipRadius));
+            float4 clipX = new float4(input.size.z, input.size.z, input.size.z, input.size.z);
+            float4 clipY = new float4(input.size.w, input.size.w, input.size.w, input.size.w);
+            float clip = Inside(new float2(input.clipLocal.x, input.clipLocal.y), new float2(input.clipLocal.z, input.clipLocal.w), clipX, clipY);
             float4 t0 = _Tex0.Sample(sampler0, input.uvLocal.xy);
             float4 t1 = _Tex1.Sample(sampler0, input.uvLocal.xy);
             float4 t2 = _Tex2.Sample(sampler0, input.uvLocal.xy);
@@ -150,7 +163,7 @@ public sealed class Default : ShaderDefinition
                 coverage = InsideBorders(local, size, input.radii, input.borders);
             else if (kind > 5.5f && kind < 6.5f)
             {
-                coverage = Inside(local, size, input.radii) * (1.0f - InsideBorders(local, size, input.radii, input.borders));
+                coverage = Inside(local, size, input.radii, input.radii) * (1.0f - InsideBorders(local, size, input.radii, input.borders));
                 if (input.parameters.y > -0.5f)
                     coverage = coverage * SideWeight(local, size, input.borders, input.parameters.y);
             }

@@ -35,7 +35,7 @@ namespace helix::ui
         Vector4 uvLocal;
         // Kind, edge or side, scale, texture slot.
         Vector4 parameters;
-        // The shape box's size (xy) and the clip's corner radius (z).
+        // The shape box's size (xy) and the clip's corner radii (z horizontal, w vertical).
         Vector4 size;
         // Corner radii (top left, top right, bottom right, bottom left) and border widths (left, top, right, bottom).
         Vector4 radii, borders;
@@ -43,17 +43,23 @@ namespace helix::ui
         Vector4 clipRect;
     };
 
-    // A rounded clip rectangle (the whole plane when unbounded) with one corner radius (the shader takes one), in the
-    // space of the element that clips: toClip takes screen points there.
+    // A rounded clip rectangle (the whole plane when unbounded) with one elliptical corner for all four (the shader
+    // takes one: its horizontal and vertical radius), in the space of the element that clips: toClip takes screen
+    // points there.
     struct UIClip
     {
         Rect rect = Rect(-1e6f, -1e6f, 2e6f, 2e6f);
-        f32 radius = 0;
+        f32 radius = 0, radiusY = 0;
         Affine toClip;
         // The intersection with an inner clip of an element whose world map is `frame` (the corners are the inner
-        // one's; this clip's rectangle is taken by its bounds in the inner one's space when the two spaces turn
-        // against each other).
-        UIClip Within(const Rect& inner, const Vector4& innerRadii, const Affine& frame = Affine()) const;
+        // one's, the largest of each axis; this clip's rectangle is taken by its bounds in the inner one's space when
+        // the two spaces turn against each other).
+        UIClip Within(const Rect& inner, const Vector4& innerRadiiX, const Vector4& innerRadiiY, const Affine& frame) const;
+        // Round corners.
+        UIClip Within(const Rect& inner, const Vector4& innerRadii, const Affine& frame = Affine()) const
+        {
+            return Within(inner, innerRadii, innerRadii, frame);
+        }
     };
 
     struct UIBatch

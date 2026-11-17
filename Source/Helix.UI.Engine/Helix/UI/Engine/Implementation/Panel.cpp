@@ -406,12 +406,11 @@ namespace helix::ui
                 for (u32 k = 0; k < 4; k++)
                     edges[k] += b.padding[k];
             Rect inner(r.x + edges[0], r.y + edges[1], r.width - edges[0] - edges[2], r.height - edges[1] - edges[3]);
-            auto in = [](f32 radius, f32 a, f32 c) {
-                f32 m = a > c ? a : c;
-                return radius > m ? radius - m : 0.0f;
-            };
-            Vector4 innerRadii(in(radii.x, edges[0], edges[1]), in(radii.y, edges[2], edges[1]), in(radii.z, edges[2], edges[3]), in(radii.w, edges[0], edges[3]));
-            mesh.SetClip(saved.Within(inner, innerRadii, world));
+            // Each corner's radius less the side's edge horizontally, less the top's or the bottom's vertically (CSS).
+            auto in = [](f32 radius, f32 edge) { return radius > edge ? radius - edge : 0.0f; };
+            Vector4 innerX(in(radii.x, edges[0]), in(radii.y, edges[2]), in(radii.z, edges[2]), in(radii.w, edges[0]));
+            Vector4 innerY(in(radii.x, edges[1]), in(radii.y, edges[1]), in(radii.z, edges[3]), in(radii.w, edges[3]));
+            mesh.SetClip(saved.Within(inner, innerX, innerY, world));
         }
         for (ElementHandle c = tree_.FirstChild(e); c.IsValid(); c = tree_.NextSibling(c))
             DrawElement(mesh, c, opacity, world);

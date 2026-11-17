@@ -17,7 +17,7 @@ namespace helix::ui
         f32 Resolve(const Length& l, f32 size) { return l.unit == Length::Unit::Percent ? l.value * size / 100.0f : l.unit == Length::Unit::Pixel ? l.value : 0.0f; }
     }
 
-    UIClip UIClip::Within(const Rect& inner, const Vector4& innerRadii, const Affine& frame) const
+    UIClip UIClip::Within(const Rect& inner, const Vector4& innerRadiiX, const Vector4& innerRadiiY, const Affine& frame) const
     {
         // This clip's rectangle in the inner one's space.
         Affine toInner = frame.Inverse();
@@ -29,10 +29,14 @@ namespace helix::ui
         UIClip c;
         c.rect = Rect(x0, y0, Max0(x1 - x0), Max0(y1 - y0));
         c.toClip = toInner;
-        f32 r = innerRadii.x;
-        for (f32 v : {innerRadii.y, innerRadii.z, innerRadii.w})
-            r = v > r ? v : r;
-        c.radius = r;
+        auto largest = [](const Vector4& v) {
+            f32 r = v.x;
+            for (f32 x : {v.y, v.z, v.w})
+                r = x > r ? x : r;
+            return r;
+        };
+        c.radius = largest(innerRadiiX);
+        c.radiusY = largest(innerRadiiY);
         return c;
     }
 
@@ -76,6 +80,7 @@ namespace helix::ui
         const Rect& r = clip_.rect;
         v.clipRect = Vector4((q.x - r.x) * k, (q.y - r.y) * k, r.width * k, r.height * k);
         v.size.z = clip_.radius * k;
+        v.size.w = clip_.radiusY * k;
         vertices_.Push(v);
     }
 
