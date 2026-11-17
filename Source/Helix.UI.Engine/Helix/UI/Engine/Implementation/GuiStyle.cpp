@@ -342,7 +342,8 @@ namespace helix::ui::gui
         const GuiContent& c = content ? *content : *GuiContent::none();
         ContentLayout l = LayOut(*this, position, c);
         Rect tr = l.text;
-        StringView text = c.text().View();
+        String owned = c.text();
+        StringView text = owned.View();
         TextInfo info;
         TextIn(*this, tr, text, Color(1, 1, 1, 1), info);
         u32 b = ByteOfUnit(text, cursorStringIndex);
@@ -398,7 +399,8 @@ namespace helix::ui::gui
         const GuiContent& c = content ? *content : *GuiContent::none();
         ContentLayout l = LayOut(*this, position, c);
         Rect tr = l.text;
-        StringView text = c.text().View();
+        String owned = c.text();
+        StringView text = owned.View();
         TextInfo info;
         TextIn(*this, tr, text, Color(1, 1, 1, 1), info);
         if (info.characterInfo.Empty())

@@ -99,10 +99,25 @@ namespace
     }
 
     // A C++ script whose OnGui is the test's.
+    // The default skin in the test font (no machine's fonts: the same sizes everywhere), back to none after.
+    struct TestFont
+    {
+        Array<u8> bytes;
+        explicit TestFont(AssetFolder& folder)
+        {
+            folder.Folder("Fonts");
+            folder.Write("Fonts/Page.ttf", PageFont(bytes));
+            folder.Open();
+            GuiSkin::Default()->SetFont(LoadAt<FontAsset>("Fonts/Page.ttf"));
+        }
+        ~TestFont() { GuiSkin::Default()->SetFont(nullptr); }
+    };
+
     struct GuiScene
     {
         // Its objects go with the folder's teardown (every object).
         AssetFolder folder;
+        TestFont font{folder};
         Array<GameObject*> hosts;
 
         explicit GuiScene(void (*hook)(StringView), std::initializer_list<const char*> names = {"Gui"})
@@ -658,6 +673,7 @@ HX_TEST(ImmediateGui, CppScriptsDrawAndClickThroughTheScriptApi)
 {
     HX_REQUIRE(RegisterModules());
     AssetFolder folder;
+    TestFont font(folder);
     ReportScreen(400, 300);
     system::ResetForTests();
     engine::InputFeed::Reset();
@@ -699,6 +715,7 @@ HX_TEST(UIScripts, CSharpOnGuiDrawsLaysOutAndTakesInput)
 {
     HX_REQUIRE(StartScripts());
     AssetFolder folder;
+    TestFont font(folder);
     ReportScreen(400, 300);
     system::ResetForTests();
     engine::InputFeed::Reset();
