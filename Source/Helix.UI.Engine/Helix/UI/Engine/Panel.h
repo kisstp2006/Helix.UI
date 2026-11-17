@@ -59,12 +59,20 @@ namespace helix::ui
 
         // The root's children made again from a document (errors of the markup and its sheets are returned).
         void Build(const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors);
+        // An element's children (and its sheets) made again from a document: a part of the panel built on its own.
+        void BuildInto(ElementHandle container, const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors);
         // Styles (with transitions over dt), the text's fonts, the layout in a box of width x height pixels, the text.
         void Update(f32 dt, f32 width, f32 height);
+        // The root sized by its elements (no larger than the box Update gives) instead of filling the box.
+        void SetSizeToContent(bool value);
+        // The root's size at the last Update.
+        Vector2 Size() const;
         // The visible elements into a mesh (cleared first).
         void Draw(UIMesh& mesh);
         // The text laid out in an element (null when it has none).
         const TextInfo* TextOf(ElementHandle e) const;
+        // The size of a text in an element's style (no wider than maxWidth when it wraps; negative: no limit).
+        Vector2 MeasureText(ElementHandle e, StringView text, f32 maxWidth);
 
     private:
         struct TextSlot
@@ -92,6 +100,7 @@ namespace helix::ui
         EventSystem events_;
         ElementHandle root_;
         PanelTextHost* host_ = nullptr;
+        bool sizeToContent_ = false;
         // The text of the panel's text elements, by their slot in the world.
         HashMap<u32, TextSlot> texts_;
         // The elements in the panel at the last update with their boxes (for the panel's own events).

@@ -1,0 +1,782 @@
+/* Helix's default runtime theme: the variables of the theme on the panel's root and the looks of the controls. A
+   panel whose settings name no theme uses it; a theme of its own can @import it and change the variables. */
+
+:root {
+    --helix-font-size: 13px;
+    --helix-color-text: rgb(222, 224, 230);
+    --helix-color-text-dim: rgb(150, 154, 166);
+    --helix-color-text-disabled: rgba(222, 224, 230, 0.4);
+    --helix-color-accent: rgb(74, 144, 226);
+    --helix-color-accent-strong: rgb(110, 172, 245);
+    --helix-color-panel: rgb(40, 42, 48);
+    --helix-color-box: rgb(50, 53, 60);
+    --helix-color-control: rgb(64, 67, 76);
+    --helix-color-control-hover: rgb(78, 82, 93);
+    --helix-color-control-active: rgb(50, 53, 61);
+    --helix-color-control-border: rgb(30, 31, 36);
+    --helix-color-input: rgb(30, 32, 37);
+    --helix-color-input-border: rgb(20, 21, 25);
+    --helix-color-focus: rgb(74, 144, 226);
+    --helix-color-selection: rgba(74, 144, 226, 0.45);
+    --helix-color-info: rgb(74, 144, 226);
+    --helix-color-warning: rgb(230, 176, 52);
+    --helix-color-error: rgb(222, 76, 76);
+    --helix-radius: 3px;
+    --helix-control-height: 22px;
+    font-size: 13px;
+    color: rgb(222, 224, 230);
+}
+
+/* ------------------------------------------------------------------------------------------------------ text */
+
+.helix-text-element:disabled {
+    color: var(--helix-color-text-disabled);
+}
+
+.helix-label {
+    padding: 2px 2px 2px 2px;
+    -helix-text-align: middle-left;
+}
+
+/* --------------------------------------------------------------------------------------------------- buttons */
+
+.helix-button {
+    min-height: var(--helix-control-height);
+    margin: 2px 3px 2px 3px;
+    padding: 2px 10px 2px 10px;
+    background-color: var(--helix-color-control);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+    -helix-text-align: middle-center;
+    white-space: nowrap;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    transition-property: background-color;
+    transition-duration: 0.08s;
+}
+
+.helix-button:hover {
+    background-color: var(--helix-color-control-hover);
+}
+
+.helix-button:active {
+    background-color: var(--helix-color-control-active);
+}
+
+.helix-button:focus {
+    border-color: var(--helix-color-focus);
+}
+
+.helix-button:disabled {
+    opacity: 0.5;
+}
+
+.helix-button__image {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    -helix-background-scale-mode: scale-to-fit;
+}
+
+/* -------------------------------------------------------------------------------------------- boxes, groups */
+
+.helix-box {
+    background-color: var(--helix-color-box);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+}
+
+.helix-group-box {
+    margin: 4px 3px 4px 3px;
+    padding: 2px 4px 4px 4px;
+}
+
+.helix-group-box__label {
+    -helix-font-style: bold;
+    margin-bottom: 2px;
+}
+
+.helix-help-box {
+    flex-direction: row;
+    align-items: center;
+    margin: 3px;
+    padding: 4px 6px 4px 6px;
+    background-color: var(--helix-color-box);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+}
+
+.helix-help-box__icon {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    margin-right: 6px;
+    border-radius: 8px;
+    background-color: var(--helix-color-info);
+}
+
+.helix-help-box__icon.helix-icon-warning {
+    background-color: var(--helix-color-warning);
+}
+
+.helix-help-box__icon.helix-icon-error {
+    background-color: var(--helix-color-error);
+}
+
+.helix-help-box__label {
+    flex-shrink: 1;
+    white-space: normal;
+}
+
+.helix-popup-window {
+    margin: 4px;
+    background-color: var(--helix-color-panel);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: 5px;
+}
+
+.helix-popup-window__title {
+    padding: 4px 8px 4px 8px;
+    -helix-font-style: bold;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--helix-color-control-border);
+}
+
+.helix-popup-window__content-container {
+    padding: 6px;
+}
+
+/* ---------------------------------------------------------------------------------------------- progress bar */
+
+.helix-progress-bar {
+    margin: 3px;
+}
+
+.helix-progress-bar__background {
+    height: 18px;
+    background-color: var(--helix-color-input);
+    border-width: 1px;
+    border-color: var(--helix-color-input-border);
+    border-radius: var(--helix-radius);
+    overflow: hidden;
+}
+
+.helix-progress-bar__progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: var(--helix-color-accent);
+}
+
+.helix-progress-bar__title-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: center;
+    align-items: center;
+}
+
+.helix-progress-bar__title {
+    padding: 0;
+    -helix-text-align: middle-center;
+    font-size: 11px;
+}
+
+/* ------------------------------------------------------------------------------------------------- the fields */
+
+.helix-base-field {
+    flex-direction: row;
+    align-items: center;
+    min-height: var(--helix-control-height);
+    margin: 1px 3px 1px 3px;
+}
+
+.helix-base-field__label {
+    min-width: 120px;
+    width: 120px;
+    margin-right: 4px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.helix-base-field__label--with-dragger {
+    cursor: slide-arrow;
+}
+
+.helix-base-field__input {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: center;
+}
+
+.helix-base-field:disabled {
+    opacity: 0.5;
+}
+
+/* toggles and radio buttons */
+
+.helix-toggle__checkmark,
+.helix-radio-button__checkmark-background {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    background-color: var(--helix-color-input);
+    border-width: 1px;
+    border-color: var(--helix-color-input-border);
+    border-radius: var(--helix-radius);
+}
+
+.helix-toggle:hover .helix-toggle__checkmark,
+.helix-radio-button:hover .helix-radio-button__checkmark-background {
+    border-color: var(--helix-color-control-hover);
+}
+
+.helix-toggle:checked .helix-toggle__checkmark {
+    background-color: var(--helix-color-accent);
+    border-color: var(--helix-color-accent-strong);
+}
+
+.helix-toggle:focus .helix-toggle__checkmark,
+.helix-radio-button:focus .helix-radio-button__checkmark-background {
+    border-color: var(--helix-color-focus);
+}
+
+.helix-radio-button__checkmark-background {
+    border-radius: 7px;
+    justify-content: center;
+    align-items: center;
+}
+
+.helix-radio-button__checkmark {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--helix-color-text);
+    visibility: hidden;
+}
+
+.helix-radio-button:checked .helix-radio-button__checkmark {
+    visibility: visible;
+}
+
+.helix-radio-button:checked .helix-radio-button__checkmark-background {
+    background-color: var(--helix-color-accent);
+    border-color: var(--helix-color-accent-strong);
+}
+
+.helix-toggle__text,
+.helix-radio-button__text {
+    margin-left: 4px;
+}
+
+.helix-radio-button-group__container {
+    flex-direction: column;
+}
+
+/* foldouts: the checkmark is a chevron turned down when open */
+
+.helix-foldout {
+    margin: 1px 0 1px 0;
+}
+
+.helix-foldout__toggle {
+    margin: 0;
+}
+
+.helix-foldout__toggle .helix-base-field__input {
+    flex-grow: 1;
+}
+
+.helix-foldout__checkmark {
+    width: 7px;
+    height: 7px;
+    min-width: 7px;
+    margin: 0 6px 0 4px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0 2px 2px 0;
+    border-color: var(--helix-color-text-dim);
+    border-radius: 0;
+    rotate: -45deg;
+    transition-property: rotate;
+    transition-duration: 0.12s;
+}
+
+.helix-foldout:checked .helix-foldout__checkmark {
+    rotate: 45deg;
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--helix-color-text);
+}
+
+.helix-foldout__text {
+    -helix-font-style: bold;
+    margin-left: 0;
+}
+
+.helix-foldout__content {
+    margin-left: 15px;
+}
+
+/* sliders */
+
+.helix-base-slider__drag-container {
+    flex-grow: 1;
+    height: 16px;
+    justify-content: center;
+}
+
+.helix-base-slider__tracker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 6px;
+    height: 4px;
+    background-color: var(--helix-color-control);
+    border-radius: 2px;
+}
+
+.helix-base-slider__fill {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    height: 4px;
+    background-color: var(--helix-color-accent);
+    border-radius: 2px;
+}
+
+.helix-base-slider__dragger {
+    position: absolute;
+    top: 2px;
+    width: 12px;
+    height: 12px;
+    background-color: var(--helix-color-accent);
+    border-width: 1px;
+    border-color: var(--helix-color-accent-strong);
+    border-radius: 6px;
+}
+
+.helix-base-slider:hover .helix-base-slider__dragger,
+.helix-base-slider__dragger:active {
+    background-color: var(--helix-color-accent-strong);
+}
+
+.helix-base-slider--vertical .helix-base-slider__drag-container {
+    width: 16px;
+    height: auto;
+    flex-grow: 1;
+}
+
+.helix-base-slider--vertical .helix-base-slider__tracker {
+    left: 6px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    height: auto;
+}
+
+.helix-base-slider--vertical .helix-base-slider__dragger {
+    left: 2px;
+    top: 0;
+}
+
+.helix-min-max-slider__input {
+    height: 16px;
+}
+
+.helix-min-max-slider__tracker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 6px;
+    height: 4px;
+    background-color: var(--helix-color-input);
+    border-radius: 2px;
+}
+
+.helix-min-max-slider__dragger {
+    position: absolute;
+    top: 5px;
+    height: 6px;
+    background-color: var(--helix-color-accent);
+    border-radius: 3px;
+}
+
+.helix-min-max-slider__min-thumb,
+.helix-min-max-slider__max-thumb {
+    position: absolute;
+    top: -3px;
+    width: 12px;
+    height: 12px;
+    background-color: var(--helix-color-accent-strong);
+    border-radius: 6px;
+}
+
+.helix-min-max-slider__min-thumb {
+    left: -6px;
+}
+
+.helix-min-max-slider__max-thumb {
+    right: -6px;
+}
+
+/* text input */
+
+.helix-base-text-field__input {
+    min-height: 20px;
+    padding: 1px 4px 1px 4px;
+    background-color: var(--helix-color-input);
+    border-width: 1px;
+    border-color: var(--helix-color-input-border);
+    border-radius: var(--helix-radius);
+    overflow: hidden;
+    cursor: text;
+}
+
+.helix-base-text-field:hover .helix-base-text-field__input {
+    border-color: var(--helix-color-control-hover);
+}
+
+.helix-text-field--focused .helix-base-text-field__input {
+    border-color: var(--helix-color-focus);
+}
+
+.helix-text-field--multiline .helix-base-text-field__input {
+    align-items: flex-start;
+    min-height: 44px;
+}
+
+.helix-text-element--inner-input-field-component {
+    flex-grow: 1;
+    padding: 0;
+}
+
+.helix-text-input__caret {
+    position: absolute;
+    width: 1px;
+    background-color: var(--helix-color-text);
+}
+
+.helix-text-input__selection {
+    position: absolute;
+    background-color: var(--helix-color-selection);
+}
+
+/* composite fields */
+
+.helix-composite-field__input {
+    flex-direction: row;
+}
+
+.helix-composite-field__field {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 0 0 4px;
+}
+
+.helix-composite-field__field--first {
+    margin-left: 0;
+}
+
+.helix-composite-field__field .helix-base-field__label {
+    min-width: 14px;
+    width: auto;
+    margin-right: 2px;
+    color: var(--helix-color-text-dim);
+}
+
+.helix-bounds-field .helix-composite-field__input,
+.helix-bounds-int-field .helix-composite-field__input {
+    flex-direction: column;
+}
+
+.helix-composite-field__row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 1px;
+}
+
+.helix-composite-field__row-label {
+    min-width: 56px;
+}
+
+/* popup fields and their menu */
+
+.helix-base-popup-field__input {
+    min-height: 20px;
+    padding: 1px 6px 1px 6px;
+    background-color: var(--helix-color-control);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+}
+
+.helix-base-popup-field:hover .helix-base-popup-field__input {
+    background-color: var(--helix-color-control-hover);
+}
+
+.helix-base-popup-field:focus .helix-base-popup-field__input {
+    border-color: var(--helix-color-focus);
+}
+
+.helix-base-popup-field__text {
+    flex-grow: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.helix-base-popup-field__arrow {
+    width: 6px;
+    height: 6px;
+    margin: 0 2px 3px 6px;
+    border-width: 0 2px 2px 0;
+    border-color: var(--helix-color-text-dim);
+    rotate: 45deg;
+}
+
+.helix-base-dropdown__container-outer {
+    background-color: var(--helix-color-panel);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+    padding: 2px 0 2px 0;
+}
+
+.helix-base-dropdown__item {
+    flex-direction: row;
+    align-items: center;
+    min-height: 20px;
+    padding: 1px 10px 1px 6px;
+}
+
+.helix-base-dropdown__item:hover {
+    background-color: var(--helix-color-accent);
+}
+
+.helix-base-dropdown__checkmark {
+    width: 4px;
+    height: 8px;
+    margin: 0 8px 2px 2px;
+    border-width: 0 2px 2px 0;
+    border-color: rgba(0, 0, 0, 0);
+    rotate: 45deg;
+}
+
+.helix-base-dropdown__item:checked .helix-base-dropdown__checkmark {
+    border-color: var(--helix-color-text);
+}
+
+.helix-base-dropdown__label {
+    white-space: nowrap;
+}
+
+/* toggle button groups */
+
+.helix-toggle-button-group__container {
+    flex-direction: row;
+}
+
+.helix-toggle-button-group__button {
+    margin: 0;
+    border-radius: 0;
+    border-left-width: 0;
+}
+
+.helix-toggle-button-group__button--first {
+    border-left-width: 1px;
+    border-top-left-radius: var(--helix-radius);
+    border-bottom-left-radius: var(--helix-radius);
+}
+
+.helix-toggle-button-group__button--last {
+    border-top-right-radius: var(--helix-radius);
+    border-bottom-right-radius: var(--helix-radius);
+}
+
+.helix-toggle-button-group__button:checked {
+    background-color: var(--helix-color-accent);
+}
+
+/* ------------------------------------------------------------------------------------- scrollers, scroll view */
+
+.helix-scroller {
+    background-color: var(--helix-color-panel);
+}
+
+.helix-scroller--vertical {
+    width: 12px;
+    flex-direction: column;
+}
+
+.helix-scroller--horizontal {
+    height: 12px;
+    flex-direction: row;
+}
+
+.helix-scroller__low-button,
+.helix-scroller__high-button {
+    width: 12px;
+    height: 12px;
+    min-height: 12px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--helix-color-panel);
+}
+
+.helix-scroller__low-button:hover,
+.helix-scroller__high-button:hover {
+    background-color: var(--helix-color-control-hover);
+}
+
+.helix-scroller__slider {
+    flex-grow: 1;
+    margin: 0;
+    min-height: 0;
+}
+
+.helix-scroller__slider .helix-base-slider__drag-container {
+    height: auto;
+    width: auto;
+    align-self: stretch;
+}
+
+.helix-scroller__slider .helix-base-slider__tracker {
+    display: none;
+}
+
+.helix-scroller__slider .helix-base-slider__dragger {
+    top: 0;
+    left: 0;
+    background-color: var(--helix-color-control-hover);
+    border-width: 0;
+    border-radius: 5px;
+}
+
+.helix-scroller--vertical .helix-scroller__slider .helix-base-slider__dragger {
+    left: 2px;
+    width: 8px;
+}
+
+.helix-scroller--horizontal .helix-scroller__slider .helix-base-slider__dragger {
+    top: 2px;
+    height: 8px;
+}
+
+.helix-scroll-view {
+    flex-grow: 1;
+}
+
+.helix-scroll-view__content-and-vertical-scroll-container {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.helix-scroll-view__content-viewport {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+/* ----------------------------------------------------------------------------------------------------- tabs */
+
+.helix-tab-view__header-container {
+    flex-direction: row;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--helix-color-control-border);
+}
+
+.helix-tab__header {
+    padding: 5px 12px 3px 12px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.helix-tab__header:hover {
+    background-color: var(--helix-color-control);
+}
+
+.helix-tab__header-label {
+    color: var(--helix-color-text-dim);
+}
+
+.helix-tab__header:checked .helix-tab__header-label {
+    color: var(--helix-color-text);
+}
+
+.helix-tab__header-underline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+}
+
+.helix-tab__header:checked .helix-tab__header-underline {
+    background-color: var(--helix-color-accent);
+}
+
+.helix-tab__header-image {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    -helix-background-scale-mode: scale-to-fit;
+}
+
+.helix-tab-view__content-container {
+    flex-grow: 1;
+    padding: 6px;
+}
+
+/* --------------------------------------------------------------------------------------------- split view */
+
+.helix-two-pane-split-view {
+    flex-grow: 1;
+}
+
+.helix-two-pane-split-view__content-container {
+    flex-grow: 1;
+}
+
+.helix-two-pane-split-view__dragline-anchor {
+    position: absolute;
+    width: 7px;
+    margin-left: -3px;
+    cursor: resize-horizontal;
+    align-items: center;
+}
+
+.helix-two-pane-split-view--vertical .helix-two-pane-split-view__dragline-anchor {
+    width: auto;
+    height: 7px;
+    margin-left: 0;
+    margin-top: -3px;
+    cursor: resize-vertical;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.helix-two-pane-split-view__dragline {
+    width: 1px;
+    flex-grow: 1;
+    background-color: var(--helix-color-control-border);
+}
+
+.helix-two-pane-split-view--vertical .helix-two-pane-split-view__dragline {
+    width: auto;
+    height: 1px;
+    flex-grow: 0;
+}
+
+.helix-two-pane-split-view__dragline-anchor:hover .helix-two-pane-split-view__dragline,
+.helix-two-pane-split-view__dragline-anchor:active .helix-two-pane-split-view__dragline {
+    background-color: var(--helix-color-accent);
+}

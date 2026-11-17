@@ -14,7 +14,10 @@ namespace helix::ui
             return Affine();
         Vector2 o(r.x + Resolve(s.transformOrigin[0], r.width), r.y + Resolve(s.transformOrigin[1], r.height));
         // The translation, then the rotation and the scale about the origin.
-        return Affine::Translation(Vector2(o.x + t.x, o.y + t.y)) * Affine::Rotation(s.rotate) * Affine::Scaling(Vector2(s.scale[0], s.scale[1])) *
+        bool aboutZ = s.rotateAxis[0] == 0 && s.rotateAxis[1] == 0;
+        Affine turn = aboutZ ? Affine::Rotation(s.rotateAxis[2] < 0 ? -s.rotate : s.rotate)
+                             : Affine::Rotation(s.rotate, Vector3(s.rotateAxis[0], s.rotateAxis[1], s.rotateAxis[2]));
+        return Affine::Translation(Vector2(o.x + t.x, o.y + t.y)) * turn * Affine::Scaling(Vector2(s.scale[0], s.scale[1])) *
                Affine::Translation(Vector2(-o.x, -o.y));
     }
 

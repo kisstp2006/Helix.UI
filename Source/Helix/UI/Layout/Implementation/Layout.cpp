@@ -153,7 +153,9 @@ namespace helix::ui
         return s ? s->pixel : Rect();
     }
 
-    void LayoutEngine::Update(ElementHandle root, f32 width, f32 height)
+    void LayoutEngine::Update(ElementHandle root, f32 width, f32 height) { Update(root, width, MeasureMode::Exactly, height, MeasureMode::Exactly); }
+
+    void LayoutEngine::Update(ElementHandle root, f32 width, MeasureMode widthMode, f32 height, MeasureMode heightMode)
     {
         if (!tree_.IsAlive(root))
             return;
@@ -161,7 +163,7 @@ namespace helix::ui
         computed_.store(0, std::memory_order_relaxed);
         Slot& s = At(root);
         s.box.x = s.box.y = 0;
-        Compute(root, width, height, width, MeasureMode::Exactly, height, MeasureMode::Exactly, true);
+        Compute(root, width, height, width, widthMode, height, heightMode, true);
         ClearLayoutDirty(root);
         UpdateWorld(root, Vector2(0, 0), true);
     }

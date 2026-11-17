@@ -11,6 +11,8 @@
 #include <Helix/Engine/GameObject/Lifecycle.h>
 #include <Helix/Engine/Rendering/Camera.h>
 #include <Helix/Engine/Rendering/Graphics.h>
+#include <Helix/Engine/Rendering/Implementation/RenderCore.h>
+#include <Helix/Engine/Texture/RenderTexture.h>
 #include <Helix/Engine/Screen/Screen.h>
 #include <Helix/Engine/Script/ScriptRuntime.h>
 #include <Helix/Engine/Shader/Shader.h>
@@ -19,11 +21,14 @@
 #include <Helix/Scripting/Bindings/Interop.h>
 #include <Helix/Scripting/Types/Type.h>
 #include <Helix/Testing/Test.h>
+#include <Helix/UI/Engine/Containers.h>
+#include <Helix/UI/Engine/PanelInputConfiguration.h>
 #include <Helix/UI/Engine/UIView.h>
 
 #include <Support/FontWriter.h>
 #include <UIShadersAssembly.h>
 
+#include <cmath>
 #include <cstdio>
 #include <initializer_list>
 
@@ -212,10 +217,10 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         view->SetSource(LoadAt<UITemplate>("page.hxml"));
         view->Update();
         HX_CHECK(view->errors().Empty());
-        // The root, the card, its inner element, the faded one; quads: the card's fill and its border ring (one
+        // The view's root, the card, its inner element, the faded one; quads: the card's fill and its border ring (one
         // color), the inner's fill, the faded one's.
         u32 inPanel = 0;
-        view->panel()->tree().ForEachInSubtree(view->panel()->root(), [&](ElementHandle, u32) { inPanel++; });
+        view->panel()->tree().ForEachInSubtree(view->rootElement()->handle(), [&](ElementHandle, u32) { inPanel++; });
         HX_CHECK(inPanel == 4);
         HX_REQUIRE(view->mesh() != nullptr);
         HX_CHECK(view->mesh()->vertexCount() == 4 * 4 && view->uiMesh().DrawCalls() == 1);
@@ -289,7 +294,7 @@ HX_TEST(UIView, LabelsDrawTheirTextOnEveryDevice)
         folder.Folder("Fonts");
         folder.Write("Fonts/Body.ttf", BodyFont(font));
         folder.Write("text.hxml", R"(<HXML><Style src="text.hss"/><Label class="t" text="ab ab"/></HXML>)");
-        folder.Write("text.hss", R"(.t { -helix-font-definition: url("Fonts/Body.ttf"); font-size: 20px; color: #ffffff; margin: 4px; })");
+        folder.Write("text.hss", R"(.t { -helix-font-definition: url("Fonts/Body.ttf"); font-size: 20px; color: #ffffff; margin: 4px; padding: 0; })");
         folder.Open();
         rhi::TextureHandle color =
             device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
@@ -310,7 +315,7 @@ HX_TEST(UIView, LabelsDrawTheirTextOnEveryDevice)
         view->SetSource(LoadAt<UITemplate>("text.hxml"));
         view->Update();
         HX_CHECK(view->errors().Empty());
-        ElementHandle label = view->panel()->tree().FirstChild(view->panel()->root());
+        ElementHandle label = view->panel()->tree().FirstChild(view->rootElement()->handle());
         const TextInfo* text = view->panel()->TextOf(label);
         HX_REQUIRE(text != nullptr && text->characterCount == 5 && text->quads.Size() == 4);
         HX_CHECK(text->characterInfo[0].font != nullptr && text->characterInfo[0].font->GetFace().Family() == "Body Test");
@@ -511,7 +516,7 @@ HX_TEST(UIView, TheFramesInputReachesTheViewAndTheGameKeepsIt)
         engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
         view->Update();
         EventSystem& events = view->panel()->events();
-        ElementHandle button = view->panel()->tree().FirstChild(view->panel()->root());
+        ElementHandle button = view->panel()->tree().FirstChild(view->rootElement()->handle());
         HX_REQUIRE(button.IsValid());
         Counts counts;
         const EventTypes& t = Events();
@@ -740,5 +745,417 @@ HX_TEST(UIScripts, MarkupMakesElementTypesOfCSharpAndCppClasses)
                                     "gauge:0.25", "made:content"}));
     RunScriptPhase(ScriptMessage::Update);
     HX_CHECK(ui::testing::NotesAre({"typed:0.5:0.5:1"}));
+    DestroyImmediate(ui);
+}
+
+HX_TEST(UIPanelSettings, TheScaleModesResolveAgainstTheScreen)
+{
+    HX_REQUIRE(RegisterModules());
+    auto* s = static_cast<UIPanelSettings*>(ScriptableObject::CreateInstance(scripting::TypeOf<UIPanelSettings>()));
+    HX_REQUIRE(s != nullptr);
+    s->SetScale(2);
+    HX_CHECK(s->ResolveScale(640, 480, 0) == 2);
+    s->SetScaleMode(PanelScaleMode::ConstantPhysicalSize);
+    s->SetScale(1);
+    HX_CHECK(s->ResolveScale(640, 480, 192) == 2 && s->ResolveScale(640, 480, 0) == 1);
+    s->SetScaleMode(PanelScaleMode::ScaleWithScreenSize);
+    // The reference 1200 x 800: twice as wide, as tall.
+    HX_CHECK(s->ResolveScale(2400, 800, 0) == 2);
+    s->SetMatch(1);
+    HX_CHECK(s->ResolveScale(2400, 800, 0) == 1);
+    s->SetMatch(0.5f);
+    HX_CHECK(s->ResolveScale(2400, 800, 0) > 1.414f && s->ResolveScale(2400, 800, 0) < 1.4143f);
+    s->SetScreenMatchMode(PanelScreenMatchMode::Shrink);
+    HX_CHECK(s->ResolveScale(2400, 800, 0) == 2);
+    s->SetScreenMatchMode(PanelScreenMatchMode::Expand);
+    HX_CHECK(s->ResolveScale(2400, 800, 0) == 1);
+    Object::DestroyImmediate(s);
+}
+
+namespace
+{
+    constexpr StringView kRedPage =
+        R"(<HXML><Element name="red" style="position: absolute; left: 0px; top: 0px; width: 10px; height: 10px; background-color: #ff0000;"/></HXML>)";
+    constexpr StringView kGreenPage =
+        R"(<HXML><Element name="green" style="position: absolute; left: 0px; top: 0px; width: 20px; height: 20px; background-color: #00ff00;"/></HXML>)";
+}
+
+HX_TEST(UIView, ViewsOfOneSettingsShareAScaledSortedPanelOrDrawIntoItsTexture)
+{
+    HX_REQUIRE(RegisterModules());
+    constexpr u32 width = 64, height = 48;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        folder.Write("red.hxml", kRedPage);
+        folder.Write("green.hxml", kGreenPage);
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        GraphicsSettings::SetDefaultRenderPipeline(ScriptableObject::CreateInstanceByName("ClearPipelineAsset"));
+        Camera* camera = GameObject::Create("Camera")->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0, 0, 0, 1));
+        auto* settings = static_cast<UIPanelSettings*>(ScriptableObject::CreateInstance(scripting::TypeOf<UIPanelSettings>()));
+        settings->SetScale(2);
+        auto view = [&](StringView page, UIPanelSettings* s, f32 order) {
+            auto* v = static_cast<UIView*>(GameObject::Create("UI")->AddComponent(scripting::TypeOf<UIView>()));
+            v->SetPanelSettings(s);
+            v->SetSortingOrder(order);
+            v->SetSource(LoadAt<UITemplate>(page));
+            return v;
+        };
+        // Two views of one settings asset: one panel, the red view (order 1) over the green one, both twice as big.
+        UIView* red = view("red.hxml", settings, 1);
+        UIView* green = view("green.hxml", settings, 0);
+        HX_REQUIRE(red->panel() != nullptr && red->panel() == green->panel());
+        ElementTree& tree = red->panel()->tree();
+        HX_CHECK(tree.ChildAt(red->panel()->root(), 0) == green->rootElement()->handle() &&
+                 tree.ChildAt(red->panel()->root(), 1) == red->rootElement()->handle());
+        HX_CHECK(UIView::FindUIView(Element::Of(tree.FirstChild(red->rootElement()->handle()))) == red);
+        engine::InputFeed::Reset();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        red->Update();
+        green->Update();
+        HX_CHECK(UIView::PanelScaleInternal(Element::Of(red->panel()->root())) == 2);
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        HX_CHECK(NearColor(Pixel(pixels, width, 5, 5), Rgba(255, 0, 0)) && NearColor(Pixel(pixels, width, 18, 18), Rgba(255, 0, 0)));
+        HX_CHECK(NearColor(Pixel(pixels, width, 30, 30), Rgba(0, 255, 0)) && NearColor(Pixel(pixels, width, 42, 30), Rgba(0, 0, 0)));
+        // Screen points are the panel's halved.
+        HX_CHECK(red->Pick(Vector2(18, 18)) == tree.FirstChild(red->rootElement()->handle()));
+        HX_CHECK(red->Pick(Vector2(30, 30)) == tree.FirstChild(green->rootElement()->handle()));
+        // The sorting order changed: the green view over the red one.
+        green->SetSortingOrder(2);
+        HX_CHECK(tree.ChildAt(red->panel()->root(), 1) == green->rootElement()->handle());
+
+        // A settings asset with a target texture: its panel draws there (cleared to blue), not on the screen.
+        auto* textured = static_cast<UIPanelSettings*>(ScriptableObject::CreateInstance(scripting::TypeOf<UIPanelSettings>()));
+        RenderTexture* rt = RenderTexture::New(32, 32, 0);
+        textured->SetTargetTexture(rt);
+        textured->SetClearColor(true);
+        textured->SetColorClearValue(Color(0, 0, 1, 1));
+        red->SetPanelSettings(textured);
+        HX_CHECK(red->panel() != green->panel() && red->Pick(Vector2(5, 5)) == ElementHandle());
+        red->Update();
+        green->Update();
+        Graphics::RenderFrame();
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        HX_CHECK(NearColor(Pixel(pixels, width, 5, 5), Rgba(0, 255, 0)));
+        const render::GpuRenderTarget* g = render::RenderTargetOf(*rt);
+        HX_REQUIRE(g != nullptr);
+        Array<u32> texels;
+        texels.Resize(32 * 32);
+        HX_REQUIRE(device.ReadTexture(g->color, 0, texels.Data(), texels.Size() * 4));
+        // Drawn like a camera into a texture: its first row is the panel's bottom.
+        HX_CHECK(NearColor(Pixel(texels, 32, 5, 27), Rgba(255, 0, 0)) && NearColor(Pixel(texels, 32, 5, 4), Rgba(0, 0, 255)));
+        HX_CHECK(NearColor(Pixel(texels, 32, 20, 27), Rgba(0, 0, 255)));
+        red->SetPanelSettings(nullptr);
+        Object::DestroyImmediate(rt);
+        engine::InputFeed::Reset();
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
+    std::printf("    %u devices\n", devices);
+}
+
+namespace
+{
+    constexpr StringView kWorldPage =
+        R"(<HXML><Element name="panel" style="width: 20px; height: 20px; background-color: #00ff00;">)"
+        R"(<Element name="corner" style="position: absolute; left: 0px; top: 0px; width: 10px; height: 10px; background-color: #ff0000;"/>)"
+        R"(<Element name="tilted" style="position: absolute; left: 12px; top: 12px; width: 4px; height: 4px; rotate: 1 0 0 60deg; background-color: #0000ff;"/>)"
+        R"(</Element></HXML>)";
+}
+
+HX_TEST(UIView, AWorldSpacePanelIsDrawnInTheSceneAndTakesRaysFromTheEventCameras)
+{
+    HX_REQUIRE(RegisterModules());
+    constexpr u32 width = 64, height = 64;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        folder.Write("world.hxml", kWorldPage);
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        // No pipeline: the engine's own drawing of the queued meshes. An orthographic camera two units tall.
+        GameObject* cameraObject = GameObject::Create("Camera");
+        Camera* camera = cameraObject->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0, 0, 0, 1));
+        camera->SetOrthographic(true);
+        camera->SetOrthographicSize(1);
+        cameraObject->transform()->SetPosition(Vector3(0, 0, -10));
+        auto* config = static_cast<PanelInputConfiguration*>(cameraObject->AddComponent(scripting::TypeOf<PanelInputConfiguration>()));
+        config->SetDefaultEventCameraIsMainCamera(false);
+        Camera* cameras[] = {camera};
+        config->SetEventCameras(Span<Camera* const>(cameras, 1));
+        auto* settings = static_cast<UIPanelSettings*>(ScriptableObject::CreateInstance(scripting::TypeOf<UIPanelSettings>()));
+        settings->SetRenderMode(PanelRenderMode::WorldSpace);
+        // The panel's 20 pixels are one unit (32 screen pixels), its center at the origin.
+        GameObject* ui = GameObject::Create("World UI");
+        ui->transform()->SetLocalScale(Vector3(0.05f, 0.05f, 0.05f));
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        view->SetPanelSettings(settings);
+        view->SetSource(LoadAt<UITemplate>("world.hxml"));
+        engine::InputFeed::Reset();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        view->Update();
+        HX_REQUIRE(view->panel() != nullptr);
+        bool deep = false;
+        for (const UIVertex& v : view->uiMesh().Vertices())
+            deep = deep || std::fabs(v.z) > 0.5f;
+        HX_CHECK(deep);
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        // The panel's top left (its red corner) up and left on the screen, its green rest down and right.
+        HX_CHECK(NearColor(Pixel(pixels, width, 20, 20), Rgba(255, 0, 0)) && NearColor(Pixel(pixels, width, 42, 42), Rgba(0, 255, 0)));
+        HX_CHECK(NearColor(Pixel(pixels, width, 8, 8), Rgba(0, 0, 0)) && NearColor(Pixel(pixels, width, 56, 56), Rgba(0, 0, 0)));
+        // A press on the red corner: the ray finds it.
+        ElementHandle root = view->rootElement()->handle();
+        ElementTree& tree = view->panel()->tree();
+        ElementHandle corner = tree.FirstChild(tree.FirstChild(root));
+        HX_CHECK(view->Pick(Vector2(20, 20)) == corner && view->Pick(Vector2(8, 8)) == ElementHandle());
+        Counts counts;
+        view->panel()->events().RegisterCallback(corner, Events().click, [](void* u, EventSystem&, UIEvent&) { static_cast<Counts*>(u)->clicks++; }, &counts);
+        const engine::InputEvent click[] = {Mouse(platform::EventType::MouseDown, 20, 20), Mouse(platform::EventType::MouseUp, 20, 20)};
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(click, 2), Span<const u32>());
+        view->Update();
+        HX_CHECK(counts.clicks == 1);
+        // World space input off: nothing reaches it.
+        config->SetProcessWorldSpaceInput(false);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(click, 2), Span<const u32>());
+        view->Update();
+        HX_CHECK(counts.clicks == 1);
+        engine::InputFeed::Reset();
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
+    std::printf("    %u devices\n", devices);
+}
+
+namespace
+{
+    constexpr StringView kControlsPage = R"(<HXML>
+  <Element name="page" style="width: 400px;">
+    <Label name="label" text="Hello"/>
+    <Button name="button" text="Press"/>
+    <RepeatButton name="repeat" text="Hold" delay="100" interval="50"/>
+    <Toggle name="toggle" label="Toggle" text="On"/>
+    <GroupBox name="group" text="Group">
+      <RadioButton name="r1" label="One" value="true"/>
+      <RadioButton name="r2" label="Two"/>
+    </GroupBox>
+    <RadioButtonGroup name="radios" label="Radios" choices="A, B, C" value="1"/>
+    <Slider name="slider" label="Slider" low-value="0" high-value="100" value="25" style="width: 300px;"/>
+    <SliderInt name="sliderInt" low-value="0" high-value="10" value="3"/>
+    <MinMaxSlider name="minmax" min-value="2" max-value="8" low-limit="0" high-limit="10"/>
+    <TextField name="text" label="Text" value="ab"/>
+    <IntegerField name="integer" label="Integer" value="42"/>
+    <FloatField name="float" label="Float" value="1.5"/>
+    <Vector3Field name="vector" label="Vector"/>
+    <Hash128Field name="hash"/>
+    <DropdownField name="dropdown" label="Dropdown" choices="Red, Green, Blue" index="0"/>
+    <EnumField name="enum"/>
+    <MaskField name="mask"/>
+    <ProgressBar name="progress" value="40" title="Loading"/>
+    <HelpBox name="help" text="Careful" message-type="Warning"/>
+    <Foldout name="foldout" text="More" value="false"><Label text="Inside"/></Foldout>
+    <ScrollView name="scroll" style="height: 40px;"><Element style="height: 200px;"/></ScrollView>
+    <TabView name="tabs"><Tab label="First"><Label text="1"/></Tab><Tab label="Second"><Label text="2"/></Tab></TabView>
+    <TwoPaneSplitView fixed-pane-initial-dimension="80" style="height: 40px;"><Element/><Element/></TwoPaneSplitView>
+    <ToggleButtonGroup name="tbg" is-multiple-selection="true"><Button text="a"/><Button text="b"/></ToggleButtonGroup>
+    <PopupWindow text="Window"><Label text="In it"/></PopupWindow>
+    <Box/><Image/>
+  </Element>
+</HXML>)";
+}
+
+HX_TEST(UIControls, TheDefaultThemeParsesAndEveryControlBuildsAndTakesInput)
+{
+    HX_REQUIRE(RegisterModules());
+    HX_REQUIRE(DefaultThemeSheet() != nullptr);
+    for (const StyleError& e : DefaultThemeSheet()->Errors())
+        std::printf("    theme %u:%u: %s\n", e.line, e.column, String(e.message).CStr());
+    HX_CHECK(DefaultThemeSheet()->Errors().Empty());
+    AssetFolder folder;
+    folder.Write("controls.hxml", kControlsPage);
+    folder.Open();
+    ReportScreen(800, 1200);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    view->SetSource(LoadAt<UITemplate>("controls.hxml"));
+    for (const HxmlError& e : view->errors())
+        std::printf("    %u:%u: %s\n", e.line, e.column, String(e.message).CStr());
+    HX_CHECK(view->errors().Empty());
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    frame({});
+    Element* root = view->rootElement();
+    ElementTree& tree = view->panel()->tree();
+    LayoutEngine& layout = view->panel()->layout();
+    auto find = [&](StringView name) {
+        ElementHandle found;
+        tree.ForEachInSubtree(root->handle(), [&](ElementHandle e, u32) {
+            if (!found.IsValid() && tree.Name(e) == Intern(name))
+                found = e;
+        });
+        return found;
+    };
+    auto center = [&](ElementHandle e) {
+        Rect r = layout.WorldRect(e);
+        return Vector2(r.x + r.width * 0.5f, r.y + r.height * 0.5f);
+    };
+    auto click = [&](Vector2 at) {
+        frame({Mouse(platform::EventType::MouseMove, at.x, at.y)});
+        frame({Mouse(platform::EventType::MouseDown, at.x, at.y), Mouse(platform::EventType::MouseUp, at.x, at.y)});
+    };
+    // A label's text, a button's click.
+    HX_CHECK(tree.Text(find("label")) == StringView("Hello") && tree.HasClass(find("label"), Intern("helix-label")));
+    auto* button = static_cast<Button*>(Element::Of(find("button")));
+    HX_REQUIRE(button != nullptr);
+    click(center(find("button")));
+    HX_CHECK(button->clickCount() == 1);
+    // A toggle turns on; the radio buttons of a group are exclusive.
+    auto* toggle = static_cast<Toggle*>(Element::Of(find("toggle")));
+    click(center(find("toggle")));
+    HX_CHECK(toggle->IntegerInternal(0) == 1 && Any(tree.States(find("toggle")) & PseudoStates::Checked));
+    auto* r1 = static_cast<RadioButton*>(Element::Of(find("r1")));
+    auto* r2 = static_cast<RadioButton*>(Element::Of(find("r2")));
+    HX_CHECK(r1->IntegerInternal(0) == 1);
+    click(center(find("r2")));
+    HX_CHECK(r2->IntegerInternal(0) == 1 && r1->IntegerInternal(0) == 0);
+    auto* radios = static_cast<RadioButtonGroup*>(Element::Of(find("radios")));
+    HX_CHECK(radios->IntegerInternal(0) == 1 && radios->ChoicesInternal() == StringView("A\nB\nC"));
+    // A slider: a press near its tracker's end takes the value there.
+    auto* slider = static_cast<Slider*>(Element::Of(find("slider")));
+    HX_CHECK(slider->NumberInternal(0) == 25);
+    Rect sr = layout.WorldRect(find("slider"));
+    click(Vector2(sr.x + sr.width - 2, sr.y + sr.height * 0.5f));
+    HX_CHECK(slider->NumberInternal(0) > 90);
+    // Typing into the text field: a click selects all of it (selectAllOnMouseUp), what is typed replaces it.
+    auto* text = static_cast<TextField*>(Element::Of(find("text")));
+    HX_CHECK(text->StringInternal() == StringView("ab"));
+    click(center(find("text")));
+    engine::InputEvent typed[2];
+    typed[0].event.type = platform::EventType::Text;
+    typed[0].event.text = {'c'};
+    typed[1].event.type = platform::EventType::Text;
+    typed[1].event.text = {'d'};
+    frame({typed[0], typed[1]});
+    HX_CHECK(text->StringInternal() == StringView("cd") && text->TextOptionInternal(AbstractBaseField::CursorIndex) == 2);
+    // Numbers: their text.
+    auto* integer = static_cast<IntegerField*>(Element::Of(find("integer")));
+    HX_CHECK(integer->IntegerInternal(0) == 42 && integer->TextInternal() == StringView("42"));
+    auto* floating = static_cast<FloatField*>(Element::Of(find("float")));
+    HX_CHECK(floating->NumberInternal(0) == 1.5);
+    // The dropdown: its menu opens over the panel, a pick sets it.
+    auto* dropdown = static_cast<DropdownField*>(Element::Of(find("dropdown")));
+    HX_CHECK(dropdown->IntegerInternal(0) == 0);
+    click(center(find("dropdown")));
+    frame({});
+    ElementHandle menuItem;
+    tree.ForEachInSubtree(view->panel()->root(), [&](ElementHandle e, u32) {
+        if (tree.HasClass(e, Intern("helix-base-dropdown__item")))
+            menuItem = e;
+    });
+    HX_REQUIRE(menuItem.IsValid());
+    click(center(menuItem));
+    HX_CHECK(dropdown->IntegerInternal(0) == 2 && dropdown->StringInternal() == StringView("Blue"));
+    // A foldout opens.
+    auto* foldout = static_cast<Foldout*>(Element::Of(find("foldout")));
+    HX_CHECK(!foldout->value());
+    click(center(foldout->toggle()->handle()));
+    HX_CHECK(foldout->value());
+    // Tabs: the second header picks the second tab.
+    auto* tabs = static_cast<TabView*>(Element::Of(find("tabs")));
+    frame({});
+    HX_REQUIRE(tabs->GetTab(1) != nullptr);
+    click(center(tabs->GetTabHeader(1)->handle()));
+    HX_CHECK(tabs->selectedTabIndex() == 1);
+    // A toggle button group of several.
+    auto* tbg = static_cast<ToggleButtonGroup*>(Element::Of(find("tbg")));
+    frame({});
+    Element* container = tbg->contentContainer();
+    HX_REQUIRE(container != nullptr && tree.FirstChild(container->handle()).IsValid());
+    click(center(tree.FirstChild(container->handle())));
+    click(center(tree.NextSibling(tree.FirstChild(container->handle()))));
+    HX_CHECK(tbg->IntegerInternal(0) == 3);
+    // The scroll view: the wheel moves its content.
+    auto* scroll = static_cast<ScrollView*>(Element::Of(find("scroll")));
+    frame({});
+    Vector2 sc = center(find("scroll"));
+    engine::InputEvent wheel;
+    wheel.event.type = platform::EventType::MouseWheel;
+    wheel.event.wheel.dy = -2;
+    frame({Mouse(platform::EventType::MouseMove, sc.x, sc.y)});
+    frame({wheel});
+    HX_CHECK(scroll->scrollOffset().y > 10);
+    auto* progress = static_cast<ProgressBar*>(Element::Of(find("progress")));
+    HX_CHECK(progress->title() == StringView("Loading") && progress->value() == 40);
+    auto* help = static_cast<HelpBox*>(Element::Of(find("help")));
+    HX_CHECK(help->messageType() == HelpBoxMessageType::Warning && help->text() == StringView("Careful"));
+    engine::InputFeed::Reset();
+}
+
+HX_TEST(UIScripts, CSharpControlsSendTheirChangeEventsAndClicks)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    AssetFolder folder;
+    folder.Write("cs-controls.hxml", R"(<HXML><Label name="label" text="Hi"/><DropdownField name="dropdown" choices="x, y, z" index="0"/></HXML>)");
+    folder.Open();
+    ReportScreen(400, 600);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("cs-controls.hxml"));
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    ui->AddComponent(ui::testing::CSharp("CsControlTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"toggle:False:True", "toggle-state:False:on:Sound:True", "slider:0:10", "slider-state:10:2:10", "int:0:7:7",
+                                    "vector:1:2:3", "text::Heli", "text-state:Heli:Heli:4", "popup:20:30:2", "enum:Pear:Plum", "mask:5",
+                                    "foldout:True:False", "hash:True:True", "markup:Hi:x:0:x|y|z", "dropdown:x:z"}));
+    // The C# button clicked by the pointer: its clicked handler runs.
+    frame({});
+    frame({Mouse(platform::EventType::MouseMove, 20, 10)});
+    frame({Mouse(platform::EventType::MouseDown, 20, 10), Mouse(platform::EventType::MouseUp, 20, 10)});
+    HX_CHECK(ui::testing::NotesAre({"clicked"}));
+    RunScriptPhase(ScriptMessage::Update);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"button:1"}));
+    engine::InputFeed::Reset();
     DestroyImmediate(ui);
 }

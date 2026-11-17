@@ -138,7 +138,7 @@ namespace helix::ui
         colors.Resize(n);
         for (u32 i = 0; i < n; i++)
         {
-            const TextElement& e = parsed_.elements[i];
+            const RichTextElement& e = parsed_.elements[i];
             const TextStyle& st = parsed_.styles[e.style];
             char32_t c = parsed_.text[i];
             f32 s = st.hasSize ? st.size.Resolve(size, size, size) : size;
@@ -274,7 +274,7 @@ namespace helix::ui
             // Spacing, bold, monospace and the special elements.
             for (u32 i = ps; i < pe; i++)
             {
-                const TextElement& e = parsed_.elements[i];
+                const RichTextElement& e = parsed_.elements[i];
                 const TextStyle& st = parsed_.styles[e.style];
                 f32 s = sizes[i];
                 if (e.kind == TextElementKind::Space)
@@ -650,7 +650,7 @@ namespace helix::ui
             for (const VisualItem& item : visual[li])
             {
                 u32 c = item.character;
-                const TextElement& e = parsed_.elements[c];
+                const RichTextElement& e = parsed_.elements[c];
                 const TextStyle& st2 = parsed_.styles[e.style];
                 u32 cluster = clusterOf[c];
                 if (cluster != lastCluster)

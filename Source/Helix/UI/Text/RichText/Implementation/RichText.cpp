@@ -120,7 +120,7 @@ namespace helix::ui
                 return lastStyle = u16(out.styles.Size() - 1);
             }
 
-            void Emit(TextElement e)
+            void Emit(RichTextElement e)
             {
                 e.style = StyleIndex();
                 e.source = source;
@@ -135,7 +135,7 @@ namespace helix::ui
                 for (usize at = 0; at < text.Size();)
                 {
                     source = base + u32(at);
-                    TextElement e;
+                    RichTextElement e;
                     e.code = DecodeUtf8(text, at);
                     Emit(Move(e));
                 }
@@ -346,7 +346,7 @@ namespace helix::ui
         // Standalone tags.
         bool OpenBreak(Parser& p, StringView, StringView)
         {
-            TextElement e;
+            RichTextElement e;
             e.code = '\n';
             p.Emit(Move(e));
             return true;
@@ -354,7 +354,7 @@ namespace helix::ui
 
         bool OpenSpace(Parser& p, StringView v, StringView)
         {
-            TextElement e;
+            RichTextElement e;
             e.kind = TextElementKind::Space;
             if (!ParseLength(v, e.length, false))
                 return false;
@@ -364,7 +364,7 @@ namespace helix::ui
 
         bool OpenPosition(Parser& p, StringView v, StringView)
         {
-            TextElement e;
+            RichTextElement e;
             e.kind = TextElementKind::Position;
             if (!ParseLength(v, e.length, false))
                 return false;
@@ -374,7 +374,7 @@ namespace helix::ui
 
         bool OpenPage(Parser& p, StringView, StringView)
         {
-            TextElement e;
+            RichTextElement e;
             e.kind = TextElementKind::PageBreak;
             p.Emit(Move(e));
             return true;
@@ -403,7 +403,7 @@ namespace helix::ui
 
         bool OpenSprite(Parser& p, StringView v, StringView attributes)
         {
-            TextElement e;
+            RichTextElement e;
             e.kind = TextElementKind::Sprite;
             v = Trim(v);
             // <sprite=3>, <sprite="asset" index=3>, <sprite name="smile">.

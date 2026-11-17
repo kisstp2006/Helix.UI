@@ -255,19 +255,21 @@ namespace helix::ui
         computed_ = 0;
         customResolved_.Clear();
         active_.Clear();
+        activeOwners_.Clear();
         std::fill(bloom_, bloom_ + 4096, u16(0));
         // Tree order: the sheets and ancestor atoms in effect are kept on the way down.
         struct Walker
         {
             StyleEngine& engine;
             // A sheet in effect, the sheets it imports first (their rules come before its own).
-            void Activate(const StyleSheetData* sheet, u32 depth)
+            void Activate(const StyleSheetData* sheet, ElementHandle owner, u32 depth)
             {
                 if (!sheet || depth > 16)
                     return;
                 for (const auto& imported : sheet->Imported())
-                    Activate(imported.get(), depth + 1);
+                    Activate(imported.get(), owner, depth + 1);
                 engine.active_.Push(sheet);
+                engine.activeOwners_.Push(owner);
             }
             void Walk(ElementHandle e, const ComputedStyle* parent, bool force)
             {
@@ -275,7 +277,7 @@ namespace helix::ui
                 Slot& s = engine.At(e);
                 usize sheetsBefore = engine.active_.Size();
                 for (const auto& sheet : s.sheets)
-                    Activate(sheet.get(), 0);
+                    Activate(sheet.get(), e, 0);
                 Dirty flags = tree.DirtyFlags(e);
                 bool recompute = force || Any(flags & Dirty::Style) || !s.computedOnce;
                 if (recompute)
@@ -300,6 +302,7 @@ namespace helix::ui
                 }
                 tree.ClearDirty(e, Dirty::Style | Dirty::DescendantStyle);
                 engine.active_.Resize(sheetsBefore);
+                engine.activeOwners_.Resize(sheetsBefore);
             }
         };
         Walker{*this}.Walk(root, tree_.Parent(root).IsValid() ? &Computed(tree_.Parent(root)) : nullptr, false);
@@ -332,7 +335,8 @@ namespace helix::ui
             if (!tree_.HasClass(e, c))
                 return false;
         PseudoStates states = tree_.States(e);
-        if (!tree_.Parent(e).IsValid())
+        // :root is the top of the sheet's reach: the element it is added to (or an element of no parent).
+        if (e == matchRoot_ || !tree_.Parent(e).IsValid())
             states = states | PseudoStates::Root;
         return (states & p.required) == p.required && !Any(states & p.forbidden);
     }
@@ -505,6 +509,7 @@ namespace helix::ui
         for (u32 sheet = 0; sheet < active_.Size(); sheet++)
         {
             const StyleSheetData& ss = *active_[sheet];
+            matchRoot_ = activeOwners_[sheet];
             ss.ForEachCandidate(type, name, classes, [&](u32 key) {
                 const Selector& sel = ss.SelectorAt(key);
                 if (Matches(sel, e))

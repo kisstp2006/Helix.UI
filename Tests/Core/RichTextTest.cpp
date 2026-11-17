@@ -9,7 +9,7 @@ namespace
     String Plain(const ParsedText& t)
     {
         String s;
-        for (const TextElement& e : t.elements)
+        for (const RichTextElement& e : t.elements)
             if (e.kind == TextElementKind::Character && e.code < 0x80)
                 s += StringView(reinterpret_cast<const char*>(&e.code), 1);
         return s;

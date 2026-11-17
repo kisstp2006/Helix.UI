@@ -226,8 +226,23 @@ namespace helix::ui
                  o[0] = Len(s.translate[0]), o[1] = Len(s.translate[1]);
                  return 2u;
              }},
-            {"rotate", ValueType::Angle, false, false, false, {}, [](S& s, V v) { s.rotate = v.Empty() ? 0.0f : AngleDegrees(v[0]); },
-             [](const S& s) { return StyleValue::OfAngle(s.rotate, u32(AngleUnit::Degree)); }},
+            // The angle, then the axis's x, y and z when it is not z.
+            {"rotate", ValueType::Angle, false, false, false, {},
+             [](S& s, V v) {
+                 s.rotate = v.Empty() ? 0.0f : AngleDegrees(v[0]);
+                 bool axis = v.Size() >= 4;
+                 s.rotateAxis[0] = axis ? v[1].number : 0.0f;
+                 s.rotateAxis[1] = axis ? v[2].number : 0.0f;
+                 s.rotateAxis[2] = axis ? v[3].number : 1.0f;
+             },
+             [](const S& s) { return StyleValue::OfAngle(s.rotate, u32(AngleUnit::Degree)); }, nullptr, 4,
+             [](const S& s, StyleValue* o) {
+                 o[0] = StyleValue::OfAngle(s.rotate, u32(AngleUnit::Degree));
+                 if (s.rotateAxis[0] == 0 && s.rotateAxis[1] == 0 && s.rotateAxis[2] == 1)
+                     return 1u;
+                 o[1] = Num(s.rotateAxis[0]), o[2] = Num(s.rotateAxis[1]), o[3] = Num(s.rotateAxis[2]);
+                 return 4u;
+             }},
             {"scale", ValueType::Number, false, false, false, {},
              [](S& s, V v) {
                  s.scale[0] = Has(v, 0) ? v[0].number : 1.0f;

@@ -70,7 +70,7 @@ namespace helix::ui
         // A font of a <font> tag by name (null: the text's font).
         TextFont* (*findFont)(StringView name, void* user) = nullptr;
         // A sprite of a <sprite> tag (false: none, it takes an em of room).
-        bool (*findSprite)(const TextElement& element, f32 size, TextSprite& out, void* user) = nullptr;
+        bool (*findSprite)(const RichTextElement& element, f32 size, TextSprite& out, void* user) = nullptr;
         void* user = nullptr;
         const TextStyleSheetLookup* styleSheet = nullptr;
 

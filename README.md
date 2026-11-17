@@ -22,9 +22,11 @@ or none).
 | `Source/Helix/UI/World/` | The element world: one tree, layout, style engine and callback store per process; an element exists without a panel and keeps its callbacks and state when it moves between panels, which are roots in the world |
 | `Source/Helix/UI/Events/` | Events: types from a registry with the reference's names and propagation, the dispatcher (trickle down, bubble up, stops, a queue for events sent while dispatching), picking through transforms, pointers and the mouse, click counts, capture, hover, focus and the focus ring, keys, navigation, the input method's composition, drag and drop |
 | `Source/Helix/UI/Rendering/` | The geometry of a panel: rounded boxes with per side borders, background images (placed, sized and repeated as CSS backgrounds, 9-slice), glyphs, painted paths, clips that turn with their element, geometry through each element's transform, batches of four textures; the `Painter` (paths of lines, arcs and Bezier curves, filled or stroked with joins, caps and gradients, antialiased) |
-| `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheet` (.hss), `ThemeStyleSheet` (.tss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component, its drawer in the engine's screen overlay, the image atlas, the cursor of the hovered element |
+| `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheet` (.hss), `ThemeStyleSheet` (.tss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component and `UIPanelSettings`, the panels (shared by the views of one settings asset, scaled, sorted, drawn over the screen, into a render texture or in the world), `PanelInputConfiguration`, the image atlas, the cursor of the hovered element |
+| `Source/Helix.UI.Engine/Helix/UI/Engine/Controls.h`, `Fields.h`, `Containers.h` | The controls as C++ classes (bound to C# and the C++ script API): `TextElement`, `Label`, `Button`, `RepeatButton`, `Image`, `Box`, `GroupBox`, `HelpBox`, `PopupWindow`, `ProgressBar`; the fields over `AbstractBaseField` (`Toggle`, `RadioButton`, `RadioButtonGroup`, `ToggleButtonGroup`, `Slider`, `SliderInt`, `MinMaxSlider`, `TextField`, the number fields, the vector, rect and bounds fields, `Hash128Field`, `DropdownField`, `EnumField`, `MaskField`, `Mask64Field`); `Foldout`, `Scroller`, `ScrollView`, `TabView` and `Tab`, `TwoPaneSplitView` |
+| `Themes/HelixDefault.tss` | Helix's default runtime theme (built into the module): the controls' looks by their `helix-` classes, its variables on the panel's root |
 | `Source/Helix.UI.Engine/Helix/UI/Engine/Element.h` | `CallbackEventHandler`, `Focusable`, `Element`, `TemplateContainer`: the elements for scripts (C# and the C++ script API), made when a script first needs them; an element lives while it is in a tree or a script holds it; the element types of C# and C++ script classes |
-| `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` with their values (`Translate`, `Rotate`, `Scale`, `BackgroundSize`, `TextShadow`, `Cursor` ...), `customStyle`, `styleSheets`, `HxmlElement` and `HxmlAttribute`, `UITemplate.CloneTree` |
+| `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` with their values (`Translate`, `Rotate`, `Scale`, `BackgroundSize`, `TextShadow`, `Cursor` ...), `customStyle`, `styleSheets`, `HxmlElement` and `HxmlAttribute`, `UITemplate.CloneTree`; the fields' generic bases (`BaseField<T>`, `BaseBoolField`, `BaseSlider<T>`, `TextInputBaseField<T>`, `TextValueField<T>`, `BaseCompositeField<,,>`, `BasePopupField<,>`, `PopupField<T>`, `BaseMaskField<T>`), `ChangeEvent<T>`, `InputEvent`, `INotifyValueChanged<T>`, `Clickable` and the manipulators, `RuntimePanelUtils`, `UIPanelSettings.SetScreenToPanelSpaceFunction` |
 | `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
 | `Tests/Core/` | Tests of the core, with every case of the Unicode bidi and line break tests |
 | `Tests/Managed/` | C# tests run by the engine tests on the .NET host |
@@ -130,10 +132,45 @@ that way. :hover, :focus and :disabled follow the state; :active is a control's.
 panel is built. A focused text element asks for the input method with `SetTextInput` and gets `CompositionEvent`
 while it composes.
 
-A `UIView` component names its markup asset (`m_Source`); it lays the page out in the screen's size and draws it in
-the engine's screen overlay after the cameras, with any render pipeline or none. The views read the engine's input
-each frame without taking it away (a game keeps its input; `UIView::Pick` tells it whether a point is over a view). With `m_WatchFiles` the markup and
-its style sheets are read again while the game runs and the page is built again when they change.
+A `UIView` component names its markup asset (`m_Source`) and its `UIPanelSettings`. The views of one settings asset
+share its panel (each view's root a child of the panel's, by the views' `sortingOrder`; a view under another view's
+GameObject joins that one's panel); a view without settings has a panel of its own. A panel is laid out in the
+screen's size divided by its scale (constant pixel size, constant physical size against `referenceDpi`, or scale
+with screen size against `referenceResolution` and `match`) and drawn in the engine's screen overlay after the
+cameras, with any render pipeline or none, by the settings' sorting order, or into the settings' `targetTexture`
+(cleared as they say). Settings of `renderMode` `WorldSpace` put each view's panel in the scene: a panel pixel is a
+unit of its GameObject's space, its `pivot` at the origin, its size its elements' or `worldSpaceSize`; the cameras
+draw it with the scene's transparent objects, depth tested, and elements turned in 3D (`rotate: x 30deg`,
+`rotate: 1 1 0 45deg`) show their depth. The views read the engine's input each frame without taking it away (a game
+keeps its input; `UIView::Pick` tells it whether a point is over a view): pointers go to the top-most screen panel
+with an element under them, else along the event cameras' rays to the nearest world space panel hit
+(`PanelInputConfiguration`), or through a texture panel's `SetScreenToPanelSpaceFunction`. `RuntimePanelUtils`
+maps screen and world points into a panel. Without a theme the panels take Helix's default theme. With `m_WatchFiles`
+the markup and its style sheets are read again while the game runs and the page is built again when they change.
+
+## Controls
+
+```xml
+<Toggle label="Shadows" value="true"/>
+<Slider label="Volume" low-value="0" high-value="100" value="60" fill="true"/>
+<TextField label="Name" value="Helix" max-length="16"/>
+<DropdownField label="Renderer" choices="Forward, Deferred" index="0"/>
+<TabView><Tab label="General"><Foldout text="More"><Label text="Inside"/></Foldout></Tab></TabView>
+```
+
+```csharp
+var slider = new Slider("Volume", 0, 100);
+slider.RegisterValueChangedCallback(e => progress.value = e.newValue);
+var size = new PopupField<int>("Size", new List<int> { 8, 12, 16 }, 1);
+var button = new Button(() => Debug.Log("clicked")) { text = "Go" };
+```
+
+The controls are C++ classes: markup makes their objects, which build their parts (each with its `helix-` class, the
+theme's looks) and behave by callbacks on the world's events, so they work in any panel and without .NET. A field
+keeps its value in its native slots; what the user changes reaches its C# object, which sends the `ChangeEvent<T>`
+(a value set from C# sends it there). Text fields edit with the keyboard, the pointer (a double click selects a word,
+a triple click the line), the clipboard (`GUIUtility.systemCopyBuffer`, the player's window) and the input method;
+popup fields open their menu over the panel.
 
 ## Element types of scripts
 

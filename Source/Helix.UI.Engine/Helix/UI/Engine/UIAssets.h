@@ -92,6 +92,9 @@ namespace helix::ui
     {
     };
 
+    // The sheet of Helix's default theme (panels whose settings name no theme use it).
+    std::shared_ptr<const StyleSheetData> DefaultThemeSheet();
+
     // A texture a script set as a style's value: its object's id as the value's resource ("entity:<id>"), for
     // properties naming textures by path otherwise. Null for other resources.
     Atom EntityResource(const engine::Object* object);

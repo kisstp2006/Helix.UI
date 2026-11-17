@@ -742,7 +742,55 @@ namespace helix::ui
             ValueParser parse;
         };
 
+        // rotate: an angle and an axis before or after it (x, y, z or three numbers); the axis is kept unless it is z.
+        bool RotateValue(const PropertyInfo&, const Array<Token>& t, Array<StyleValue>& out, String& error)
+        {
+            StyleValue angle;
+            f32 axis[3] = {0, 0, 1};
+            bool haveAngle = false, haveAxis = false;
+            for (usize i = 0; i < t.Size();)
+            {
+                bool threeNumbers = i + 2 < t.Size() && t[i].kind == Tok::Number && t[i + 1].kind == Tok::Number && t[i + 2].kind == Tok::Number;
+                if (!haveAxis && threeNumbers)
+                {
+                    for (u32 k = 0; k < 3; k++)
+                        axis[k] = t[i + k].number;
+                    haveAxis = true;
+                    i += 3;
+                    continue;
+                }
+                if (!haveAngle && AngleToken(t[i], angle))
+                {
+                    haveAngle = true;
+                    i++;
+                    continue;
+                }
+                if (!haveAxis && t[i].kind == Tok::Ident && (t[i].text == StringView("x") || t[i].text == StringView("y") || t[i].text == StringView("z")))
+                {
+                    axis[0] = t[i].text == StringView("x") ? 1.0f : 0.0f;
+                    axis[1] = t[i].text == StringView("y") ? 1.0f : 0.0f;
+                    axis[2] = t[i].text == StringView("z") ? 1.0f : 0.0f;
+                    haveAxis = true;
+                    i++;
+                    continue;
+                }
+                error = Format("'{}' is no angle or axis", t[i].text);
+                return false;
+            }
+            if (!haveAngle)
+            {
+                error = "an angle";
+                return false;
+            }
+            out.Push(angle);
+            if (axis[0] != 0 || axis[1] != 0 || axis[2] != 1)
+                for (f32 a : axis)
+                    out.Push(StyleValue::OfNumber(a));
+            return true;
+        }
+
         const OwnParser kOwnParsers[] = {
+            {"rotate", RotateValue},
             {"transform-origin", TransformOrigin}, {"background-position-x", PositionAxis}, {"background-position-y", PositionAxis},
             {"background-repeat", Repeat},         {"background-size", Size},               {"text-shadow", TextShadow},
             {"cursor", CursorValue},

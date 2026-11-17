@@ -24,6 +24,16 @@ namespace helix::ui
         }
     }
 
+    std::shared_ptr<const StyleSheetData> DefaultThemeSheet()
+    {
+        static const u8 kText[] = {
+#include <HelixDefaultTheme.inc>
+        };
+        static const std::shared_ptr<const StyleSheetData> sheet =
+            std::make_shared<StyleSheetData>(StyleSheetData::Parse(StringView(reinterpret_cast<const char*>(kText), sizeof(kText))));
+        return sheet;
+    }
+
     String ResolveAssetPath(StringView base, StringView src)
     {
         if (src.StartsWith("/"))

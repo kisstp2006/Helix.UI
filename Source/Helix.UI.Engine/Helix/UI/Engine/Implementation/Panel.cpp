@@ -1,5 +1,7 @@
 #include <Helix/UI/Engine/Panel.h>
 
+#include <Helix/UI/Engine/Controls.h>
+
 #include <Helix/UI/Engine/Element.h>
 #include <Helix/UI/Styles/Transforms.h>
 
@@ -43,15 +45,37 @@ namespace helix::ui
         tree_.Destroy(root_);
     }
 
-    void Panel::Build(const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors)
+    void Panel::SetSizeToContent(bool value)
     {
-        for (ElementHandle c = tree_.FirstChild(root_); c.IsValid(); c = tree_.FirstChild(root_))
+        if (value == sizeToContent_)
+            return;
+        sizeToContent_ = value;
+        LayoutStyle s;
+        if (!value)
+        {
+            s.width = Length::Percent(100);
+            s.height = Length::Percent(100);
+        }
+        layout_.SetStyle(root_, s);
+    }
+
+    Vector2 Panel::Size() const
+    {
+        const LayoutBox& b = layout_.Box(root_);
+        return Vector2(b.width, b.height);
+    }
+
+    void Panel::Build(const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors) { BuildInto(root_, document, resolver, errors); }
+
+    void Panel::BuildInto(ElementHandle container, const HxmlDocument& document, HxmlResolver* resolver, Array<HxmlError>& errors)
+    {
+        for (ElementHandle c = tree_.FirstChild(container); c.IsValid(); c = tree_.FirstChild(container))
             tree_.Destroy(c);
-        styles_.ClearStyleSheets(root_);
-        Instantiate(document, tree_, styles_, root_, resolver, errors);
+        styles_.ClearStyleSheets(container);
+        Instantiate(document, tree_, styles_, container, resolver, errors);
         events_.Forget();
         // The types' behavior on the new elements.
-        AttachTypes(root_);
+        AttachTypes(container);
     }
 
     void Panel::AttachTypes(ElementHandle under)
@@ -133,6 +157,7 @@ namespace helix::ui
             bool changed = font != slot.font;
             slot.font = font;
             Settings(style, slot);
+            slot.settings.richText = TextElement::RichTextOf(e);
             if (!slot.measured)
             {
                 layout_.SetMeasure(e, &Panel::Measure, this);
@@ -148,7 +173,10 @@ namespace helix::ui
             TextSlot& slot = texts_[e.index];
             slot.settings.fallbacks = Span<TextFont* const>(slot.fallbacks.Data(), slot.fallbacks.Size());
         }
-        layout_.Update(root_, width, height);
+        if (sizeToContent_)
+            layout_.Update(root_, width, MeasureMode::AtMost, height, MeasureMode::AtMost);
+        else
+            layout_.Update(root_, width, height);
         // Each text in its element's content box, laid out again when the text or the box changed.
         for (ElementHandle e : textElements_)
         {
@@ -232,6 +260,27 @@ namespace helix::ui
         for (ElementHandle e : custom)
             if (tree_.IsAlive(e) && listens(e, t.customStyleResolved))
                 send(t.customStyleResolved, e, Rect(), Rect());
+    }
+
+    Vector2 Panel::MeasureText(ElementHandle e, StringView text, f32 maxWidth)
+    {
+        if (!tree_.IsAlive(e))
+            return Vector2(0, 0);
+        TextSlot slot;
+        const TextSlot* known = texts_.Find(e.index);
+        if (known && known->generation == e.generation && known->font)
+            slot = *known;
+        else
+        {
+            const ComputedStyle& style = styles_.Computed(e);
+            slot.font = host_ ? host_->Font(style, slot.fallbacks) : nullptr;
+            Settings(style, slot);
+        }
+        if (!slot.font)
+            return Vector2(0, 0);
+        slot.settings.fallbacks = Span<TextFont* const>(slot.fallbacks.Data(), slot.fallbacks.Size());
+        slot.settings.richText = TextElement::RichTextOf(e);
+        return generator_.PreferredSize(text, slot.settings, slot.settings.wrapping == TextWrappingMode::Normal ? maxWidth : -1.0f);
     }
 
     const TextInfo* Panel::TextOf(ElementHandle e) const

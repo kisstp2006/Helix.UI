@@ -115,7 +115,9 @@ namespace HelixEngine.UI
             Entry[] list = m_Callbacks.FindAll(c => c.typeId == typeId && c.trickleDown == trickle).ToArray();
             if (list.Length == 0)
                 return;
-            EventBase evt = list[0].make();
+            // An event C# sent is the object it made; a native one is made for the callbacks.
+            EventBase sent = Events.Sending(typeId);
+            EventBase evt = sent ?? list[0].make();
             evt.Attach(native);
             try
             {
@@ -135,7 +137,8 @@ namespace HelixEngine.UI
             finally
             {
                 evt.Detach();
-                evt.Dispose();
+                if (sent == null)
+                    evt.Dispose();
             }
         }
     }
@@ -191,7 +194,7 @@ namespace HelixEngine.UI
         public Element visualTree => m_Root;
         public FocusController focusController { get; }
         public ContextType contextType => ContextType.Player;
-        public float scaledPixelsPerPoint => 1;
+        public float scaledPixelsPerPoint => UIView.PanelScaleInternal(m_Root);
         public bool isDirty => true;
         public Element Pick(Vector2 point) => m_Root.PickInternal(point);
 
@@ -204,6 +207,32 @@ namespace HelixEngine.UI
         }
 
         public void Dispose() { }
+    }
+
+    // Positions of the screen and of the world in a panel's pixels.
+    public static class RuntimePanelUtils
+    {
+        // A position of the screen (pixels from the top left) in the panel.
+        public static Vector2 ScreenToPanel(IPanel panel, Vector2 screenPosition)
+        {
+            float scale = panel == null ? 1 : panel.scaledPixelsPerPoint;
+            return scale > 0 ? screenPosition / scale : screenPosition;
+        }
+
+        // Where a point of the world is seen by a camera, in the panel.
+        public static Vector2 CameraTransformWorldToPanel(IPanel panel, Vector3 worldPosition, Camera camera)
+        {
+            Vector3 screen = camera.WorldToScreenPoint(worldPosition);
+            return ScreenToPanel(panel, new Vector2(screen.x, Screen.height - screen.y));
+        }
+
+        // The panel rectangle of a box of the world (its top left corner and its size, x right and y down).
+        public static Rect CameraTransformWorldToPanelRect(IPanel panel, Vector3 worldPosition, Vector2 worldSize, Camera camera)
+        {
+            Vector2 topLeft = CameraTransformWorldToPanel(panel, worldPosition, camera);
+            Vector2 bottomRight = CameraTransformWorldToPanel(panel, new Vector3(worldPosition.x + worldSize.x, worldPosition.y - worldSize.y, worldPosition.z), camera);
+            return new Rect(topLeft, bottomRight - topLeft);
+        }
     }
 
     // The focus of a panel.

@@ -85,7 +85,7 @@ namespace helix::ui
         PageBreak
     };
 
-    struct TextElement
+    struct RichTextElement
     {
         TextElementKind kind = TextElementKind::Character;
         char32_t code = 0;
@@ -114,7 +114,7 @@ namespace helix::ui
 
     struct ParsedText
     {
-        Array<TextElement> elements;
+        Array<RichTextElement> elements;
         Array<TextStyle> styles;
         Array<TextLink> links;
         // The characters only (sprites, spaces and positions as U+FFFC, page breaks as U+000C), for shaping and breaking.

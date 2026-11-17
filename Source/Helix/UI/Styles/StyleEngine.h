@@ -96,6 +96,9 @@ namespace helix::ui
         Array<Slot> slots_;
         // The sheets in effect while walking the tree (outer first) and the ancestor filter's counters.
         Array<const StyleSheetData*> active_;
+        // The element each sheet in effect was added to, and the one of the sheet being matched (its :root).
+        Array<ElementHandle> activeOwners_;
+        ElementHandle matchRoot_;
         u16 bloom_[4096] = {};
         u32 computed_ = 0;
         u32 animating_ = 0;

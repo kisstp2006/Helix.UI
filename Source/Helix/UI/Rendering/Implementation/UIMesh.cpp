@@ -60,6 +60,7 @@ namespace helix::ui
     {
         if (!identity_)
         {
+            v.z = transform_.ApplyZ(v.position);
             v.position = transform_.Apply(v.position);
             u32 kind = u32(v.parameters.x + 0.5f);
             if (kind >= u32(UIVertexKind::ShapeFill))

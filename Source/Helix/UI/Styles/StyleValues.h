@@ -275,6 +275,8 @@ namespace helix::ui
         // of the border box).
         Length translate[2] = {Length::Px(0), Length::Px(0)};
         f32 rotate = 0;
+        // The rotation's axis (z: in the screen's plane).
+        f32 rotateAxis[3] = {0, 0, 1};
         f32 scale[2] = {1, 1};
         Length transformOrigin[2] = {Length::Percent(50), Length::Percent(50)};
         // The background image's place, size and repetition per axis (x, y); the initial size fills the box (as the

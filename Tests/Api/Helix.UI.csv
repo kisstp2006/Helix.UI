@@ -27,6 +27,11 @@ TextAnchor,MiddleRight,TextAnchor.MiddleRight = 5
 TextAnchor,UpperCenter,TextAnchor.UpperCenter = 1
 TextAnchor,UpperLeft,TextAnchor.UpperLeft = 0
 TextAnchor,UpperRight,TextAnchor.UpperRight = 2
+UI.AbstractBaseField,.ctor,AbstractBaseField()
+UI.AbstractBaseField,contentContainer,Element contentContainer { get; }
+UI.AbstractBaseField,label,string label { get; set; }
+UI.AbstractBaseField,labelElement,Label labelElement { get; }
+UI.AbstractBaseField,showMixedValue,bool showMixedValue { get; set; }
 UI.Align,Auto,UI.Align.Auto = 0
 UI.Align,Center,UI.Align.Center = 2
 UI.Align,FlexEnd,UI.Align.FlexEnd = 3
@@ -85,7 +90,70 @@ UI.BackgroundSize,y,Length y { get; set; }
 UI.BackgroundSizeType,Contain,UI.BackgroundSizeType.Contain = 2
 UI.BackgroundSizeType,Cover,UI.BackgroundSizeType.Cover = 1
 UI.BackgroundSizeType,Length,UI.BackgroundSizeType.Length = 0
+UI.BaseBoolField,.ctor,BaseBoolField(string)
+UI.BaseBoolField,text,string text { get; set; }
+UI.BaseBoolField,toggleOnLabelClick,bool toggleOnLabelClick { get; set; }
+UI.BaseCompositeField,fieldGroupUssClassName,static string fieldGroupUssClassName
+UI.BaseCompositeField,fieldUssClassName,static string fieldUssClassName
+UI.BaseCompositeField,firstFieldVariantUssClassName,static string firstFieldVariantUssClassName
+UI.BaseCompositeField,multilineVariantUssClassName,static string multilineVariantUssClassName
+UI.BaseCompositeField,spacerUssClassName,static string spacerUssClassName
+UI.BaseCompositeField,twoLinesVariantUssClassName,static string twoLinesVariantUssClassName
+UI.BaseCompositeField,ussClassName,static string ussClassName
+UI.BaseField,SetValueWithoutNotify,void SetValueWithoutNotify(TValueType)
+UI.BaseField,alignedFieldUssClassName,static string alignedFieldUssClassName
+UI.BaseField,inputUssClassName,static string inputUssClassName
+UI.BaseField,labelDraggerVariantUssClassName,static string labelDraggerVariantUssClassName
+UI.BaseField,labelUssClassName,static string labelUssClassName
+UI.BaseField,mixedValueLabelUssClassName,static string mixedValueLabelUssClassName
+UI.BaseField,noLabelVariantUssClassName,static string noLabelVariantUssClassName
+UI.BaseField,ussClassName,static string ussClassName
+UI.BaseField,value,TValueType value { get; set; }
+UI.BaseMaskField,choices,List<string> choices { get; set; }
+UI.BaseMaskField,choicesMasks,List<TChoice> choicesMasks { get; set; }
+UI.BasePopupField,ShowMenu,void ShowMenu()
+UI.BasePopupField,arrowUssClassName,static string arrowUssClassName
+UI.BasePopupField,choices,List<TValueChoice> choices { get; set; }
+UI.BasePopupField,inputUssClassName,static string inputUssClassName
+UI.BasePopupField,labelUssClassName,static string labelUssClassName
+UI.BasePopupField,text,string text { get; }
+UI.BasePopupField,textUssClassName,static string textUssClassName
+UI.BasePopupField,ussClassName,static string ussClassName
+UI.BaseSlider,direction,SliderDirection direction { get; set; }
+UI.BaseSlider,dragContainerUssClassName,static string dragContainerUssClassName
+UI.BaseSlider,draggerUssClassName,static string draggerUssClassName
+UI.BaseSlider,fill,bool fill { get; set; }
+UI.BaseSlider,fillUssClassName,static string fillUssClassName
+UI.BaseSlider,highValue,TValueType highValue { get; set; }
+UI.BaseSlider,horizontalVariantUssClassName,static string horizontalVariantUssClassName
+UI.BaseSlider,inverted,bool inverted { get; set; }
+UI.BaseSlider,lowValue,TValueType lowValue { get; set; }
+UI.BaseSlider,pageSize,float pageSize { get; set; }
+UI.BaseSlider,range,TValueType range { get; }
+UI.BaseSlider,showInputField,bool showInputField { get; set; }
+UI.BaseSlider,trackerUssClassName,static string trackerUssClassName
+UI.BaseSlider,ussClassName,static string ussClassName
+UI.BaseSlider,verticalVariantUssClassName,static string verticalVariantUssClassName
+UI.BindableElement,.ctor,BindableElement()
+UI.BindableElement,bindingPath,string bindingPath { get; set; }
+UI.BindableElement,contentContainer,Element contentContainer { get; }
 UI.BlurEvent,.ctor,BlurEvent()
+UI.BoundsField,.ctor,BoundsField(string) / BoundsField()
+UI.BoundsField,contentContainer,Element contentContainer { get; }
+UI.BoundsIntField,.ctor,BoundsIntField(string) / BoundsIntField()
+UI.BoundsIntField,contentContainer,Element contentContainer { get; }
+UI.Box,.ctor,Box()
+UI.Box,contentContainer,Element contentContainer { get; }
+UI.Box,ussClassName,static string ussClassName
+UI.Button,.ctor,Button(Action) / Button()
+UI.Button,clickCount,int clickCount { get; }
+UI.Button,clickable,Clickable clickable { get; set; }
+UI.Button,clicked,event Action clicked
+UI.Button,contentContainer,Element contentContainer { get; }
+UI.Button,iconImage,Texture2D iconImage { get; set; }
+UI.Button,iconUssClassName,static string iconUssClassName
+UI.Button,imageUSSClassName,static string imageUSSClassName
+UI.Button,ussClassName,static string ussClassName
 UI.CallbackEventHandler,HasBubbleUpHandlers,bool HasBubbleUpHandlers()
 UI.CallbackEventHandler,HasTrickleDownHandlers,bool HasTrickleDownHandlers()
 UI.CallbackEventHandler,RegisterCallback,"void RegisterCallback<TEventType>(EventCallback<TEventType>, TrickleDown = NoTrickleDown) / void RegisterCallback<TEventType, TUserArgsType>(EventCallback<TEventType, TUserArgsType>, TUserArgsType, TrickleDown = NoTrickleDown)"
@@ -93,7 +161,16 @@ UI.CallbackEventHandler,RegisterCallbackOnce,"void RegisterCallbackOnce<TEventTy
 UI.CallbackEventHandler,SendEvent,void SendEvent(EventBase)
 UI.CallbackEventHandler,UnregisterCallback,"void UnregisterCallback<TEventType>(EventCallback<TEventType>, TrickleDown = NoTrickleDown) / void UnregisterCallback<TEventType, TUserArgsType>(EventCallback<TEventType, TUserArgsType>, TrickleDown = NoTrickleDown)"
 UI.CallbackEventHandler,operators,"Equality(CallbackEventHandler, CallbackEventHandler) / Inequality(CallbackEventHandler, CallbackEventHandler) / Implicit(CallbackEventHandler)"
+UI.ChangeEvent,.ctor,ChangeEvent()
+UI.ChangeEvent,GetPooled,"static ChangeEvent GetPooled(T, T)"
+UI.ChangeEvent,newValue,T newValue { get; }
+UI.ChangeEvent,previousValue,T previousValue { get; }
 UI.ClickEvent,.ctor,ClickEvent()
+UI.Clickable,.ctor,"Clickable(Action, long, long) / Clickable(Action<EventBase>) / Clickable(Action)"
+UI.Clickable,active,bool active { get; }
+UI.Clickable,clicked,event Action clicked
+UI.Clickable,clickedWithEventInfo,event Action<EventBase> clickedWithEventInfo
+UI.Clickable,lastMousePosition,Vector2 lastMousePosition { get; }
 UI.CompositionEvent,.ctor,CompositionEvent()
 UI.ContextType,Editor,UI.ContextType.Editor = 1
 UI.ContextType,Player,UI.ContextType.Player = 0
@@ -111,11 +188,15 @@ UI.DetachFromPanelEvent,destinationPanel,IPanel destinationPanel { get; }
 UI.DetachFromPanelEvent,originPanel,IPanel originPanel { get; }
 UI.DisplayStyle,Flex,UI.DisplayStyle.Flex = 0
 UI.DisplayStyle,None,UI.DisplayStyle.None = 1
+UI.DoubleField,.ctor,DoubleField(string) / DoubleField()
+UI.DoubleField,contentContainer,Element contentContainer { get; }
 UI.DragEnterEvent,.ctor,DragEnterEvent()
 UI.DragExitedEvent,.ctor,DragExitedEvent()
 UI.DragLeaveEvent,.ctor,DragLeaveEvent()
 UI.DragPerformEvent,.ctor,DragPerformEvent()
 UI.DragUpdatedEvent,.ctor,DragUpdatedEvent()
+UI.DropdownField,.ctor,"DropdownField(string) / DropdownField(List<string>, string, Func<string, string> = null, Func<string, string> = null) / DropdownField(string, List<string>, int, Func<string, string> = null, Func<string, string> = null) / DropdownField()"
+UI.DropdownField,contentContainer,Element contentContainer { get; }
 UI.Element,.ctor,Element()
 UI.Element,Add,void Add(Element)
 UI.Element,AddToClassList,void AddToClassList(string)
@@ -200,6 +281,12 @@ UI.ElementStyleSheetSet,Remove,bool Remove(StyleSheet)
 UI.ElementStyleSheetSet,count,int count { get; }
 UI.ElementStyleSheetSet,operators,"Equality(ElementStyleSheetSet, ElementStyleSheetSet) / Inequality(ElementStyleSheetSet, ElementStyleSheetSet)"
 UI.ElementStyleSheetSet,this[],StyleSheet this[][int] { get; }
+UI.EnumField,.ctor,"EnumField(Enum) / EnumField(string, Enum = null) / EnumField()"
+UI.EnumField,Init,"void Init(Enum) / void Init(Enum, bool)"
+UI.EnumField,contentContainer,Element contentContainer { get; }
+UI.EnumField,text,string text { get; }
+UI.EnumField,type,Type type { get; }
+UI.EnumField,ussClassName,static string ussClassName
 UI.EventBase,Dispose,void Dispose() / void Dispose()
 UI.EventBase,GetPooled,static T GetPooled()
 UI.EventBase,RegisterEventType,static long RegisterEventType()
@@ -222,6 +309,8 @@ UI.FlexDirection,Column,UI.FlexDirection.Column = 0
 UI.FlexDirection,ColumnReverse,UI.FlexDirection.ColumnReverse = 1
 UI.FlexDirection,Row,UI.FlexDirection.Row = 2
 UI.FlexDirection,RowReverse,UI.FlexDirection.RowReverse = 3
+UI.FloatField,.ctor,FloatField(string) / FloatField()
+UI.FloatField,contentContainer,Element contentContainer { get; }
 UI.FocusChangeDirection,none,static FocusChangeDirection none { get; }
 UI.FocusChangeDirection,operators,Implicit(FocusChangeDirection)
 UI.FocusChangeDirection,unspecified,static FocusChangeDirection unspecified { get; }
@@ -232,11 +321,45 @@ UI.FocusEventBase,direction,FocusChangeDirection direction { get; }
 UI.FocusEventBase,relatedTarget,Focusable relatedTarget { get; }
 UI.FocusInEvent,.ctor,FocusInEvent()
 UI.FocusOutEvent,.ctor,FocusOutEvent()
+UI.Foldout,.ctor,Foldout()
+UI.Foldout,SetValueWithoutNotify,void SetValueWithoutNotify(bool)
+UI.Foldout,checkmarkUssClassName,static string checkmarkUssClassName
+UI.Foldout,contentContainer,Element contentContainer { get; }
+UI.Foldout,contentUssClassName,static string contentUssClassName
+UI.Foldout,inputUssClassName,static string inputUssClassName
+UI.Foldout,text,string text { get; set; }
+UI.Foldout,textUssClassName,static string textUssClassName
+UI.Foldout,toggle,Toggle toggle { get; }
+UI.Foldout,toggleOnLabelClick,bool toggleOnLabelClick { get; set; }
+UI.Foldout,toggleUssClassName,static string toggleUssClassName
+UI.Foldout,ussClassName,static string ussClassName
+UI.Foldout,value,bool value { get; set; }
 UI.GeometryChangedEvent,.ctor,GeometryChangedEvent()
 UI.GeometryChangedEvent,GetPooled,"static GeometryChangedEvent GetPooled(Rect, Rect)"
 UI.GeometryChangedEvent,layoutPass,int layoutPass { get; }
 UI.GeometryChangedEvent,newRect,Rect newRect { get; }
 UI.GeometryChangedEvent,oldRect,Rect oldRect { get; }
+UI.GroupBox,.ctor,GroupBox() / GroupBox(string)
+UI.GroupBox,contentContainer,Element contentContainer { get; }
+UI.GroupBox,labelUssClassName,static string labelUssClassName
+UI.GroupBox,text,string text { get; set; }
+UI.GroupBox,ussClassName,static string ussClassName
+UI.Hash128Field,.ctor,Hash128Field(string) / Hash128Field()
+UI.Hash128Field,contentContainer,Element contentContainer { get; }
+UI.HelpBox,.ctor,"HelpBox() / HelpBox(string, HelpBoxMessageType)"
+UI.HelpBox,contentContainer,Element contentContainer { get; }
+UI.HelpBox,iconErrorUssClassName,static string iconErrorUssClassName
+UI.HelpBox,iconInfoUssClassName,static string iconInfoUssClassName
+UI.HelpBox,iconUssClassName,static string iconUssClassName
+UI.HelpBox,iconwarningUssClassName,static string iconwarningUssClassName
+UI.HelpBox,labelUssClassName,static string labelUssClassName
+UI.HelpBox,messageType,HelpBoxMessageType messageType { get; set; }
+UI.HelpBox,text,string text { get; set; }
+UI.HelpBox,ussClassName,static string ussClassName
+UI.HelpBoxMessageType,Error,UI.HelpBoxMessageType.Error = 3
+UI.HelpBoxMessageType,Info,UI.HelpBoxMessageType.Info = 1
+UI.HelpBoxMessageType,None,UI.HelpBoxMessageType.None = 0
+UI.HelpBoxMessageType,Warning,UI.HelpBoxMessageType.Warning = 2
 UI.HxmlAttributeAttribute,.ctor,"HxmlAttributeAttribute() / HxmlAttributeAttribute(string) / HxmlAttributeAttribute(string, params string[])"
 UI.HxmlAttributeAttribute,name,string name { get; set; }
 UI.HxmlAttributeAttribute,obsoleteNames,string[] obsoleteNames { get; set; }
@@ -257,6 +380,7 @@ UI.IKeyboardEvent,ctrlKey,bool ctrlKey { get; }
 UI.IKeyboardEvent,keyCode,KeyCode keyCode { get; }
 UI.IKeyboardEvent,modifiers,EventModifiers modifiers { get; }
 UI.IKeyboardEvent,shiftKey,bool shiftKey { get; }
+UI.IManipulator,target,Element target { get; set; }
 UI.IMouseEvent,actionKey,bool actionKey { get; }
 UI.IMouseEvent,altKey,bool altKey { get; }
 UI.IMouseEvent,button,int button { get; }
@@ -275,6 +399,10 @@ UI.INavigationEvent,commandKey,bool commandKey { get; }
 UI.INavigationEvent,ctrlKey,bool ctrlKey { get; }
 UI.INavigationEvent,modifiers,EventModifiers modifiers { get; }
 UI.INavigationEvent,shiftKey,bool shiftKey { get; }
+UI.INotifyValueChanged,SetValueWithoutNotify,void SetValueWithoutNotify(T)
+UI.INotifyValueChanged,value,T value { get; set; }
+UI.INotifyValueChangedExtensions,RegisterValueChangedCallback,"static bool RegisterValueChangedCallback<T>(INotifyValueChanged<T>, EventCallback<ChangeEvent<T>>)"
+UI.INotifyValueChangedExtensions,UnregisterValueChangedCallback,"static bool UnregisterValueChangedCallback<T>(INotifyValueChanged<T>, EventCallback<ChangeEvent<T>>)"
 UI.IPanel,Pick,Element Pick(Vector2)
 UI.IPanel,PickAll,"Element PickAll(Vector2, List<Element>)"
 UI.IPanel,contextType,ContextType contextType { get; }
@@ -427,6 +555,20 @@ UI.IVisualElementScheduledItem,Until,IVisualElementScheduledItem Until(Func<bool
 UI.IVisualElementScheduledItem,element,Element element { get; }
 UI.IVisualElementScheduledItem,isActive,bool isActive { get; }
 UI.IVisualElementScheduler,Execute,IVisualElementScheduledItem Execute(Action<TimerState>) / IVisualElementScheduledItem Execute(Action)
+UI.Image,.ctor,Image()
+UI.Image,contentContainer,Element contentContainer { get; }
+UI.Image,image,Texture2D image { get; set; }
+UI.Image,scaleMode,ScaleMode scaleMode { get; set; }
+UI.Image,sourceRect,Rect sourceRect { get; set; }
+UI.Image,tintColor,Color tintColor { get; set; }
+UI.Image,ussClassName,static string ussClassName
+UI.Image,uv,Rect uv { get; set; }
+UI.InputEvent,.ctor,InputEvent()
+UI.InputEvent,GetPooled,"static InputEvent GetPooled(string, string)"
+UI.InputEvent,newData,string newData { get; }
+UI.InputEvent,previousData,string previousData { get; }
+UI.IntegerField,.ctor,IntegerField(string) / IntegerField()
+UI.IntegerField,contentContainer,Element contentContainer { get; }
 UI.Justify,Center,UI.Justify.Center = 1
 UI.Justify,FlexEnd,UI.Justify.FlexEnd = 2
 UI.Justify,FlexStart,UI.Justify.FlexStart = 0
@@ -444,6 +586,9 @@ UI.KeyboardEventBase,ctrlKey,bool ctrlKey { get; }
 UI.KeyboardEventBase,keyCode,KeyCode keyCode { get; }
 UI.KeyboardEventBase,modifiers,EventModifiers modifiers { get; }
 UI.KeyboardEventBase,shiftKey,bool shiftKey { get; }
+UI.Label,.ctor,Label() / Label(string)
+UI.Label,contentContainer,Element contentContainer { get; }
+UI.Label,ussClassName,static string ussClassName
 UI.Length,.ctor,"Length(float) / Length(float, LengthUnit)"
 UI.Length,Auto,static Length Auto()
 UI.Length,IsAuto,bool IsAuto()
@@ -456,6 +601,29 @@ UI.Length,unit,LengthUnit unit { get; set; }
 UI.Length,value,float value { get; set; }
 UI.LengthUnit,Percent,UI.LengthUnit.Percent = 1
 UI.LengthUnit,Pixel,UI.LengthUnit.Pixel = 0
+UI.LongField,.ctor,LongField(string) / LongField()
+UI.LongField,contentContainer,Element contentContainer { get; }
+UI.Manipulator,target,Element target { get; set; }
+UI.ManipulatorActivationFilter,button,MouseButton button { get; set; }
+UI.ManipulatorActivationFilter,clickCount,int clickCount { get; set; }
+UI.ManipulatorActivationFilter,modifiers,EventModifiers modifiers { get; set; }
+UI.Mask64Field,.ctor,"Mask64Field(string) / Mask64Field(List<string>, ulong, Func<string, string> = null, Func<string, string> = null) / Mask64Field()"
+UI.Mask64Field,contentContainer,Element contentContainer { get; }
+UI.Mask64Field,ussClassName,static string ussClassName
+UI.MaskField,.ctor,"MaskField(string) / MaskField(List<string>, int, Func<string, string> = null, Func<string, string> = null) / MaskField(string, List<string>, int, Func<string, string> = null, Func<string, string> = null) / MaskField()"
+UI.MaskField,contentContainer,Element contentContainer { get; }
+UI.MaskField,ussClassName,static string ussClassName
+UI.MinMaxSlider,.ctor,"MinMaxSlider(float, float, float, float) / MinMaxSlider(string, float = 0, float = 10, float = -3.4028235E+38, float = 3.4028235E+38) / MinMaxSlider()"
+UI.MinMaxSlider,contentContainer,Element contentContainer { get; }
+UI.MinMaxSlider,highLimit,float highLimit { get; set; }
+UI.MinMaxSlider,lowLimit,float lowLimit { get; set; }
+UI.MinMaxSlider,maxValue,float maxValue { get; set; }
+UI.MinMaxSlider,minValue,float minValue { get; set; }
+UI.MinMaxSlider,range,float range { get; }
+UI.MinMaxSlider,ussClassName,static string ussClassName
+UI.MouseButton,LeftMouse,UI.MouseButton.LeftMouse = 0
+UI.MouseButton,MiddleMouse,UI.MouseButton.MiddleMouse = 2
+UI.MouseButton,RightMouse,UI.MouseButton.RightMouse = 1
 UI.MouseCaptureController,CaptureMouse,static void CaptureMouse(IEventHandler)
 UI.MouseCaptureController,HasMouseCapture,static bool HasMouseCapture(IEventHandler)
 UI.MouseCaptureController,IsMouseCaptured,static bool IsMouseCaptured()
@@ -505,6 +673,20 @@ UI.Overflow,Hidden,UI.Overflow.Hidden = 1
 UI.Overflow,Visible,UI.Overflow.Visible = 0
 UI.OverflowClipBox,ContentBox,UI.OverflowClipBox.ContentBox = 1
 UI.OverflowClipBox,PaddingBox,UI.OverflowClipBox.PaddingBox = 0
+UI.PanelInputConfiguration,.ctor,PanelInputConfiguration()
+UI.PanelInputConfiguration,defaultEventCameraIsMainCamera,bool defaultEventCameraIsMainCamera { get; set; }
+UI.PanelInputConfiguration,eventCameras,Camera[] eventCameras { get; set; }
+UI.PanelInputConfiguration,interactionLayers,int interactionLayers { get; set; }
+UI.PanelInputConfiguration,maxInteractionDistance,float maxInteractionDistance { get; set; }
+UI.PanelInputConfiguration,processWorldSpaceInput,bool processWorldSpaceInput { get; set; }
+UI.PanelRenderMode,ScreenSpaceOverlay,UI.PanelRenderMode.ScreenSpaceOverlay = 0
+UI.PanelRenderMode,WorldSpace,UI.PanelRenderMode.WorldSpace = 1
+UI.PanelScaleMode,ConstantPhysicalSize,UI.PanelScaleMode.ConstantPhysicalSize = 1
+UI.PanelScaleMode,ConstantPixelSize,UI.PanelScaleMode.ConstantPixelSize = 0
+UI.PanelScaleMode,ScaleWithScreenSize,UI.PanelScaleMode.ScaleWithScreenSize = 2
+UI.PanelScreenMatchMode,Expand,UI.PanelScreenMatchMode.Expand = 2
+UI.PanelScreenMatchMode,MatchWidthOrHeight,UI.PanelScreenMatchMode.MatchWidthOrHeight = 0
+UI.PanelScreenMatchMode,Shrink,UI.PanelScreenMatchMode.Shrink = 1
 UI.PenStatus,Barrel,UI.PenStatus.Barrel = 2
 UI.PenStatus,Contact,UI.PenStatus.Contact = 1
 UI.PenStatus,Eraser,UI.PenStatus.Eraser = 8
@@ -512,6 +694,17 @@ UI.PenStatus,Inverted,UI.PenStatus.Inverted = 4
 UI.PenStatus,None,UI.PenStatus.None = 0
 UI.PickingMode,Ignore,UI.PickingMode.Ignore = 1
 UI.PickingMode,Position,UI.PickingMode.Position = 0
+UI.Pivot,BottomCenter,UI.Pivot.BottomCenter = 7
+UI.Pivot,BottomLeft,UI.Pivot.BottomLeft = 6
+UI.Pivot,BottomRight,UI.Pivot.BottomRight = 8
+UI.Pivot,Center,UI.Pivot.Center = 0
+UI.Pivot,LeftCenter,UI.Pivot.LeftCenter = 4
+UI.Pivot,RightCenter,UI.Pivot.RightCenter = 5
+UI.Pivot,TopCenter,UI.Pivot.TopCenter = 2
+UI.Pivot,TopLeft,UI.Pivot.TopLeft = 1
+UI.Pivot,TopRight,UI.Pivot.TopRight = 3
+UI.PivotReferenceSize,BoundingBox,UI.PivotReferenceSize.BoundingBox = 0
+UI.PivotReferenceSize,Layout,UI.PivotReferenceSize.Layout = 1
 UI.PointerCancelEvent,.ctor,PointerCancelEvent()
 UI.PointerCaptureEvent,.ctor,PointerCaptureEvent()
 UI.PointerCaptureEventBase,pointerId,int pointerId { get; }
@@ -559,6 +752,7 @@ UI.PointerId,touchPointerIdBase,static int touchPointerIdBase
 UI.PointerId,trackedPointerCount,static int trackedPointerCount
 UI.PointerId,trackedPointerIdBase,static int trackedPointerIdBase
 UI.PointerLeaveEvent,.ctor,PointerLeaveEvent()
+UI.PointerManipulator,activators,List<ManipulatorActivationFilter> activators { get; }
 UI.PointerMoveEvent,.ctor,PointerMoveEvent()
 UI.PointerOutEvent,.ctor,PointerOutEvent()
 UI.PointerOverEvent,.ctor,PointerOverEvent()
@@ -569,26 +763,128 @@ UI.PointerType,touch,static string touch
 UI.PointerType,tracked,static string tracked
 UI.PointerType,unknown,static string unknown
 UI.PointerUpEvent,.ctor,PointerUpEvent()
+UI.PopupField,.ctor,"PopupField() / PopupField(string = null) / PopupField(List<T>, T, Func<T, string> = null, Func<T, string> = null) / PopupField(string, List<T>, T, Func<T, string> = null, Func<T, string> = null) / PopupField(List<T>, int, Func<T, string> = null, Func<T, string> = null) / PopupField(string, List<T>, int, Func<T, string> = null, Func<T, string> = null)"
+UI.PopupField,choices,List<T> choices { get; set; }
+UI.PopupField,formatListItemCallback,"Func<T, string> formatListItemCallback { get; set; }"
+UI.PopupField,formatSelectedValueCallback,"Func<T, string> formatSelectedValueCallback { get; set; }"
+UI.PopupField,index,int index { get; set; }
+UI.PopupField,ussClassName,static string ussClassName
+UI.PopupWindow,.ctor,PopupWindow()
+UI.PopupWindow,contentContainer,Element contentContainer { get; }
+UI.PopupWindow,contentUssClassName,static string contentUssClassName
+UI.PopupWindow,ussClassName,static string ussClassName
 UI.Position,Absolute,UI.Position.Absolute = 1
 UI.Position,Relative,UI.Position.Relative = 0
+UI.ProgressBar,.ctor,ProgressBar()
+UI.ProgressBar,backgroundUssClassName,static string backgroundUssClassName
+UI.ProgressBar,containerUssClassName,static string containerUssClassName
+UI.ProgressBar,contentContainer,Element contentContainer { get; }
+UI.ProgressBar,highValue,float highValue { get; set; }
+UI.ProgressBar,lowValue,float lowValue { get; set; }
+UI.ProgressBar,progressUssClassName,static string progressUssClassName
+UI.ProgressBar,title,string title { get; set; }
+UI.ProgressBar,titleContainerUssClassName,static string titleContainerUssClassName
+UI.ProgressBar,titleUssClassName,static string titleUssClassName
+UI.ProgressBar,ussClassName,static string ussClassName
+UI.ProgressBar,value,float value { get; set; }
 UI.PropagationPhase,BubbleUp,UI.PropagationPhase.BubbleUp = 3
 UI.PropagationPhase,None,UI.PropagationPhase.None = 0
 UI.PropagationPhase,TrickleDown,UI.PropagationPhase.TrickleDown = 1
+UI.RadioButton,.ctor,RadioButton(string) / RadioButton()
+UI.RadioButton,checkmarkBackgroundUssClassName,static string checkmarkBackgroundUssClassName
+UI.RadioButton,checkmarkUssClassName,static string checkmarkUssClassName
+UI.RadioButton,contentContainer,Element contentContainer { get; }
+UI.RadioButton,textUssClassName,static string textUssClassName
+UI.RadioButton,ussClassName,static string ussClassName
+UI.RadioButtonGroup,.ctor,"RadioButtonGroup(string, List<string> = null) / RadioButtonGroup()"
+UI.RadioButtonGroup,choices,IEnumerable<string> choices { get; set; }
+UI.RadioButtonGroup,contentContainer,Element contentContainer { get; }
+UI.RadioButtonGroup,ussClassName,static string ussClassName
+UI.RectField,.ctor,RectField(string) / RectField()
+UI.RectField,contentContainer,Element contentContainer { get; }
+UI.RectIntField,.ctor,RectIntField(string) / RectIntField()
+UI.RectIntField,contentContainer,Element contentContainer { get; }
 UI.Repeat,NoRepeat,UI.Repeat.NoRepeat = 0
 UI.Repeat,Repeat,UI.Repeat.Repeat = 3
 UI.Repeat,Round,UI.Repeat.Round = 2
 UI.Repeat,Space,UI.Repeat.Space = 1
+UI.RepeatButton,.ctor,"RepeatButton(Action, long, long) / RepeatButton()"
+UI.RepeatButton,SetAction,"void SetAction(Action, long, long)"
+UI.RepeatButton,contentContainer,Element contentContainer { get; }
+UI.RepeatButton,delay,long delay { get; set; }
+UI.RepeatButton,interval,long interval { get; set; }
+UI.RepeatButton,ussClassName,static string ussClassName
 UI.Rotate,.ctor,"Rotate(Angle) / Rotate(Angle, Vector3) / Rotate(Quaternion)"
 UI.Rotate,None,static Rotate None()
 UI.Rotate,ToString,string ToString()
 UI.Rotate,angle,Angle angle { get; set; }
 UI.Rotate,axis,Vector3 axis { get; set; }
 UI.Rotate,operators,"Implicit(Quaternion) / Equality(Rotate, Rotate) / Inequality(Rotate, Rotate)"
+UI.RuntimePanelUtils,CameraTransformWorldToPanel,"static Vector2 CameraTransformWorldToPanel(IPanel, Vector3, Camera)"
+UI.RuntimePanelUtils,CameraTransformWorldToPanelRect,"static Rect CameraTransformWorldToPanelRect(IPanel, Vector3, Vector2, Camera)"
+UI.RuntimePanelUtils,ScreenToPanel,"static Vector2 ScreenToPanel(IPanel, Vector2)"
 UI.Scale,.ctor,Scale(Vector2) / Scale(Vector3)
 UI.Scale,None,static Scale None()
 UI.Scale,ToString,string ToString()
 UI.Scale,operators,"Implicit(Vector2) / Implicit(Vector3) / Equality(Scale, Scale) / Inequality(Scale, Scale)"
 UI.Scale,value,Vector3 value { get; set; }
+UI.ScaleMode,ScaleAndCrop,UI.ScaleMode.ScaleAndCrop = 1
+UI.ScaleMode,ScaleToFit,UI.ScaleMode.ScaleToFit = 2
+UI.ScaleMode,StretchToFill,UI.ScaleMode.StretchToFill = 0
+UI.ScrollView,.ctor,ScrollView() / ScrollView(ScrollViewMode)
+UI.ScrollView,ScrollTo,void ScrollTo(Element)
+UI.ScrollView,contentContainer,Element contentContainer { get; }
+UI.ScrollView,contentUssClassName,static string contentUssClassName
+UI.ScrollView,contentViewport,Element contentViewport { get; }
+UI.ScrollView,elasticity,float elasticity { get; set; }
+UI.ScrollView,hScrollerUssClassName,static string hScrollerUssClassName
+UI.ScrollView,horizontalPageSize,float horizontalPageSize { get; set; }
+UI.ScrollView,horizontalScroller,Scroller horizontalScroller { get; }
+UI.ScrollView,horizontalScrollerVisibility,ScrollerVisibility horizontalScrollerVisibility { get; set; }
+UI.ScrollView,mode,ScrollViewMode mode { get; set; }
+UI.ScrollView,mouseWheelScrollSize,float mouseWheelScrollSize { get; set; }
+UI.ScrollView,scrollDecelerationRate,float scrollDecelerationRate { get; set; }
+UI.ScrollView,scrollOffset,Vector2 scrollOffset { get; set; }
+UI.ScrollView,touchScrollBehavior,TouchScrollBehavior touchScrollBehavior { get; set; }
+UI.ScrollView,ussClassName,static string ussClassName
+UI.ScrollView,vScrollerUssClassName,static string vScrollerUssClassName
+UI.ScrollView,verticalPageSize,float verticalPageSize { get; set; }
+UI.ScrollView,verticalScroller,Scroller verticalScroller { get; }
+UI.ScrollView,verticalScrollerVisibility,ScrollerVisibility verticalScrollerVisibility { get; set; }
+UI.ScrollView,viewportUssClassName,static string viewportUssClassName
+UI.ScrollViewMode,Horizontal,UI.ScrollViewMode.Horizontal = 1
+UI.ScrollViewMode,Vertical,UI.ScrollViewMode.Vertical = 0
+UI.ScrollViewMode,VerticalAndHorizontal,UI.ScrollViewMode.VerticalAndHorizontal = 2
+UI.Scroller,.ctor,"Scroller(float, float, Action<float>, SliderDirection = Vertical) / Scroller()"
+UI.Scroller,Adjust,void Adjust(float)
+UI.Scroller,ScrollPageDown,void ScrollPageDown() / void ScrollPageDown(float)
+UI.Scroller,ScrollPageUp,void ScrollPageUp() / void ScrollPageUp(float)
+UI.Scroller,contentContainer,Element contentContainer { get; }
+UI.Scroller,direction,SliderDirection direction { get; set; }
+UI.Scroller,highButton,RepeatButton highButton { get; }
+UI.Scroller,highButtonUssClassName,static string highButtonUssClassName
+UI.Scroller,highValue,float highValue { get; set; }
+UI.Scroller,horizontalVariantUssClassName,static string horizontalVariantUssClassName
+UI.Scroller,lowButton,RepeatButton lowButton { get; }
+UI.Scroller,lowButtonUssClassName,static string lowButtonUssClassName
+UI.Scroller,lowValue,float lowValue { get; set; }
+UI.Scroller,slider,Slider slider { get; }
+UI.Scroller,sliderUssClassName,static string sliderUssClassName
+UI.Scroller,ussClassName,static string ussClassName
+UI.Scroller,value,float value { get; set; }
+UI.Scroller,valueChanged,event Action<float> valueChanged
+UI.Scroller,verticalVariantUssClassName,static string verticalVariantUssClassName
+UI.ScrollerVisibility,AlwaysVisible,UI.ScrollerVisibility.AlwaysVisible = 1
+UI.ScrollerVisibility,Auto,UI.ScrollerVisibility.Auto = 0
+UI.ScrollerVisibility,Hidden,UI.ScrollerVisibility.Hidden = 2
+UI.Slider,.ctor,"Slider(float, float, SliderDirection = Horizontal, float = 0) / Slider(string, float = 0, float = 10, SliderDirection = Horizontal, float = 0) / Slider()"
+UI.Slider,contentContainer,Element contentContainer { get; }
+UI.Slider,ussClassName,static string ussClassName
+UI.SliderDirection,Horizontal,UI.SliderDirection.Horizontal = 0
+UI.SliderDirection,Vertical,UI.SliderDirection.Vertical = 1
+UI.SliderInt,.ctor,"SliderInt(int, int, SliderDirection = Horizontal, float = 0) / SliderInt(string, int = 0, int = 10, SliderDirection = Horizontal, float = 0) / SliderInt()"
+UI.SliderInt,contentContainer,Element contentContainer { get; }
+UI.SliderInt,ussClassName,static string ussClassName
 UI.StyleBackground,.ctor,StyleBackground(Background) / StyleBackground(Texture2D) / StyleBackground(StyleKeyword)
 UI.StyleBackground,ToString,string ToString()
 UI.StyleBackground,keyword,StyleKeyword keyword { get; set; }
@@ -673,10 +969,65 @@ UI.StyleTranslate,ToString,string ToString()
 UI.StyleTranslate,keyword,StyleKeyword keyword { get; set; }
 UI.StyleTranslate,operators,"Implicit(StyleKeyword) / Implicit(Translate) / Equality(StyleTranslate, StyleTranslate) / Inequality(StyleTranslate, StyleTranslate)"
 UI.StyleTranslate,value,Translate value { get; set; }
+UI.Tab,.ctor,Tab() / Tab(string)
+UI.Tab,contentContainer,Element contentContainer { get; }
+UI.Tab,contentUssClassName,static string contentUssClassName
+UI.Tab,iconImage,Texture2D iconImage { get; set; }
+UI.Tab,label,string label { get; set; }
+UI.Tab,tabHeader,Element tabHeader { get; }
+UI.Tab,tabHeaderLabelUssClassName,static string tabHeaderLabelUssClassName
+UI.Tab,tabHeaderUssClassName,static string tabHeaderUssClassName
+UI.Tab,ussClassName,static string ussClassName
+UI.TabView,.ctor,TabView()
+UI.TabView,GetTab,Tab GetTab(int)
+UI.TabView,GetTabHeader,Element GetTabHeader(int)
+UI.TabView,activeTab,Tab activeTab { get; set; }
+UI.TabView,activeTabChanged,"event Action<Tab, Tab> activeTabChanged"
+UI.TabView,contentContainer,Element contentContainer { get; }
+UI.TabView,contentContainerUssClassName,static string contentContainerUssClassName
+UI.TabView,headerContainerClassName,static string headerContainerClassName
+UI.TabView,selectedTabIndex,int selectedTabIndex { get; set; }
+UI.TabView,ussClassName,static string ussClassName
 UI.TemplateContainer,.ctor,TemplateContainer() / TemplateContainer(string)
 UI.TemplateContainer,contentContainer,Element contentContainer { get; }
 UI.TemplateContainer,templateId,string templateId { get; }
 UI.TemplateContainer,templateSource,UITemplate templateSource { get; set; }
+UI.TextElement,.ctor,TextElement(string) / TextElement()
+UI.TextElement,MeasureTextSize,"Vector2 MeasureTextSize(string, float, float)"
+UI.TextElement,contentContainer,Element contentContainer { get; }
+UI.TextElement,displayTooltipWhenElided,bool displayTooltipWhenElided { get; set; }
+UI.TextElement,enableRichText,bool enableRichText { get; set; }
+UI.TextElement,isElided,bool isElided { get; }
+UI.TextElement,parseEscapeSequences,bool parseEscapeSequences { get; set; }
+UI.TextElement,text,string text { get; set; }
+UI.TextElement,ussClassName,static string ussClassName
+UI.TextField,.ctor,"TextField(string) / TextField(int, bool, bool, Char) / TextField(string, int, bool, bool, Char) / TextField()"
+UI.TextField,contentContainer,Element contentContainer { get; }
+UI.TextField,inputUssClassName,static string inputUssClassName
+UI.TextField,multiline,bool multiline { get; set; }
+UI.TextField,ussClassName,static string ussClassName
+UI.TextInputBaseField,SelectAll,void SelectAll()
+UI.TextInputBaseField,SelectNone,void SelectNone()
+UI.TextInputBaseField,SelectRange,"void SelectRange(int, int)"
+UI.TextInputBaseField,autoCorrection,bool autoCorrection { get; set; }
+UI.TextInputBaseField,cursorIndex,int cursorIndex { get; set; }
+UI.TextInputBaseField,doubleClickSelectsWord,bool doubleClickSelectsWord { get; set; }
+UI.TextInputBaseField,hideMobileInput,bool hideMobileInput { get; set; }
+UI.TextInputBaseField,innerComponentsModifierName,static string innerComponentsModifierName
+UI.TextInputBaseField,innerTextElementUssClassName,static string innerTextElementUssClassName
+UI.TextInputBaseField,inputUssClassName,static string inputUssClassName
+UI.TextInputBaseField,isDelayed,bool isDelayed { get; set; }
+UI.TextInputBaseField,isPasswordField,bool isPasswordField { get; set; }
+UI.TextInputBaseField,isReadOnly,bool isReadOnly { get; set; }
+UI.TextInputBaseField,maskChar,Char maskChar { get; set; }
+UI.TextInputBaseField,maxLength,int maxLength { get; set; }
+UI.TextInputBaseField,selectAllOnFocus,bool selectAllOnFocus { get; set; }
+UI.TextInputBaseField,selectAllOnMouseUp,bool selectAllOnMouseUp { get; set; }
+UI.TextInputBaseField,selectIndex,int selectIndex { get; set; }
+UI.TextInputBaseField,text,string text { get; set; }
+UI.TextInputBaseField,textInputUssName,static string textInputUssName
+UI.TextInputBaseField,tripleClickSelectsLine,bool tripleClickSelectsLine { get; set; }
+UI.TextInputBaseField,ussClassName,static string ussClassName
 UI.TextOverflow,Clip,UI.TextOverflow.Clip = 0
 UI.TextOverflow,Ellipsis,UI.TextOverflow.Ellipsis = 1
 UI.TextOverflowPosition,End,UI.TextOverflowPosition.End = 0
@@ -687,10 +1038,36 @@ UI.TextShadow,blurRadius,float blurRadius
 UI.TextShadow,color,Color color
 UI.TextShadow,offset,Vector2 offset
 UI.TextShadow,operators,"Equality(TextShadow, TextShadow) / Inequality(TextShadow, TextShadow)"
+UI.TextValueField,formatString,string formatString { get; set; }
 UI.ThemeStyleSheet,.ctor,ThemeStyleSheet()
 UI.TimerState,deltaTime,long deltaTime { get; }
 UI.TimerState,now,long now { get; set; }
 UI.TimerState,start,long start { get; set; }
+UI.Toggle,.ctor,Toggle(string) / Toggle()
+UI.Toggle,checkmarkUssClassName,static string checkmarkUssClassName
+UI.Toggle,contentContainer,Element contentContainer { get; }
+UI.Toggle,textUssClassName,static string textUssClassName
+UI.Toggle,ussClassName,static string ussClassName
+UI.ToggleButtonGroup,.ctor,ToggleButtonGroup(string) / ToggleButtonGroup()
+UI.ToggleButtonGroup,allowEmptySelection,bool allowEmptySelection { get; set; }
+UI.ToggleButtonGroup,buttonGroupClassName,static string buttonGroupClassName
+UI.ToggleButtonGroup,containerUssClassName,static string containerUssClassName
+UI.ToggleButtonGroup,contentContainer,Element contentContainer { get; }
+UI.ToggleButtonGroup,isMultipleSelection,bool isMultipleSelection { get; set; }
+UI.ToggleButtonGroup,ussClassName,static string ussClassName
+UI.ToggleButtonGroupState,.ctor,"ToggleButtonGroupState(ulong, int)"
+UI.ToggleButtonGroupState,GetActiveOptions,Span<int> GetActiveOptions(Span<int>)
+UI.ToggleButtonGroupState,GetInactiveOptions,Span<int> GetInactiveOptions(Span<int>)
+UI.ToggleButtonGroupState,ResetAllOptions,void ResetAllOptions()
+UI.ToggleButtonGroupState,SetAllOptions,void SetAllOptions()
+UI.ToggleButtonGroupState,ToString,string ToString()
+UI.ToggleButtonGroupState,ToggleAllOptions,void ToggleAllOptions()
+UI.ToggleButtonGroupState,length,int length { get; }
+UI.ToggleButtonGroupState,operators,"Equality(ToggleButtonGroupState, ToggleButtonGroupState) / Inequality(ToggleButtonGroupState, ToggleButtonGroupState)"
+UI.ToggleButtonGroupState,this[],bool this[][int] { get; set; }
+UI.TouchScrollBehavior,Clamped,UI.TouchScrollBehavior.Clamped = 2
+UI.TouchScrollBehavior,Elastic,UI.TouchScrollBehavior.Elastic = 1
+UI.TouchScrollBehavior,Unrestricted,UI.TouchScrollBehavior.Unrestricted = 0
 UI.TransformOrigin,.ctor,"TransformOrigin(Length, Length) / TransformOrigin(Length, Length, float)"
 UI.TransformOrigin,Initial,static TransformOrigin Initial()
 UI.TransformOrigin,ToString,string ToString()
@@ -707,16 +1084,74 @@ UI.Translate,y,Length y { get; set; }
 UI.Translate,z,float z { get; set; }
 UI.TrickleDown,NoTrickleDown,UI.TrickleDown.NoTrickleDown = 0
 UI.TrickleDown,TrickleDown,UI.TrickleDown.TrickleDown = 1
+UI.TwoPaneSplitView,.ctor,"TwoPaneSplitView() / TwoPaneSplitView(int, float, TwoPaneSplitViewOrientation)"
+UI.TwoPaneSplitView,CollapseChild,void CollapseChild(int)
+UI.TwoPaneSplitView,UnCollapse,void UnCollapse()
+UI.TwoPaneSplitView,contentContainer,Element contentContainer { get; }
+UI.TwoPaneSplitView,contentContainerClassName,static string contentContainerClassName
+UI.TwoPaneSplitView,fixedPane,Element fixedPane { get; }
+UI.TwoPaneSplitView,fixedPaneIndex,int fixedPaneIndex { get; set; }
+UI.TwoPaneSplitView,fixedPaneInitialDimension,float fixedPaneInitialDimension { get; set; }
+UI.TwoPaneSplitView,flexedPane,Element flexedPane { get; }
+UI.TwoPaneSplitView,horizontalClassName,static string horizontalClassName
+UI.TwoPaneSplitView,orientation,TwoPaneSplitViewOrientation orientation { get; set; }
+UI.TwoPaneSplitView,ussClassName,static string ussClassName
+UI.TwoPaneSplitView,verticalClassName,static string verticalClassName
+UI.TwoPaneSplitViewOrientation,Horizontal,UI.TwoPaneSplitViewOrientation.Horizontal = 0
+UI.TwoPaneSplitViewOrientation,Vertical,UI.TwoPaneSplitViewOrientation.Vertical = 1
+UI.UIPanelSettings,.ctor,UIPanelSettings()
+UI.UIPanelSettings,SetScreenToPanelSpaceFunction,"void SetScreenToPanelSpaceFunction(Func<Vector2, Vector2>)"
+UI.UIPanelSettings,SetScreenToPanelSpaceFunction3D,"void SetScreenToPanelSpaceFunction3D(Func<Vector2, Vector3>)"
+UI.UIPanelSettings,clearColor,bool clearColor { get; set; }
+UI.UIPanelSettings,clearDepthStencil,bool clearDepthStencil { get; set; }
+UI.UIPanelSettings,colorClearValue,Color colorClearValue { get; set; }
+UI.UIPanelSettings,depthClearValue,float depthClearValue { get; }
+UI.UIPanelSettings,fallbackDpi,float fallbackDpi { get; set; }
+UI.UIPanelSettings,match,float match { get; set; }
+UI.UIPanelSettings,referenceDpi,float referenceDpi { get; set; }
+UI.UIPanelSettings,referenceResolution,Vector2Int referenceResolution { get; set; }
+UI.UIPanelSettings,renderMode,PanelRenderMode renderMode { get; set; }
+UI.UIPanelSettings,scale,float scale { get; set; }
+UI.UIPanelSettings,scaleMode,PanelScaleMode scaleMode { get; set; }
+UI.UIPanelSettings,screenMatchMode,PanelScreenMatchMode screenMatchMode { get; set; }
+UI.UIPanelSettings,sortingOrder,float sortingOrder { get; set; }
+UI.UIPanelSettings,targetDisplay,int targetDisplay { get; set; }
+UI.UIPanelSettings,targetTexture,RenderTexture targetTexture { get; set; }
+UI.UIPanelSettings,themeStyleSheet,ThemeStyleSheet themeStyleSheet { get; set; }
 UI.UITemplate,.ctor,UITemplate()
 UI.UITemplate,CloneTree,"void CloneTree(Element, out int, out int) / TemplateContainer CloneTree() / void CloneTree(Element)"
 UI.UITemplate,Instantiate,TemplateContainer Instantiate()
 UI.UIView,.ctor,UIView()
+UI.UIView,FindUIView,static UIView FindUIView(Element)
+UI.UIView,panelSettings,UIPanelSettings panelSettings { get; set; }
+UI.UIView,parentUI,UIView parentUI { get; }
+UI.UIView,pivot,Pivot pivot { get; set; }
+UI.UIView,pivotReferenceSize,PivotReferenceSize pivotReferenceSize { get; set; }
+UI.UIView,position,Position position { get; set; }
 UI.UIView,rootElement,Element rootElement { get; }
-UI.UIView,sortingOrder,int sortingOrder { get; set; }
+UI.UIView,sortingOrder,float sortingOrder { get; set; }
 UI.UIView,source,UITemplate source { get; set; }
 UI.UIView,watchFiles,bool watchFiles { get; set; }
+UI.UIView,worldSpaceSize,Vector2 worldSpaceSize { get; set; }
+UI.UIView,worldSpaceSizeMode,WorldSpaceSizeMode worldSpaceSizeMode { get; set; }
+UI.UnsignedIntegerField,.ctor,UnsignedIntegerField(string) / UnsignedIntegerField()
+UI.UnsignedIntegerField,contentContainer,Element contentContainer { get; }
+UI.UnsignedLongField,.ctor,UnsignedLongField(string) / UnsignedLongField()
+UI.UnsignedLongField,contentContainer,Element contentContainer { get; }
+UI.Vector2Field,.ctor,Vector2Field(string) / Vector2Field()
+UI.Vector2Field,contentContainer,Element contentContainer { get; }
+UI.Vector2IntField,.ctor,Vector2IntField(string) / Vector2IntField()
+UI.Vector2IntField,contentContainer,Element contentContainer { get; }
+UI.Vector3Field,.ctor,Vector3Field(string) / Vector3Field()
+UI.Vector3Field,contentContainer,Element contentContainer { get; }
+UI.Vector3IntField,.ctor,Vector3IntField(string) / Vector3IntField()
+UI.Vector3IntField,contentContainer,Element contentContainer { get; }
+UI.Vector4Field,.ctor,Vector4Field(string) / Vector4Field()
+UI.Vector4Field,contentContainer,Element contentContainer { get; }
 UI.Visibility,Hidden,UI.Visibility.Hidden = 1
 UI.Visibility,Visible,UI.Visibility.Visible = 0
+UI.VisualElementExtensions,AddManipulator,"static void AddManipulator(Element, IManipulator)"
+UI.VisualElementExtensions,RemoveManipulator,"static void RemoveManipulator(Element, IManipulator)"
 UI.WheelEvent,.ctor,WheelEvent()
 UI.WheelEvent,delta,Vector3 delta { get; }
 UI.WheelEvent,scrollDeltaPerTick,const float scrollDeltaPerTick
@@ -724,6 +1159,8 @@ UI.WhiteSpace,NoWrap,UI.WhiteSpace.NoWrap = 1
 UI.WhiteSpace,Normal,UI.WhiteSpace.Normal = 0
 UI.WhiteSpace,Pre,UI.WhiteSpace.Pre = 2
 UI.WhiteSpace,PreWrap,UI.WhiteSpace.PreWrap = 3
+UI.WorldSpaceSizeMode,Dynamic,UI.WorldSpaceSizeMode.Dynamic = 0
+UI.WorldSpaceSizeMode,Fixed,UI.WorldSpaceSizeMode.Fixed = 1
 UI.Wrap,NoWrap,UI.Wrap.NoWrap = 0
 UI.Wrap,Wrap,UI.Wrap.Wrap = 1
 UI.Wrap,WrapReverse,UI.Wrap.WrapReverse = 2

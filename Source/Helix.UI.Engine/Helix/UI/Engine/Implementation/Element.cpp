@@ -624,9 +624,17 @@ namespace helix::ui
             return nullptr;
         if (Element* x = SlotObject(RegistryOf(world), e))
             return x;
-        // The object class of its type, or an Element.
-        if (ObjectMaker* maker = Makers().Find(world.tree().Type(e)))
-            return (*maker)(world, e);
+        // The object class of its type (or of the control a script class derives from), or an Element.
+        Atom type = world.tree().Type(e);
+        for (u32 depth = 0; depth < 32 && type != kNoAtom; depth++)
+        {
+            if (ObjectMaker* maker = Makers().Find(type))
+                return (*maker)(world, e);
+            ScriptType* t = ScriptTypeOf(type);
+            if (!t)
+                break;
+            type = t->base;
+        }
         return new Element(world, e);
     }
 

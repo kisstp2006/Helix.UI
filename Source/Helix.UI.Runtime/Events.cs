@@ -622,10 +622,19 @@ namespace HelixEngine.UI
                     throw new InvalidOperationException($"The UI's event layout differs from the native one (field {i}: {mine[i]} against {native[i]}).");
         }
 
+        // A generic event's type is its arguments' too (ChangeEvent<int> is not ChangeEvent<bool>).
+        static string EventName(Type type)
+        {
+            if (!type.IsGenericType)
+                return type.Name;
+            var args = Array.ConvertAll(type.GetGenericArguments(), a => a.FullName ?? a.Name);
+            return $"{type.Name}<{string.Join(",", args)}>";
+        }
+
         internal static long TypeIdOf(Type type)
         {
             Hook();
-            byte[] name = System.Text.Encoding.UTF8.GetBytes(type.Name);
+            byte[] name = System.Text.Encoding.UTF8.GetBytes(EventName(type));
             fixed (byte* p = name)
                 return s_TypeId(p, name.Length, 1, 1);
         }
@@ -661,11 +670,30 @@ namespace HelixEngine.UI
             s_Keep(((INativeObject)e).HxId);
         }
 
+        // The events C# sends, while they are dispatched: their callbacks get the same object (with its C# fields).
+        static readonly List<EventBase> s_Sending = new List<EventBase>();
+
+        internal static EventBase Sending(long typeId)
+        {
+            for (int i = s_Sending.Count; i-- > 0;)
+                if (s_Sending[i].eventTypeId == typeId)
+                    return s_Sending[i];
+            return null;
+        }
+
         internal static bool Send(Element target, EventBase e)
         {
             Hook();
             NativeEvent data = e.Data;
-            return s_Send(((INativeObject)target).HxId, &data) != 0;
+            s_Sending.Add(e);
+            try
+            {
+                return s_Send(((INativeObject)target).HxId, &data) != 0;
+            }
+            finally
+            {
+                s_Sending.RemoveAt(s_Sending.Count - 1);
+            }
         }
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) })]

@@ -23,6 +23,8 @@ public sealed class Default : ShaderDefinition
     [Property("Texture 1"), DefaultTexture("white")] public Texture2D<float4> _Tex1;
     [Property("Texture 2"), DefaultTexture("white")] public Texture2D<float4> _Tex2;
     [Property("Texture 3"), DefaultTexture("white")] public Texture2D<float4> _Tex3;
+    // The depth test (the reference's CompareFunction): always over the screen, less or equal in the world.
+    [Property("Depth Test"), Default(8.0f)] public float _UIZTest;
 
     public struct Varyings
     {
@@ -37,7 +39,7 @@ public sealed class Default : ShaderDefinition
         [Location(6)] public float4 clipLocal;
     }
 
-    [Pass("UI", ZWrite = false, ZTest = CompareFunction.Always, Cull = CullMode.Off)]
+    [Pass("UI", ZWrite = false, ZTestProperty = "_UIZTest", Cull = CullMode.Off)]
     [Blend(BlendFactor.One, BlendFactor.OneMinusSrcAlpha)]
     public static class Draw
     {

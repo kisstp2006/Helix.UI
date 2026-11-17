@@ -62,16 +62,26 @@ endif()
 add_library(Helix::UIEngine ALIAS helix_ui_engine)
 set_target_properties(helix_ui_engine PROPERTIES OUTPUT_NAME HelixUI)
 target_include_directories(helix_ui_engine PUBLIC "${ui_engine_source}")
+# The default theme's text, built into the module as bytes.
+set(ui_default_theme "${CMAKE_CURRENT_SOURCE_DIR}/Themes/HelixDefault.tss")
+file(READ "${ui_default_theme}" ui_theme_hex HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," ui_theme_bytes "${ui_theme_hex}")
+file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Generated/HelixDefaultTheme.inc" CONTENT "${ui_theme_bytes}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${ui_default_theme}")
+target_include_directories(helix_ui_engine PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Generated")
 helix_apply_options(helix_ui_engine)
 
 # The headers whose tagged types C# sees, and the engine's they name.
 set(ui_bound_headers "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix/UI/Elements/ElementTree.h" "${ui_engine_source}/Helix/UI/Engine/Element.h"
     "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h" "${ui_engine_source}/Helix/UI/Engine/UIView.h"
-    "${ui_engine_source}/Helix/UI/Engine/TemplateContainer.h")
+    "${ui_engine_source}/Helix/UI/Engine/TemplateContainer.h" "${ui_engine_source}/Helix/UI/Engine/UIPanelSettings.h"
+    "${ui_engine_source}/Helix/UI/Engine/PanelInputConfiguration.h" "${ui_engine_source}/Helix/UI/Engine/Controls.h"
+    "${ui_engine_source}/Helix/UI/Engine/Fields.h" "${ui_engine_source}/Helix/UI/Engine/Containers.h")
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
     "${engine_source}/Helix/Engine/GameObject/GameObject.h" "${engine_source}/Helix/Engine/Script/GameBehaviour.h"
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"
-    "${engine_source}/Helix/Engine/Texture/Texture.h" "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h"
+    "${engine_source}/Helix/Engine/Texture/Texture.h" "${engine_source}/Helix/Engine/Texture/RenderTexture.h"
+    "${engine_source}/Helix/Engine/Rendering/Camera.h" "${engine_source}/Helix/Engine/Math/Hash128.h" "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h"
     "${math_dir}/Source/Helix/Math/Geometry.h")
 helix_bindgen(helix_ui_engine MODULE HelixUI NAMESPACE HelixEngine.UI KIND NativeGame API HEADERS ${ui_bound_headers}
               REFERENCES ${ui_engine_references} REFERENCE_NAMESPACE HelixEngine

@@ -28,6 +28,8 @@ namespace helix::ui
 
         // Lays out the tree under root in a box of the given size (the root's border box).
         void Update(ElementHandle root, f32 width, f32 height);
+        // The same with the modes of the box's sides (AtMost: the root no larger than them, sized by its content).
+        void Update(ElementHandle root, f32 width, MeasureMode widthMode, f32 height, MeasureMode heightMode);
 
         const LayoutBox& Box(ElementHandle e) const;
         // The border box in the root's space with its edges on the pixel grid, as the reference's layout rounds them:

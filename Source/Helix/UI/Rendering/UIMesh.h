@@ -30,6 +30,8 @@ namespace helix::ui
     struct UIVertex
     {
         Vector2 position;
+        // Its depth (a 3D rotation of its element).
+        f32 z = 0;
         Color color;
         // The texture's uv, and the point's place in its shape's box.
         Vector4 uvLocal;
