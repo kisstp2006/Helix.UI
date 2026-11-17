@@ -156,6 +156,9 @@ namespace helix::ui
         void Rectangle(const Rect& rect, Color color);
         // Flat triangles (painted paths): positions and premultiplied colors with indices into them.
         void Triangles(Span<const Vector2> positions, Span<const Color> colors, Span<const u32> indices);
+        // Triangles of a texture (null: flat), the colors premultiplied, uv (0, 0) the texture's bottom left.
+        void TexturedTriangles(Span<const Vector2> positions, Span<const Color> colors, Span<const Vector2> uvs, Span<const u32> indices,
+                               const void* texture);
 
         // Draw calls the batches need.
         u32 DrawCalls() const { return u32(batches_.Size()); }

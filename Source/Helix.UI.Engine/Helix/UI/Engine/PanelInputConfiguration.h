@@ -23,6 +23,12 @@ namespace helix::ui
         HX_PROPERTY() bool defaultEventCameraIsMainCamera() const { return defaultEventCameraIsMainCamera_; }
         void SetDefaultEventCameraIsMainCamera(bool value) { defaultEventCameraIsMainCamera_ = value; }
         HX_PROPERTY(Setter = "SetEventCameras") Array<engine::Camera*> eventCameras() const;
+        // Whether the panels' input comes through the canvas UI's event system (C#'s PanelInputRedirection: 0
+        // automatic, 1 never, 2 always) and makes its components; they take effect with that event system.
+        HX_PROPERTY() bool autoCreatePanelComponents() const { return autoCreatePanelComponents_; }
+        void SetAutoCreatePanelComponents(bool value) { autoCreatePanelComponents_ = value; }
+        HX_FUNCTION(Internal) i32 PanelInputRedirectionInternal() const { return redirection_; }
+        HX_FUNCTION(Internal) void SetPanelInputRedirectionInternal(i32 value) { redirection_ = value; }
         void SetEventCameras(Span<engine::Camera* const> cameras);
 
         void OnEnable();
@@ -37,5 +43,7 @@ namespace helix::ui
         HX_FIELD(SerializeField, Name = "m_MaxInteractionDistance") f32 maxInteractionDistance_ = std::numeric_limits<f32>::infinity();
         HX_FIELD(SerializeField, Name = "m_DefaultEventCameraIsMainCamera") bool defaultEventCameraIsMainCamera_ = true;
         HX_FIELD(SerializeField, Name = "m_EventCameras") Array<engine::PPtr<engine::Camera>> eventCameras_;
+        HX_FIELD(SerializeField, Name = "m_AutoCreatePanelComponents") bool autoCreatePanelComponents_ = true;
+        HX_FIELD(SerializeField, Name = "m_PanelInputRedirection") i32 redirection_ = 0;
     };
 }

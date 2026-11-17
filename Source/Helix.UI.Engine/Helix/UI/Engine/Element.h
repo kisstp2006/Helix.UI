@@ -130,6 +130,8 @@ namespace helix::ui
         HX_PROPERTY() String viewDataKey() const { return viewDataKey_; }
         void SetViewDataKey(StringView value) { viewDataKey_ = String(value); }
         HX_FUNCTION() void MarkDirtyRepaint();
+        // The element's script draws content of its own (C#'s generateVisualContent is set).
+        HX_FUNCTION(Internal) void SetScriptPaintInternal(bool on);
 
         // ------------------------------------------------------------------------- styleSheets, for C#
         HX_FUNCTION(Internal) i32 StyleSheetCount() const;

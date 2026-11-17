@@ -10,23 +10,23 @@ namespace HelixEngine.UI
         public long deltaTime => now - start;
     }
 
-    public interface IVisualElementScheduledItem
+    public interface IElementScheduledItem
     {
         Element element { get; }
         bool isActive { get; }
         void Resume();
         void Pause();
         void ExecuteLater(long delayMs);
-        IVisualElementScheduledItem StartingIn(long delayMs);
-        IVisualElementScheduledItem Every(long intervalMs);
-        IVisualElementScheduledItem Until(Func<bool> stopCondition);
-        IVisualElementScheduledItem ForDuration(long durationMs);
+        IElementScheduledItem StartingIn(long delayMs);
+        IElementScheduledItem Every(long intervalMs);
+        IElementScheduledItem Until(Func<bool> stopCondition);
+        IElementScheduledItem ForDuration(long durationMs);
     }
 
-    public interface IVisualElementScheduler
+    public interface IElementScheduler
     {
-        IVisualElementScheduledItem Execute(Action<TimerState> timerUpdateEvent);
-        IVisualElementScheduledItem Execute(Action updateEvent);
+        IElementScheduledItem Execute(Action<TimerState> timerUpdateEvent);
+        IElementScheduledItem Execute(Action updateEvent);
     }
 
     // Items of elements run once a frame (the views' tick, in milliseconds), while their element is in a panel.
@@ -37,7 +37,7 @@ namespace HelixEngine.UI
 
         internal static long Now => s_Now;
 
-        internal sealed class Item : IVisualElementScheduledItem
+        internal sealed class Item : IElementScheduledItem
         {
             public Element element { get; set; }
             public bool isActive { get; private set; }
@@ -65,26 +65,26 @@ namespace HelixEngine.UI
                 Resume();
             }
 
-            public IVisualElementScheduledItem StartingIn(long delayMs)
+            public IElementScheduledItem StartingIn(long delayMs)
             {
                 delay = delayMs;
                 due = startedAt + delayMs;
                 return this;
             }
 
-            public IVisualElementScheduledItem Every(long intervalMs)
+            public IElementScheduledItem Every(long intervalMs)
             {
                 interval = intervalMs;
                 return this;
             }
 
-            public IVisualElementScheduledItem Until(Func<bool> stopCondition)
+            public IElementScheduledItem Until(Func<bool> stopCondition)
             {
                 until = stopCondition;
                 return this;
             }
 
-            public IVisualElementScheduledItem ForDuration(long durationMs)
+            public IElementScheduledItem ForDuration(long durationMs)
             {
                 duration = durationMs;
                 return this;
@@ -111,7 +111,15 @@ namespace HelixEngine.UI
                 }
                 long previous = item.lastRun < 0 ? item.startedAt : item.lastRun;
                 item.lastRun = now;
-                item.action(new TimerState { start = previous, now = now });
+                // One item's failure stops neither it nor the others.
+                try
+                {
+                    item.action(new TimerState { start = previous, now = now });
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
                 bool expired = item.duration >= 0 && now - item.startedAt >= item.duration;
                 if (item.interval < 0 || expired)
                     item.Pause();
@@ -123,22 +131,22 @@ namespace HelixEngine.UI
 
     public partial class Element
     {
-        sealed class ElementScheduler : IVisualElementScheduler
+        sealed class ElementScheduler : IElementScheduler
         {
             readonly Element m_Element;
 
             public ElementScheduler(Element element) { m_Element = element; }
 
-            public IVisualElementScheduledItem Execute(Action<TimerState> timerUpdateEvent)
+            public IElementScheduledItem Execute(Action<TimerState> timerUpdateEvent)
             {
                 var item = new Scheduler.Item { element = m_Element, action = timerUpdateEvent };
                 item.Resume();
                 return item;
             }
 
-            public IVisualElementScheduledItem Execute(Action updateEvent) => Execute(_ => updateEvent());
+            public IElementScheduledItem Execute(Action updateEvent) => Execute(_ => updateEvent());
         }
 
-        public IVisualElementScheduler schedule => new ElementScheduler(this);
+        public IElementScheduler schedule => new ElementScheduler(this);
     }
 }

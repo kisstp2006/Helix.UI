@@ -48,7 +48,7 @@ namespace HelixEngine.UI
                 if (child == null)
                     throw new ArgumentException("Cannot remove null child");
                 if (child.hierarchy.parent != m_Owner)
-                    throw new ArgumentException("This visualElement is not my child");
+                    throw new ArgumentException("This element is not my child");
                 m_Owner.HierarchyRemove(child);
             }
 
@@ -111,7 +111,7 @@ namespace HelixEngine.UI
             if (element == null)
                 throw new ArgumentException("Cannot remove null element");
             if (!RemoveChecked(element))
-                throw new ArgumentException("This visualElement is not my child");
+                throw new ArgumentException("This element is not my child");
         }
 
         public void RemoveAt(int index)

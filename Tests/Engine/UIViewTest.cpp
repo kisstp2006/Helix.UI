@@ -13,6 +13,7 @@
 #include <Helix/Engine/Rendering/Graphics.h>
 #include <Helix/Engine/Rendering/Implementation/RenderCore.h>
 #include <Helix/Engine/Texture/RenderTexture.h>
+#include <Helix/Engine/Time/Time.h>
 #include <Helix/Engine/Screen/Screen.h>
 #include <Helix/Engine/Script/ScriptRuntime.h>
 #include <Helix/Engine/Shader/Shader.h>
@@ -1156,6 +1157,123 @@ HX_TEST(UIScripts, CSharpControlsSendTheirChangeEventsAndClicks)
     RunScriptPhase(ScriptMessage::Update);
     RunScriptPhase(ScriptMessage::Update);
     HX_CHECK(ui::testing::NotesAre({"button:1"}));
+    engine::InputFeed::Reset();
+    DestroyImmediate(ui);
+}
+
+namespace
+{
+    // The engine's clock moved by the tests (the time of the frames they run).
+    struct ManualClock : engine::TimeClock
+    {
+        double now = 1;
+        double Now() override { return now; }
+
+        ManualClock()
+        {
+            engine::Time::SetClock(this);
+            engine::Time::Reset();
+            engine::Time::BeginFrame();
+        }
+
+        ~ManualClock()
+        {
+            engine::Time::SetClock(nullptr);
+            engine::Time::Reset();
+        }
+    };
+}
+
+HX_TEST(UIControls, ATooltipShowsAfterTheMouseRestsOnItsElement)
+{
+    HX_REQUIRE(RegisterModules());
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("tooltip.hxml", R"(<HXML><Button name="save" text="Save" tooltip="Saves the file" style="width: 100px; height: 30px;"/></HXML>)");
+    folder.Open();
+    ReportScreen(400, 300);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    view->SetSource(LoadAt<UITemplate>("tooltip.hxml"));
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::Time::BeginFrame();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    ElementTree& tree = view->panel()->tree();
+    auto tips = [&] {
+        ElementHandle found;
+        tree.ForEachInSubtree(view->panel()->root(), [&](ElementHandle e, u32) {
+            if (tree.HasClass(e, Intern("helix-tooltip")))
+                found = e;
+        });
+        return found;
+    };
+    frame({});
+    frame({Mouse(platform::EventType::MouseMove, 20, 10)});
+    frame({});
+    HX_CHECK(!tips().IsValid());
+    clock.now += 0.6;
+    frame({});
+    ElementHandle tip = tips();
+    HX_REQUIRE(tip.IsValid());
+    HX_CHECK(tree.Text(tip) == StringView("Saves the file"));
+    // Leaving the element takes it away.
+    frame({Mouse(platform::EventType::MouseMove, 300, 250)});
+    frame({});
+    HX_CHECK(!tips().IsValid());
+    engine::InputFeed::Reset();
+    DestroyImmediate(ui);
+}
+
+HX_TEST(UIScripts, CSharpCollectionsMenusAnimationsPaintingAndBindings)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("collections.hxml", R"(<HXML><Element name="page" style="width: 400px;">)"
+                                     R"(<Label name="marked"><Bindings><DataBinding property="text" data-source-path="level" binding-mode="ToTarget"/></Bindings></Label>)"
+                                     R"(</Element></HXML>)");
+    folder.Open();
+    ReportScreen(800, 1200);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("collections.hxml"));
+    for (const HxmlError& e : view->errors())
+        std::printf("    %u:%u: %s\n", e.line, e.column, String(e.message).CStr());
+    HX_CHECK(view->errors().Empty());
+    engine::InputFeed::Reset();
+    auto frame = [&] {
+        clock.now += 0.01;
+        engine::Time::BeginFrame();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        view->Update();
+    };
+    frame();
+    ui->AddComponent(ui::testing::CSharp("CsCollectionTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"selected:item 2", "tree:2", "expanded:4:apple", "menu:2:Disabled", "generic:2", "easing:0.25:0.25:0.75",
+                                    "vector:True:True:True", "path:4:2:a.b[2].c"}));
+    for (int i = 0; i < 2; i++)
+    {
+        frame();
+        RunScriptPhase(ScriptMessage::Update);
+    }
+    HX_CHECK(ui::testing::NotesAre({"rows:True:True:True", "scrolled:True", "sorted:a", "bound:first:3", "marked:50%"}));
+    // The animation runs out in 50 ms.
+    clock.now += 0.08;
+    for (int i = 0; i < 2; i++)
+    {
+        frame();
+        RunScriptPhase(ScriptMessage::Update);
+    }
+    HX_CHECK(ui::testing::NotesAre({"bound:second:9", "animated:True:10", "painted:True"}));
     engine::InputFeed::Reset();
     DestroyImmediate(ui);
 }

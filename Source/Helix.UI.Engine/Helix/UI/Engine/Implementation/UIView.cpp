@@ -1,6 +1,7 @@
 #include <Helix/UI/Engine/UIView.h>
 
 #include <Helix/Core/Logging/Log.h>
+#include <Helix/Core/Strings/Format.h>
 #include <Helix/Engine/Asset/Asset.h>
 #include <Helix/Engine/GameObject/GameObject.h>
 #include <Helix/Engine/Rendering/Camera.h>
@@ -20,6 +21,7 @@
 #include <Helix/Engine/Time/Time.h>
 #include <Helix/Platform/Time/Time.h>
 #include <Helix/UI/Engine/Control.h>
+#include <Helix/UI/Engine/ControlParts.h>
 #include <Helix/UI/Engine/Element.h>
 #include <Helix/UI/Engine/FontAsset.h>
 #include <Helix/UI/Engine/ImageAtlas.h>
@@ -123,6 +125,11 @@ namespace helix::ui
         void ApplyTheme();
         void Upload();
         void UpdateWorld();
+        void UpdateTooltip();
+        // The tooltip: the element hovered with one, since when, the label shown.
+        ElementHandle tipFor_, tipLabel_;
+        f64 tipSince_ = 0;
+        Vector2 tipAt_ = Vector2(0, 0);
 
         engine::PPtr<engine::ScriptableObject> settings_;
         bool shared_;
@@ -943,9 +950,12 @@ namespace helix::ui
             return;
         engine::RenderParams params;
         params.layer = owner->gameObject() ? i32(owner->gameObject()->layer()) : 0;
+        // A pipeline drawing linear colors says so (_HelixLinearOutput); the panel's colors are made linear there.
+        f32 linear = engine::Shader::GetGlobalFloat("_HelixLinearOutput") > 0.5f ? 1.0f : 0.0f;
         for (u32 b = 0; b < batches.Size(); b++)
             if (engine::Material* m = MaterialFor(batches[b], true))
             {
+                m->SetFloat("_UILinear", linear);
                 params.material = m;
                 engine::Graphics::RenderMesh(params, mesh, i32(b), toWorld_);
             }
@@ -960,6 +970,50 @@ namespace helix::ui
         }
     }
 
+    void RuntimePanel::UpdateTooltip()
+    {
+        // The element under the mouse (or an ancestor) with a tooltip; shown after half a second at rest.
+        constexpr f64 kDelay = 0.5;
+        ElementTree& tree = panel_->tree();
+        EventSystem& events = panel_->events();
+        ElementHandle over;
+        for (ElementHandle e = events.ElementUnderPointer(PointerId::mouse); e.IsValid() && !over.IsValid(); e = tree.Parent(e))
+            if (Element* x = Element::Of(panel_->world(), e); x && !x->tooltip().Empty())
+                over = e;
+        Vector2 at = events.PointerPosition(PointerId::mouse);
+        f64 now = engine::Time::realtimeSinceStartupAsDouble();
+        bool moved = std::fabs(at.x - tipAt_.x) + std::fabs(at.y - tipAt_.y) > 3;
+        if (over != tipFor_ || (moved && !tree.IsAlive(tipLabel_)))
+        {
+            tipFor_ = over;
+            tipSince_ = now;
+            tipAt_ = at;
+            if (tree.IsAlive(tipLabel_))
+            {
+                tree.Destroy(tipLabel_);
+                tipLabel_ = ElementHandle();
+            }
+        }
+        if (!over.IsValid() || tree.IsAlive(tipLabel_) || now - tipSince_ < kDelay)
+            return;
+        // The element hears of it first (TooltipEvent, its box in newRect).
+        UIEvent e;
+        e.type = RegisterEventType("TooltipEvent", true, true, EventFamily::Other);
+        e.target = over;
+        e.newRect = panel_->layout().WorldRect(over);
+        e.timestamp = now;
+        events.SendEvent(e);
+        Element* x = Element::Of(panel_->world(), over);
+        if (!x || x->tooltip().Empty())
+            return;
+        tipLabel_ = MakePart(panel_->root(), "helix-text-element helix-label helix-tooltip", "Label");
+        tree.SetPicking(tipLabel_, PickingMode::Ignore);
+        tree.SetText(tipLabel_, x->tooltip().View());
+        SetPartStyle(tipLabel_, "position", "absolute");
+        SetPartStyle(tipLabel_, "left", Format("{}px", at.x + 4).View());
+        SetPartStyle(tipLabel_, "top", Format("{}px", at.y + 20).View());
+    }
+
     void RuntimePanel::Update()
     {
         ApplyTheme();
@@ -968,6 +1022,7 @@ namespace helix::ui
             UpdateWorld();
             return;
         }
+        UpdateTooltip();
         UIPanelSettings* s = settings();
         engine::RenderTexture* rt = target();
         f32 w = rt ? f32(rt->width()) : f32(engine::Screen::width());

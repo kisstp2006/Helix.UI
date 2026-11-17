@@ -69,6 +69,8 @@ namespace helix::ui
         Vector2 Size() const;
         // The visible elements into a mesh (cleared first).
         void Draw(UIMesh& mesh);
+        // A script's text in an element's font, at a point (its top left) in a size and color (generateVisualContent).
+        void DrawScriptText(UIMesh& mesh, ElementHandle e, StringView text, Vector2 at, f32 size, Color color, f32 opacity);
         // The text laid out in an element (null when it has none).
         const TextInfo* TextOf(ElementHandle e) const;
         // The size of a text in an element's style (no wider than maxWidth when it wraps; negative: no limit).

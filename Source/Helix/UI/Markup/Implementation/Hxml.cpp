@@ -73,11 +73,32 @@ namespace helix::ui
              }},
         };
 
+        // The common attributes of the layers above (their names interned, so the views stay valid).
+        struct RegisteredAttribute
+        {
+            Atom name = kNoAtom;
+            AttributeHandler apply = nullptr;
+        };
+
+        Array<RegisteredAttribute>& RegisteredAttributes()
+        {
+            static Array<RegisteredAttribute>* list = new Array<RegisteredAttribute>();
+            return *list;
+        }
+
         const CommonAttribute* FindCommon(StringView name)
         {
             for (const CommonAttribute& a : kCommonAttributes)
                 if (a.name == name)
                     return &a;
+            return nullptr;
+        }
+
+        AttributeHandler FindRegistered(StringView name)
+        {
+            for (const RegisteredAttribute& a : RegisteredAttributes())
+                if (AtomName(a.name) == name)
+                    return a.apply;
             return nullptr;
         }
 
@@ -273,20 +294,50 @@ namespace helix::ui
                 ElementHandle into = type->content ? type->content(tree, e) : tree.ContentContainer(e);
                 if (!tree.IsAlive(into))
                     into = e;
+                static const Atom bindings = Intern("Bindings");
                 for (const HxmlNode& c : n.children)
+                {
+                    // The element's bindings: kept for the scripts (the binding classes are theirs).
+                    if (c.type == bindings)
+                    {
+                        for (const HxmlNode& b : c.children)
+                            {
+                            HxmlBinding binding;
+                            binding.element = e;
+                            binding.type = b.type;
+                            binding.attributes = b.attributes;
+                            PendingMarkupBindings().Push(Move(binding));
+                        }
+                        continue;
+                    }
                     Node(c, into, templates, overrides);
+                }
+                // Its data source path and type, for the scripts' data binding.
+                HxmlBinding source;
+                source.element = e;
+                source.type = Intern("#data-source");
+                for (const HxmlAttribute& a : all)
+                    if (AtomName(a.name) == StringView("data-source-path") || AtomName(a.name) == StringView("data-source-type") ||
+                        AtomName(a.name) == StringView("data-source"))
+                        source.attributes.Push(a);
+                if (!source.attributes.Empty())
+                    PendingMarkupBindings().Push(Move(source));
             }
 
             // The attributes the markup reads itself (the rest are the element type's).
             static bool IsCommon(StringView name)
             {
+                if (name == StringView("data-source-path") || name == StringView("data-source-type") || name == StringView("data-source"))
+                    return true;
                 return name == StringView("name") || name == StringView("class") || name == StringView("style") ||
-                       name == StringView("content-container") || FindCommon(name) != nullptr;
+                       name == StringView("content-container") || FindCommon(name) != nullptr || FindRegistered(name) != nullptr;
             }
 
             void Attribute(const HxmlNode& n, ElementHandle e, Atom attribute, StringView value)
             {
                 StringView name = AtomName(attribute);
+                if (name == StringView("data-source-path") || name == StringView("data-source-type") || name == StringView("data-source"))
+                    return;
                 if (name == StringView("content-container"))
                 {
                     // Marks the template's element that takes an instance's children (outside of a template: none).
@@ -315,6 +366,11 @@ namespace helix::ui
                     if (!common->apply(tree, e, value))
                         Error(n, Format("{}: '{}' is not a value of it", name, value));
                 }
+                else if (AttributeHandler registered = FindRegistered(name))
+                {
+                    if (!registered(tree, e, name, value))
+                        Error(n, Format("{}: '{}' is not a value of it", name, value));
+                }
                 else if (name == StringView("style"))
                 {
                     Array<StyleError> found;
@@ -332,6 +388,12 @@ namespace helix::ui
         };
     }
 
+    Array<HxmlBinding>& PendingMarkupBindings()
+    {
+        static Array<HxmlBinding>* pending = new Array<HxmlBinding>();
+        return *pending;
+    }
+
     void RegisterElementType(StringView name, AttributeHandler attributes, PaintHandler paint, AttachHandler attach)
     {
         Atom a = Intern(name);
@@ -345,6 +407,18 @@ namespace helix::ui
     void UnregisterElementType(Atom name) { Types().Remove(name); }
 
     const ElementType* FindElementType(Atom name) { return Types().Find(name); }
+
+    void RegisterCommonAttribute(StringView name, AttributeHandler apply)
+    {
+        Atom atom = Intern(name);
+        for (RegisteredAttribute& a : RegisteredAttributes())
+            if (a.name == atom)
+            {
+                a.apply = apply;
+                return;
+            }
+        RegisteredAttributes().Push({atom, apply});
+    }
 
     const String* HxmlNode::Attribute(StringView n) const
     {

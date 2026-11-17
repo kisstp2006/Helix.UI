@@ -1,15 +1,43 @@
 #include <Helix/UI/Engine/Containers.h>
 #include <Helix/UI/Engine/Controls.h>
 #include <Helix/UI/Engine/Fields.h>
+#include <Helix/UI/Markup/Hxml.h>
 
 namespace helix::ui
 {
+    namespace
+    {
+        // The element objects' own attributes of every element (the markup's trees outside of the main world have
+        // no objects: they are taken and dropped).
+        Element* ObjectOf(ElementTree& tree, ElementHandle e)
+        {
+            ElementWorld& world = ElementWorld::Main();
+            return &tree == &world.tree() ? Element::Of(world, e) : nullptr;
+        }
+
+        bool TooltipAttribute(ElementTree& tree, ElementHandle e, StringView, StringView value)
+        {
+            if (Element* x = ObjectOf(tree, e))
+                x->SetTooltip(value);
+            return true;
+        }
+
+        bool ViewDataKeyAttribute(ElementTree& tree, ElementHandle e, StringView, StringView value)
+        {
+            if (Element* x = ObjectOf(tree, e))
+                x->SetViewDataKey(value);
+            return true;
+        }
+    }
+
     void RegisterControls()
     {
         static bool done = false;
         if (done)
             return;
         done = true;
+        RegisterCommonAttribute("tooltip", &TooltipAttribute);
+        RegisterCommonAttribute("view-data-key", &ViewDataKeyAttribute);
         RegisterControl<BindableElement>("BindableElement");
         RegisterControl<TextElement>("TextElement");
         RegisterControl<Label>("Label");

@@ -337,6 +337,27 @@ namespace helix::ui
         TexturedQuad(corners, Rect(), color, nullptr, UIVertexKind::Flat, 0, 0);
     }
 
+    void UIMesh::TexturedTriangles(Span<const Vector2> positions, Span<const Color> colors, Span<const Vector2> uvs, Span<const u32> indices,
+                                   const void* texture)
+    {
+        if (indices.Empty())
+            return;
+        f32 slot = Slot(texture, u32(indices.Size()));
+        u32 base = u32(vertices_.Size());
+        UIVertex v = Base(texture ? UIVertexKind::Image : UIVertexKind::Flat);
+        v.parameters.w = slot;
+        for (usize i = 0; i < positions.Size(); i++)
+        {
+            v.position = positions[i];
+            v.color = colors[i];
+            Vector2 uv = i < uvs.Size() ? uvs[i] : Vector2(0, 0);
+            v.uvLocal = Vector4(uv.x, uv.y, 0, 0);
+            Push(v);
+        }
+        for (u32 i : indices)
+            indices_.Push(base + i);
+    }
+
     void UIMesh::Triangles(Span<const Vector2> positions, Span<const Color> colors, Span<const u32> indices)
     {
         if (indices.Empty())

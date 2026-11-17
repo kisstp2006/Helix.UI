@@ -3,6 +3,7 @@
 #include <Helix/UI/Engine/Controls.h>
 
 #include <Helix/UI/Engine/Element.h>
+#include <Helix/UI/Engine/ScriptPaint.h>
 #include <Helix/UI/Styles/Transforms.h>
 
 namespace helix::ui
@@ -285,6 +286,46 @@ namespace helix::ui
         return generator_.PreferredSize(text, slot.settings, slot.settings.wrapping == TextWrappingMode::Normal ? maxWidth : -1.0f);
     }
 
+    void Panel::DrawScriptText(UIMesh& mesh, ElementHandle e, StringView text, Vector2 at, f32 size, Color color, f32 opacity)
+    {
+        if (!host_ || !tree_.IsAlive(e) || text.Empty())
+            return;
+        TextSlot slot;
+        const ComputedStyle& style = styles_.Computed(e);
+        slot.font = host_->Font(style, slot.fallbacks);
+        if (!slot.font)
+            return;
+        Settings(style, slot);
+        slot.settings.fallbacks = Span<TextFont* const>(slot.fallbacks.Data(), slot.fallbacks.Size());
+        slot.settings.fontSize = size > 0 ? size : slot.settings.fontSize;
+        slot.settings.color = color;
+        slot.settings.richText = false;
+        slot.settings.wrapping = TextWrappingMode::NoWrap;
+        slot.settings.width = -1;
+        slot.settings.height = -1;
+        TextInfo info;
+        generator_.Generate(text, slot.settings, info);
+        for (const TextQuad& q : info.quads)
+        {
+            engine::Texture2D* texture = host_->Texture(q);
+            if (!texture)
+                continue;
+            UIVertexKind kind = UIVertexKind::Image;
+            f32 scale = 1;
+            if (!q.colorGlyph && q.font)
+            {
+                GlyphRenderMode mode = q.font->Cache().Mode();
+                kind = mode == GlyphRenderMode::Sdf ? UIVertexKind::GlyphSdf : mode == GlyphRenderMode::Msdf ? UIVertexKind::GlyphMsdf : UIVertexKind::GlyphCoverage;
+                scale = 2.0f * f32(q.font->Cache().Padding()) * q.sdfScale;
+            }
+            Color c = q.color;
+            f32 a = c.a * opacity;
+            const Vector2 p[4] = {Vector2(at.x + q.corners[0].x, at.y + q.corners[0].y), Vector2(at.x + q.corners[1].x, at.y + q.corners[1].y),
+                                  Vector2(at.x + q.corners[2].x, at.y + q.corners[2].y), Vector2(at.x + q.corners[3].x, at.y + q.corners[3].y)};
+            mesh.TexturedQuad(p, q.uv, Color(c.r * a, c.g * a, c.b * a, a), texture, kind, 0.5f, scale);
+        }
+    }
+
     const TextInfo* Panel::TextOf(ElementHandle e) const
     {
         const TextSlot* slot = tree_.IsAlive(e) ? texts_.Find(e.index) : nullptr;
@@ -371,6 +412,9 @@ namespace helix::ui
                     moved.Push(Vector2(p.x + ox, p.y + oy));
                 mesh.Triangles(Span<const Vector2>(moved.Data(), moved.Size()), painter_.Colors(), painter_.Indices());
             }
+            // What the element's script draws (generateVisualContent), in its border box.
+            if (HasScriptPaint(world_, e))
+                RunScriptPaint(*this, mesh, e, Vector2(r.x, r.y), opacity);
             if (const TextInfo* text = TextOf(e); text && host_)
             {
                 auto premultiply = [&](Color c) {

@@ -22,7 +22,7 @@ namespace Tests
             toggle.value = true;
             toggle.SetValueWithoutNotify(false);
             toggle.text = "on";
-            Notes.Note($"toggle-state:{toggle.value}:{toggle.text}:{toggle.label}:{toggle.ClassListContains(Toggle.ussClassName)}");
+            Notes.Note($"toggle-state:{toggle.value}:{toggle.text}:{toggle.label}:{toggle.ClassListContains(Toggle.hssClassName)}");
 
             var slider = new Slider("Volume", 0, 10);
             root.Add(slider);

@@ -25,8 +25,8 @@ or none).
 | `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheet` (.hss), `ThemeStyleSheet` (.tss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component and `UIPanelSettings`, the panels (shared by the views of one settings asset, scaled, sorted, drawn over the screen, into a render texture or in the world), `PanelInputConfiguration`, the image atlas, the cursor of the hovered element |
 | `Source/Helix.UI.Engine/Helix/UI/Engine/Controls.h`, `Fields.h`, `Containers.h` | The controls as C++ classes (bound to C# and the C++ script API): `TextElement`, `Label`, `Button`, `RepeatButton`, `Image`, `Box`, `GroupBox`, `HelpBox`, `PopupWindow`, `ProgressBar`; the fields over `AbstractBaseField` (`Toggle`, `RadioButton`, `RadioButtonGroup`, `ToggleButtonGroup`, `Slider`, `SliderInt`, `MinMaxSlider`, `TextField`, the number fields, the vector, rect and bounds fields, `Hash128Field`, `DropdownField`, `EnumField`, `MaskField`, `Mask64Field`); `Foldout`, `Scroller`, `ScrollView`, `TabView` and `Tab`, `TwoPaneSplitView` |
 | `Themes/HelixDefault.tss` | Helix's default runtime theme (built into the module): the controls' looks by their `helix-` classes, its variables on the panel's root |
-| `Source/Helix.UI.Engine/Helix/UI/Engine/Element.h` | `CallbackEventHandler`, `Focusable`, `Element`, `TemplateContainer`: the elements for scripts (C# and the C++ script API), made when a script first needs them; an element lives while it is in a tree or a script holds it; the element types of C# and C++ script classes |
-| `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` with their values (`Translate`, `Rotate`, `Scale`, `BackgroundSize`, `TextShadow`, `Cursor` ...), `customStyle`, `styleSheets`, `HxmlElement` and `HxmlAttribute`, `UITemplate.CloneTree`; the fields' generic bases (`BaseField<T>`, `BaseBoolField`, `BaseSlider<T>`, `TextInputBaseField<T>`, `TextValueField<T>`, `BaseCompositeField<,,>`, `BasePopupField<,>`, `PopupField<T>`, `BaseMaskField<T>`), `ChangeEvent<T>`, `InputEvent`, `INotifyValueChanged<T>`, `Clickable` and the manipulators, `RuntimePanelUtils`, `UIPanelSettings.SetScreenToPanelSpaceFunction` |
+| `Source/Helix.UI.Engine/Helix/UI/Engine/Element.h` | `CallbackEventHandler`, `Focusable`, `Element`, `TemplateContainer`, `VectorImage`: the elements for scripts (C# and the C++ script API), made when a script first needs them; an element lives while it is in a tree or a script holds it; the element types of C# and C++ script classes |
+| `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` with their values (`Translate`, `Rotate`, `Scale`, `BackgroundSize`, `TextShadow`, `Cursor` ...), `customStyle`, `styleSheets`, `HxmlElement` and `HxmlAttribute`, `UITemplate.CloneTree`; the fields' generic bases (`BaseField<T>`, `BaseBoolField`, `BaseSlider<T>`, `TextInputBaseField<T>`, `TextValueField<T>`, `BaseCompositeField<,,>`, `BasePopupField<,>`, `PopupField<T>`, `BaseMaskField<T>`), `ChangeEvent<T>`, `InputEvent`, `INotifyValueChanged<T>`, `Clickable` and the manipulators, `RuntimePanelUtils`, `UIPanelSettings.SetScreenToPanelSpaceFunction`; the collections (`ListView`, `TreeView`, `MultiColumnListView`, `MultiColumnTreeView`, their controllers, `Columns`, sorting), the menus (`DropdownMenu`, `GenericDropdownMenu`, `ContextualMenuManipulator`), `KeyboardNavigationManipulator`, the experimental animations (`ValueAnimation<T>`, `Easing`, `element.experimental.animation`), `generateVisualContent` with `MeshGenerationContext` and `Painter2D`, the data binding (`DataBinding`, `CustomBinding`, `ConverterGroups`) and `HelixEngine.Properties` (`PropertyPath`, `PropertyContainer`) |
 | `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
 | `Tests/Core/` | Tests of the core, with every case of the Unicode bidi and line break tests |
 | `Tests/Managed/` | C# tests run by the engine tests on the .NET host |
@@ -141,7 +141,8 @@ cameras, with any render pipeline or none, by the settings' sorting order, or in
 (cleared as they say). Settings of `renderMode` `WorldSpace` put each view's panel in the scene: a panel pixel is a
 unit of its GameObject's space, its `pivot` at the origin, its size its elements' or `worldSpaceSize`; the cameras
 draw it with the scene's transparent objects, depth tested, and elements turned in 3D (`rotate: x 30deg`,
-`rotate: 1 1 0 45deg`) show their depth. The views read the engine's input each frame without taking it away (a game
+`rotate: 1 1 0 45deg`) show their depth. A pipeline of linear targets (the Physical pipeline sets `_HelixLinearOutput`) gets the panel's
+colors made linear, as the scene's own. The views read the engine's input each frame without taking it away (a game
 keeps its input; `UIView::Pick` tells it whether a point is over a view): pointers go to the top-most screen panel
 with an element under them, else along the event cameras' rays to the nearest world space panel hit
 (`PanelInputConfiguration`), or through a texture panel's `SetScreenToPanelSpaceFunction`. `RuntimePanelUtils`
@@ -171,6 +172,64 @@ keeps its value in its native slots; what the user changes reaches its C# object
 (a value set from C# sends it there). Text fields edit with the keyboard, the pointer (a double click selects a word,
 a triple click the line), the clipboard (`GUIUtility.systemCopyBuffer`, the player's window) and the input method;
 popup fields open their menu over the panel.
+
+## Collections, menus and animations
+
+```xml
+<ListView name="inventory" fixed-item-height="22" show-foldout-header="true" header-title="Inventory"
+          show-add-remove-footer="true" reorderable="true" selection-type="Multiple"/>
+<MultiColumnListView name="assets" sorting-mode="Default" show-alternating-row-backgrounds="All"/>
+<Button text="Save" tooltip="Saves the file"/>
+```
+
+```csharp
+list.makeItem = () => new Label();
+list.bindItem = (e, i) => ((Label)e).text = items[i];
+list.itemsSource = items;                                     // 10 000 items: rows only for the ones in view
+tree.SetRootItems(new List<TreeViewItemData<string>> { new TreeViewItemData<string>(1, "Root", children) });
+table.columns.Add(new Column { name = "size", title = "Size", comparison = (a, b) => sizes[a].CompareTo(sizes[b]) });
+label.AddManipulator(new ContextualMenuManipulator(e => e.menu.AppendAction("Rename", _ => Rename())));
+element.experimental.animation.Start(0f, 1f, 400, (e, v) => e.style.opacity = v).Ease(Easing.OutCubic);
+```
+
+The collection views are C# (their items, factories and binders are C# objects) over the native `ScrollView`: a pool
+of rows for the items in view, of a fixed height or of each row's own (`DynamicHeight`), single or multiple
+selection with the pointer and the keyboard, rows reordered by dragging, a list's foldout header and add/remove
+footer, a tree's expansion, columns that sort, resize and hide from their header's menu. `ContextualMenuManipulator`
+opens a `DropdownMenu` built by `ContextualMenuPopulateEvent` (a right click, the menu key or Shift+F10) as a
+`GenericDropdownMenu`, whose items the keyboard walks; an element's `tooltip` shows after the mouse rests on it for
+half a second. Animations run on the element's scheduler.
+
+## Painting and data binding
+
+```csharp
+chart.generateVisualContent = ctx =>
+{
+    Painter2D p = ctx.painter2D;
+    p.fillColor = Color.red;
+    p.BeginPath(); p.MoveTo(new Vector2(0, 40)); p.LineTo(new Vector2(20, 0)); p.LineTo(new Vector2(40, 40));
+    p.ClosePath(); p.Fill();
+    ctx.DrawText("Score", new Vector2(4, 4), 12, Color.white);
+};
+page.dataSource = character;                                  // its children bind to its members by path
+label.SetBinding("text", new DataBinding { dataSourcePath = new PropertyPath("stats.level"), bindingMode = BindingMode.ToTarget });
+```
+
+```xml
+<Element data-source-path="stats">
+  <IntegerField label="Strength">
+    <Bindings><DataBinding property="value" data-source-path="strength" source-to-ui-converters="clamped"/></Bindings>
+  </IntegerField>
+</Element>
+```
+
+`generateVisualContent` draws into the panel's geometry while it is drawn: `painter2D` (paths of lines, arcs and
+Bezier curves, filled by a fill rule or stroked with joins, caps and a gradient), meshes of `Allocate`, text and
+`VectorImage`s (a painter's paths kept, `Painter2D.SaveToVectorImage`). A binding takes its data source from the
+element or its ancestors (`dataSource`, `dataSourcePath`), reads and writes members along a `PropertyPath` by
+reflection (public members, `[CreateProperty]`, `[SerializeField]`), converts through the global converters and
+its `ConverterGroup`s, and updates when the source tells of a change (`INotifyBindablePropertyChanged`), when its
+view hash changes or every frame; `TwoWay` bindings write the control's changes back.
 
 ## Element types of scripts
 

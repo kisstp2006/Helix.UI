@@ -716,6 +716,7 @@ namespace HelixEngine.UI
             try
             {
                 Scheduler.Tick((long)(time * 1000.0));
+                DataBindings.Tick();
             }
             catch (Exception ex)
             {

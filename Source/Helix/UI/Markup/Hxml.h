@@ -59,6 +59,21 @@ namespace helix::ui
     void UnregisterElementType(Atom name);
     const ElementType* FindElementType(Atom name);
 
+    // Registers (or replaces) an attribute every element takes, read by the layer that keeps it (such as tooltip);
+    // the handler returns false for a value it cannot read.
+    void RegisterCommonAttribute(StringView name, AttributeHandler apply);
+
+    // What the markup says of an element's data binding, for the scripts to take: a binding of <Bindings> (its type,
+    // such as DataBinding, and its attributes), or the element's data-source-path and data-source-type (the type
+    // "#data-source").
+    struct HxmlBinding
+    {
+        ElementHandle element;
+        Atom type = kNoAtom;
+        Array<HxmlAttribute> attributes = Array<HxmlAttribute>();
+    };
+    Array<HxmlBinding>& PendingMarkupBindings();
+
     struct HxmlNode
     {
         // Element types, or the markup's own Style, Template, Instance and AttributeOverrides.

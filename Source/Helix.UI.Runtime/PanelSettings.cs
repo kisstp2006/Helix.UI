@@ -90,3 +90,22 @@ namespace HelixEngine.UI
         }
     }
 }
+
+namespace HelixEngine.UI
+{
+    public partial class PanelInputConfiguration
+    {
+        public enum PanelInputRedirection
+        {
+            AutoRedirect = 0,
+            Never = 1,
+            AlwaysRedirect = 2,
+        }
+
+        public PanelInputRedirection panelInputRedirection
+        {
+            get => (PanelInputRedirection)PanelInputRedirectionInternal();
+            set => SetPanelInputRedirectionInternal((int)value);
+        }
+    }
+}

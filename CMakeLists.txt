@@ -76,7 +76,8 @@ set(ui_bound_headers "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix/UI/Elements/Eleme
     "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h" "${ui_engine_source}/Helix/UI/Engine/UIView.h"
     "${ui_engine_source}/Helix/UI/Engine/TemplateContainer.h" "${ui_engine_source}/Helix/UI/Engine/UIPanelSettings.h"
     "${ui_engine_source}/Helix/UI/Engine/PanelInputConfiguration.h" "${ui_engine_source}/Helix/UI/Engine/Controls.h"
-    "${ui_engine_source}/Helix/UI/Engine/Fields.h" "${ui_engine_source}/Helix/UI/Engine/Containers.h")
+    "${ui_engine_source}/Helix/UI/Engine/Fields.h" "${ui_engine_source}/Helix/UI/Engine/Containers.h"
+    "${ui_engine_source}/Helix/UI/Engine/VectorImage.h")
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
     "${engine_source}/Helix/Engine/GameObject/GameObject.h" "${engine_source}/Helix/Engine/Script/GameBehaviour.h"
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"

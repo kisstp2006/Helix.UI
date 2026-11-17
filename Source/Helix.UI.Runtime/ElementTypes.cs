@@ -70,6 +70,8 @@ namespace HelixEngine.UI
             delegate* unmanaged[Cdecl]<ulong, byte*, int, int> name = &NameOf;
             ((delegate* unmanaged[Cdecl]<void*, void*, void>)factory)(create, name);
             ScriptBridge.OnAssembly(Scan);
+            // The UI's own element classes (the collections) too.
+            Scan(typeof(ElementTypes).Assembly);
         }
 
         static void Scan(Assembly assembly)

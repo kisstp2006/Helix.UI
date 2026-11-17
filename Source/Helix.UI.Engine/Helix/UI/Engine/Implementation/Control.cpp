@@ -17,6 +17,32 @@ namespace helix::ui
 
         void SetControlNotify(void* function) { managedNotify = std::bit_cast<ManagedNotify>(function); }
 
+        // The markup's bindings to the C# side: each element's handle, its binding type and attributes packed as
+        // zero ended strings (type, then name and value pairs).
+        using MarkupBindingTaker = void (*)(u32 index, u32 generation, const char* packed, i32 length);
+
+        void TakeMarkupBindings(void* function)
+        {
+            auto take = std::bit_cast<MarkupBindingTaker>(function);
+            Array<HxmlBinding> pending = Move(PendingMarkupBindings());
+            PendingMarkupBindings().Clear();
+            for (const HxmlBinding& b : pending)
+            {
+                if (!ElementWorld::Main().tree().IsAlive(b.element))
+                    continue;
+                String packed(AtomName(b.type));
+                packed += '\0';
+                for (const HxmlAttribute& a : b.attributes)
+                {
+                    packed += AtomName(a.name);
+                    packed += '\0';
+                    packed += a.value.View();
+                    packed += '\0';
+                }
+                take(b.element.index, b.element.generation, packed.Data(), i32(packed.Size()));
+            }
+        }
+
         struct Ticking
         {
             ElementHandle element;
@@ -31,7 +57,11 @@ namespace helix::ui
 
         struct ExportRegistrar
         {
-            ExportRegistrar() { scripting::RegisterNativeExport("HelixUI.SetControlNotify", std::bit_cast<const void*>(&SetControlNotify)); }
+            ExportRegistrar()
+            {
+                scripting::RegisterNativeExport("HelixUI.SetControlNotify", std::bit_cast<const void*>(&SetControlNotify));
+                scripting::RegisterNativeExport("HelixUI.TakeMarkupBindings", std::bit_cast<const void*>(&TakeMarkupBindings));
+            }
         } registrar;
     }
 
@@ -120,6 +150,9 @@ namespace helix::ui
 
     void TickControls(f64 time)
     {
+        // Without a C# side the markup's bindings have no one to take them.
+        if (!managedNotify)
+            PendingMarkupBindings().Clear();
         Array<Ticking>& ticks = Ticks();
         ElementWorld& world = ElementWorld::Main();
         for (usize i = 0; i < ticks.Size();)

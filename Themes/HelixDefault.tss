@@ -780,3 +780,176 @@
 .helix-two-pane-split-view__dragline-anchor:active .helix-two-pane-split-view__dragline {
     background-color: var(--helix-color-accent);
 }
+
+/* ------------------------------------------------------------------------------------------------- collections */
+
+.helix-collection-view {
+    flex-grow: 1;
+    min-height: 40px;
+}
+
+.helix-collection-view--with-border {
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+}
+
+.helix-collection-view__scroll-view {
+    flex-grow: 1;
+}
+
+.helix-collection-view__item {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 4px 0 4px;
+}
+
+.helix-collection-view__item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.helix-collection-view__item--alternative-background {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.helix-collection-view__item--selected,
+.helix-collection-view__item--selected:hover {
+    background-color: var(--helix-color-selection);
+}
+
+.helix-collection-view__drag-hover-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--helix-color-accent);
+}
+
+.helix-list-view__empty-label {
+    padding: 4px;
+    color: var(--helix-color-text-dim);
+}
+
+.helix-list-view__foldout-header .helix-foldout__toggle {
+    flex-grow: 1;
+}
+
+.helix-list-view__size-field {
+    width: 60px;
+    min-width: 60px;
+    margin-left: auto;
+}
+
+.helix-list-view__footer {
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+.helix-list-view__footer .helix-button {
+    min-width: 24px;
+    padding: 0 6px 0 6px;
+}
+
+.helix-tree-view__item {
+    flex-grow: 1;
+}
+
+.helix-tree-view__item-toggle {
+    margin: 0;
+    min-height: 0;
+}
+
+.helix-tree-view__item-toggle .helix-toggle__checkmark {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    margin: 0 6px 0 4px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0 2px 2px 0;
+    border-color: var(--helix-color-text-dim);
+    border-radius: 0;
+    rotate: -45deg;
+}
+
+.helix-tree-view__item-toggle:checked .helix-toggle__checkmark {
+    rotate: 45deg;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.helix-tree-view__item-content {
+    flex-grow: 1;
+}
+
+.helix-multi-column-header {
+    background-color: var(--helix-color-box);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--helix-color-control-border);
+}
+
+.helix-multi-column-header__column {
+    align-items: center;
+    padding: 2px 4px 2px 4px;
+    border-right-width: 1px;
+    border-right-color: var(--helix-color-control-border);
+}
+
+.helix-multi-column-header__column:hover {
+    background-color: var(--helix-color-control);
+}
+
+.helix-multi-column-header__column-title {
+    -helix-font-style: bold;
+    padding: 0;
+}
+
+.helix-multi-column-header__column-sort-indicator {
+    padding: 0 2px 0 2px;
+    color: var(--helix-color-accent);
+}
+
+.helix-multi-column-header__column-resize-handle {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: resize-horizontal;
+}
+
+.helix-multi-column-view__row-container {
+    flex-grow: 1;
+}
+
+.helix-multi-column-view__cell {
+    padding: 0 4px 0 4px;
+    overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------------------- menus and tooltips */
+
+.helix-base-dropdown__separator {
+    height: 1px;
+    margin: 3px 0 3px 0;
+    background-color: var(--helix-color-control-border);
+}
+
+.helix-base-dropdown__item--highlighted {
+    background-color: var(--helix-color-accent);
+}
+
+.helix-base-dropdown__item--checked .helix-base-dropdown__checkmark {
+    border-color: var(--helix-color-text);
+}
+
+.helix-base-dropdown__item:disabled .helix-base-dropdown__label {
+    color: var(--helix-color-text-disabled);
+}
+
+.helix-tooltip {
+    padding: 3px 6px 3px 6px;
+    background-color: rgb(24, 25, 30);
+    border-width: 1px;
+    border-color: var(--helix-color-control-border);
+    border-radius: var(--helix-radius);
+    font-size: 12px;
+}

@@ -161,16 +161,33 @@ namespace HelixEngine.UI
         MiddleMouse = 2,
     }
 
-    public abstract class PointerManipulator : Manipulator
+    // A manipulator started by the mouse buttons (and modifiers) of its activators.
+    public abstract class MouseManipulator : Manipulator
     {
         public List<ManipulatorActivationFilter> activators { get; } = new List<ManipulatorActivationFilter>();
 
+        static bool Matches(ManipulatorActivationFilter a, int button, EventModifiers modifiers, int clickCount) =>
+            (int)a.button == button && (a.modifiers == EventModifiers.None || (modifiers & a.modifiers) == a.modifiers) && (a.clickCount <= 0 || a.clickCount == clickCount);
+
+        protected bool CanStartManipulation(IMouseEvent e)
+        {
+            if (activators.Count == 0)
+                return e.button == 0;
+            return activators.Exists(a => Matches(a, e.button, e.modifiers, e.clickCount));
+        }
+
+        protected bool CanStopManipulation(IMouseEvent e) => e != null && (activators.Count == 0 || activators.Exists(a => (int)a.button == e.button));
+    }
+
+    public abstract class PointerManipulator : MouseManipulator
+    {
         protected bool CanStartManipulation(IPointerEvent e)
         {
             if (activators.Count == 0)
                 return e.button == 0;
             foreach (ManipulatorActivationFilter a in activators)
-                if ((int)a.button == e.button && (a.modifiers == EventModifiers.None || (e.modifiers & a.modifiers) == a.modifiers))
+                if ((int)a.button == e.button && (a.modifiers == EventModifiers.None || (e.modifiers & a.modifiers) == a.modifiers) &&
+                    (a.clickCount <= 0 || a.clickCount == e.clickCount))
                     return true;
             return false;
         }
@@ -187,7 +204,7 @@ namespace HelixEngine.UI
         readonly long m_Delay, m_Interval;
         internal bool m_Native;
         int m_Pointer = -1;
-        IVisualElementScheduledItem m_Repeater;
+        IElementScheduledItem m_Repeater;
 
         public Clickable(Action handler, long delay, long interval)
         {
@@ -272,7 +289,7 @@ namespace HelixEngine.UI
         }
     }
 
-    public static class VisualElementExtensions
+    public static class ElementExtensions
     {
         public static void AddManipulator(this Element ele, IManipulator manipulator)
         {
@@ -291,20 +308,20 @@ namespace HelixEngine.UI
 
     public partial class TextElement
     {
-        public static readonly string ussClassName = "helix-text-element";
+        public static readonly string hssClassName = "helix-text-element";
         public TextElement(string text) : this() { this.text = text; }
     }
 
     public partial class Label
     {
-        public new static readonly string ussClassName = "helix-label";
+        public new static readonly string hssClassName = "helix-label";
     }
 
     public partial class Button
     {
-        public new static readonly string ussClassName = "helix-button";
-        public static readonly string iconUssClassName = ussClassName + "--with-icon";
-        public static readonly string imageUSSClassName = ussClassName + "__image";
+        public new static readonly string hssClassName = "helix-button";
+        public static readonly string iconHssClassName = hssClassName + "--with-icon";
+        public static readonly string imageHSSClassName = hssClassName + "__image";
         Clickable m_Clickable;
 
         public Button(Action clickEvent) : this() { clicked += clickEvent; }
@@ -342,7 +359,7 @@ namespace HelixEngine.UI
 
     public partial class RepeatButton
     {
-        public new static readonly string ussClassName = "helix-repeat-button";
+        public new static readonly string hssClassName = "helix-repeat-button";
 
         public RepeatButton(Action clickEvent, long delay, long interval) : this() { SetAction(clickEvent, delay, interval); }
 
@@ -356,56 +373,56 @@ namespace HelixEngine.UI
 
     public partial class Image
     {
-        public static readonly string ussClassName = "helix-image";
+        public static readonly string hssClassName = "helix-image";
     }
 
     public partial class Box
     {
-        public static readonly string ussClassName = "helix-box";
+        public static readonly string hssClassName = "helix-box";
     }
 
     public partial class GroupBox
     {
-        public static readonly string ussClassName = "helix-group-box";
-        public static readonly string labelUssClassName = ussClassName + "__label";
+        public static readonly string hssClassName = "helix-group-box";
+        public static readonly string labelHssClassName = hssClassName + "__label";
     }
 
     public partial class HelpBox
     {
-        public static readonly string ussClassName = "helix-help-box";
-        public static readonly string labelUssClassName = ussClassName + "__label";
-        public static readonly string iconUssClassName = ussClassName + "__icon";
-        public static readonly string iconInfoUssClassName = "helix-icon-info";
-        public static readonly string iconwarningUssClassName = "helix-icon-warning";
-        public static readonly string iconErrorUssClassName = "helix-icon-error";
+        public static readonly string hssClassName = "helix-help-box";
+        public static readonly string labelHssClassName = hssClassName + "__label";
+        public static readonly string iconHssClassName = hssClassName + "__icon";
+        public static readonly string iconInfoHssClassName = "helix-icon-info";
+        public static readonly string iconwarningHssClassName = "helix-icon-warning";
+        public static readonly string iconErrorHssClassName = "helix-icon-error";
     }
 
     public partial class ProgressBar
     {
-        public static readonly string ussClassName = "helix-progress-bar";
-        public static readonly string containerUssClassName = ussClassName + "__container";
-        public static readonly string titleUssClassName = ussClassName + "__title";
-        public static readonly string titleContainerUssClassName = ussClassName + "__title-container";
-        public static readonly string progressUssClassName = ussClassName + "__progress";
-        public static readonly string backgroundUssClassName = ussClassName + "__background";
+        public static readonly string hssClassName = "helix-progress-bar";
+        public static readonly string containerHssClassName = hssClassName + "__container";
+        public static readonly string titleHssClassName = hssClassName + "__title";
+        public static readonly string titleContainerHssClassName = hssClassName + "__title-container";
+        public static readonly string progressHssClassName = hssClassName + "__progress";
+        public static readonly string backgroundHssClassName = hssClassName + "__background";
     }
 
     public partial class PopupWindow
     {
-        public new static readonly string ussClassName = "helix-popup-window";
-        public static readonly string contentUssClassName = ussClassName + "__content-container";
+        public new static readonly string hssClassName = "helix-popup-window";
+        public static readonly string contentHssClassName = hssClassName + "__content-container";
     }
 
     // ------------------------------------------------------------------------------------------ the containers
 
     public partial class Foldout : INotifyValueChanged<bool>
     {
-        public static readonly string ussClassName = "helix-foldout";
-        public static readonly string toggleUssClassName = ussClassName + "__toggle";
-        public static readonly string contentUssClassName = ussClassName + "__content";
-        public static readonly string inputUssClassName = ussClassName + "__input";
-        public static readonly string checkmarkUssClassName = ussClassName + "__checkmark";
-        public static readonly string textUssClassName = ussClassName + "__text";
+        public static readonly string hssClassName = "helix-foldout";
+        public static readonly string toggleHssClassName = hssClassName + "__toggle";
+        public static readonly string contentHssClassName = hssClassName + "__content";
+        public static readonly string inputHssClassName = hssClassName + "__input";
+        public static readonly string checkmarkHssClassName = hssClassName + "__checkmark";
+        public static readonly string textHssClassName = hssClassName + "__text";
 
         internal override void OnControlNotify(int what)
         {
@@ -419,12 +436,12 @@ namespace HelixEngine.UI
 
     public partial class Scroller
     {
-        public static readonly string ussClassName = "helix-scroller";
-        public static readonly string horizontalVariantUssClassName = ussClassName + "--horizontal";
-        public static readonly string verticalVariantUssClassName = ussClassName + "--vertical";
-        public static readonly string sliderUssClassName = ussClassName + "__slider";
-        public static readonly string lowButtonUssClassName = ussClassName + "__low-button";
-        public static readonly string highButtonUssClassName = ussClassName + "__high-button";
+        public static readonly string hssClassName = "helix-scroller";
+        public static readonly string horizontalVariantHssClassName = hssClassName + "--horizontal";
+        public static readonly string verticalVariantHssClassName = hssClassName + "--vertical";
+        public static readonly string sliderHssClassName = hssClassName + "__slider";
+        public static readonly string lowButtonHssClassName = hssClassName + "__low-button";
+        public static readonly string highButtonHssClassName = hssClassName + "__high-button";
         Action<float> m_ValueChanged;
 
         public Scroller(float lowValue, float highValue, Action<float> valueChanged, SliderDirection direction = SliderDirection.Vertical) : this()
@@ -454,18 +471,18 @@ namespace HelixEngine.UI
 
     public partial class ScrollView
     {
-        public static readonly string ussClassName = "helix-scroll-view";
-        public static readonly string viewportUssClassName = ussClassName + "__content-viewport";
-        public static readonly string contentUssClassName = ussClassName + "__content-container";
-        public static readonly string hScrollerUssClassName = ussClassName + "__horizontal-scroller";
-        public static readonly string vScrollerUssClassName = ussClassName + "__vertical-scroller";
+        public static readonly string hssClassName = "helix-scroll-view";
+        public static readonly string viewportHssClassName = hssClassName + "__content-viewport";
+        public static readonly string contentHssClassName = hssClassName + "__content-container";
+        public static readonly string hScrollerHssClassName = hssClassName + "__horizontal-scroller";
+        public static readonly string vScrollerHssClassName = hssClassName + "__vertical-scroller";
     }
 
     public partial class TabView
     {
-        public static readonly string ussClassName = "helix-tab-view";
-        public static readonly string headerContainerClassName = ussClassName + "__header-container";
-        public static readonly string contentContainerUssClassName = ussClassName + "__content-container";
+        public static readonly string hssClassName = "helix-tab-view";
+        public static readonly string headerContainerClassName = hssClassName + "__header-container";
+        public static readonly string contentContainerHssClassName = hssClassName + "__content-container";
         Action<Tab, Tab> m_ActiveTabChanged;
 
         public event Action<Tab, Tab> activeTabChanged
@@ -487,18 +504,18 @@ namespace HelixEngine.UI
 
     public partial class Tab
     {
-        public static readonly string ussClassName = "helix-tab";
-        public static readonly string tabHeaderUssClassName = ussClassName + "__header";
-        public static readonly string tabHeaderLabelUssClassName = tabHeaderUssClassName + "-label";
-        public static readonly string contentUssClassName = ussClassName + "__content-container";
+        public static readonly string hssClassName = "helix-tab";
+        public static readonly string tabHeaderHssClassName = hssClassName + "__header";
+        public static readonly string tabHeaderLabelHssClassName = tabHeaderHssClassName + "-label";
+        public static readonly string contentHssClassName = hssClassName + "__content-container";
     }
 
     public partial class TwoPaneSplitView
     {
-        public static readonly string ussClassName = "helix-two-pane-split-view";
-        public static readonly string contentContainerClassName = ussClassName + "__content-container";
-        public static readonly string horizontalClassName = ussClassName + "--horizontal";
-        public static readonly string verticalClassName = ussClassName + "--vertical";
+        public static readonly string hssClassName = "helix-two-pane-split-view";
+        public static readonly string contentContainerClassName = hssClassName + "__content-container";
+        public static readonly string horizontalClassName = hssClassName + "--horizontal";
+        public static readonly string verticalClassName = hssClassName + "--vertical";
     }
 
     // ---------------------------------------------------------------------------------------------- the fields
@@ -506,13 +523,13 @@ namespace HelixEngine.UI
     // A field's value: the native field's slots (each base's layout) or, for a field only C# knows, its own.
     public abstract class BaseField<TValueType> : AbstractBaseField, INotifyValueChanged<TValueType>
     {
-        public static readonly string ussClassName = "helix-base-field";
-        public static readonly string labelUssClassName = ussClassName + "__label";
-        public static readonly string inputUssClassName = ussClassName + "__input";
-        public static readonly string noLabelVariantUssClassName = ussClassName + "--no-label";
-        public static readonly string labelDraggerVariantUssClassName = labelUssClassName + "--with-dragger";
-        public static readonly string mixedValueLabelUssClassName = labelUssClassName + "--mixed-value";
-        public static readonly string alignedFieldUssClassName = ussClassName + "__aligned";
+        public static readonly string hssClassName = "helix-base-field";
+        public static readonly string labelHssClassName = hssClassName + "__label";
+        public static readonly string inputHssClassName = hssClassName + "__input";
+        public static readonly string noLabelVariantHssClassName = hssClassName + "--no-label";
+        public static readonly string labelDraggerVariantHssClassName = labelHssClassName + "--with-dragger";
+        public static readonly string mixedValueLabelHssClassName = labelHssClassName + "--mixed-value";
+        public static readonly string alignedFieldHssClassName = hssClassName + "__aligned";
         TValueType m_Value, m_Previous;
 
         protected internal BaseField(ObjectId id) : base(id) { }
@@ -599,24 +616,24 @@ namespace HelixEngine.UI
 
     public partial class Toggle
     {
-        public new static readonly string ussClassName = "helix-toggle";
-        public static readonly string checkmarkUssClassName = ussClassName + "__checkmark";
-        public static readonly string textUssClassName = ussClassName + "__text";
+        public new static readonly string hssClassName = "helix-toggle";
+        public static readonly string checkmarkHssClassName = hssClassName + "__checkmark";
+        public static readonly string textHssClassName = hssClassName + "__text";
         public Toggle(string label) : this() { this.label = label; }
     }
 
     public partial class RadioButton
     {
-        public new static readonly string ussClassName = "helix-radio-button";
-        public static readonly string checkmarkBackgroundUssClassName = ussClassName + "__checkmark-background";
-        public static readonly string checkmarkUssClassName = ussClassName + "__checkmark";
-        public static readonly string textUssClassName = ussClassName + "__text";
+        public new static readonly string hssClassName = "helix-radio-button";
+        public static readonly string checkmarkBackgroundHssClassName = hssClassName + "__checkmark-background";
+        public static readonly string checkmarkHssClassName = hssClassName + "__checkmark";
+        public static readonly string textHssClassName = hssClassName + "__text";
         public RadioButton(string label) : this() { this.label = label; }
     }
 
     public partial class RadioButtonGroup
     {
-        public new static readonly string ussClassName = "helix-radio-button-group";
+        public new static readonly string hssClassName = "helix-radio-button-group";
 
         public RadioButtonGroup(string label, List<string> radioButtonsChoices = null) : this()
         {
@@ -700,9 +717,9 @@ namespace HelixEngine.UI
 
     public partial class ToggleButtonGroup
     {
-        public new static readonly string ussClassName = "helix-toggle-button-group";
-        public static readonly string containerUssClassName = ussClassName + "__container";
-        public static readonly string buttonGroupClassName = ussClassName + "__button";
+        public new static readonly string hssClassName = "helix-toggle-button-group";
+        public static readonly string containerHssClassName = hssClassName + "__container";
+        public static readonly string buttonGroupClassName = hssClassName + "__button";
 
         public ToggleButtonGroup(string label) : this() { this.label = label; }
 
@@ -733,13 +750,13 @@ namespace HelixEngine.UI
 
     public abstract class BaseSlider<TValueType> : BaseField<TValueType> where TValueType : IComparable<TValueType>
     {
-        public new static readonly string ussClassName = "helix-base-slider";
-        public static readonly string horizontalVariantUssClassName = ussClassName + "--horizontal";
-        public static readonly string verticalVariantUssClassName = ussClassName + "--vertical";
-        public static readonly string dragContainerUssClassName = ussClassName + "__drag-container";
-        public static readonly string trackerUssClassName = ussClassName + "__tracker";
-        public static readonly string draggerUssClassName = ussClassName + "__dragger";
-        public static readonly string fillUssClassName = ussClassName + "__fill";
+        public new static readonly string hssClassName = "helix-base-slider";
+        public static readonly string horizontalVariantHssClassName = hssClassName + "--horizontal";
+        public static readonly string verticalVariantHssClassName = hssClassName + "--vertical";
+        public static readonly string dragContainerHssClassName = hssClassName + "__drag-container";
+        public static readonly string trackerHssClassName = hssClassName + "__tracker";
+        public static readonly string draggerHssClassName = hssClassName + "__dragger";
+        public static readonly string fillHssClassName = hssClassName + "__fill";
 
         protected internal BaseSlider(ObjectId id) : base(id) { }
 
@@ -809,7 +826,7 @@ namespace HelixEngine.UI
 
     public partial class Slider
     {
-        public new static readonly string ussClassName = "helix-slider";
+        public new static readonly string hssClassName = "helix-slider";
 
         public Slider(float start, float end, SliderDirection direction = SliderDirection.Horizontal, float pageSize = 0) : this()
         {
@@ -828,7 +845,7 @@ namespace HelixEngine.UI
 
     public partial class SliderInt
     {
-        public new static readonly string ussClassName = "helix-slider-int";
+        public new static readonly string hssClassName = "helix-slider-int";
 
         public SliderInt(int start, int end, SliderDirection direction = SliderDirection.Horizontal, float pageSize = 0) : this()
         {
@@ -847,7 +864,7 @@ namespace HelixEngine.UI
 
     public partial class MinMaxSlider
     {
-        public new static readonly string ussClassName = "helix-min-max-slider";
+        public new static readonly string hssClassName = "helix-min-max-slider";
 
         public MinMaxSlider(float minValue, float maxValue, float minLimit, float maxLimit) : this()
         {
@@ -905,11 +922,11 @@ namespace HelixEngine.UI
 
     public abstract class TextInputBaseField<TValueType> : BaseField<TValueType>
     {
-        public new static readonly string ussClassName = "helix-base-text-field";
-        public static readonly string textInputUssName = "helix-text-input";
-        public new static readonly string inputUssClassName = ussClassName + "__input";
+        public new static readonly string hssClassName = "helix-base-text-field";
+        public static readonly string textInputHssName = "helix-text-input";
+        public new static readonly string inputHssClassName = hssClassName + "__input";
         public static readonly string innerComponentsModifierName = "--inner-input-field-component";
-        public static readonly string innerTextElementUssClassName = TextElement.ussClassName + innerComponentsModifierName;
+        public static readonly string innerTextElementHssClassName = TextElement.hssClassName + innerComponentsModifierName;
 
         protected internal TextInputBaseField(ObjectId id) : base(id) { }
 
@@ -943,8 +960,8 @@ namespace HelixEngine.UI
 
     public partial class TextField
     {
-        public new static readonly string ussClassName = "helix-text-field";
-        public new static readonly string inputUssClassName = ussClassName + "__input";
+        public new static readonly string hssClassName = "helix-text-field";
+        public new static readonly string inputHssClassName = hssClassName + "__input";
 
         public TextField(string label) : this() { this.label = label; }
 
@@ -1055,13 +1072,13 @@ namespace HelixEngine.UI
 
     public abstract class BaseCompositeField<TValueType, TField, TFieldValue> : BaseField<TValueType> where TField : TextValueField<TFieldValue>, new()
     {
-        public new static readonly string ussClassName = "helix-composite-field";
-        public static readonly string spacerUssClassName = ussClassName + "__field-spacer";
-        public static readonly string multilineVariantUssClassName = ussClassName + "--multi-line";
-        public static readonly string fieldGroupUssClassName = ussClassName + "__field-group";
-        public static readonly string fieldUssClassName = ussClassName + "__field";
-        public static readonly string firstFieldVariantUssClassName = fieldUssClassName + "--first";
-        public static readonly string twoLinesVariantUssClassName = ussClassName + "--two-lines";
+        public new static readonly string hssClassName = "helix-composite-field";
+        public static readonly string spacerHssClassName = hssClassName + "__field-spacer";
+        public static readonly string multilineVariantHssClassName = hssClassName + "--multi-line";
+        public static readonly string fieldGroupHssClassName = hssClassName + "__field-group";
+        public static readonly string fieldHssClassName = hssClassName + "__field";
+        public static readonly string firstFieldVariantHssClassName = fieldHssClassName + "--first";
+        public static readonly string twoLinesVariantHssClassName = hssClassName + "--two-lines";
 
         protected internal BaseCompositeField(ObjectId id) : base(id) { }
 
@@ -1141,11 +1158,11 @@ namespace HelixEngine.UI
     // A field that picks its value from a menu of choices (their text in the native menu).
     public abstract class BasePopupField<TValueType, TValueChoice> : BaseField<TValueType>
     {
-        public new static readonly string ussClassName = "helix-base-popup-field";
-        public static readonly string textUssClassName = ussClassName + "__text";
-        public static readonly string arrowUssClassName = ussClassName + "__arrow";
-        public new static readonly string labelUssClassName = ussClassName + "__label";
-        public new static readonly string inputUssClassName = ussClassName + "__input";
+        public new static readonly string hssClassName = "helix-base-popup-field";
+        public static readonly string textHssClassName = hssClassName + "__text";
+        public static readonly string arrowHssClassName = hssClassName + "__arrow";
+        public new static readonly string labelHssClassName = hssClassName + "__label";
+        public new static readonly string inputHssClassName = hssClassName + "__input";
         internal List<TValueChoice> m_Choices;
 
         protected internal BasePopupField(ObjectId id) : base(id) { }
@@ -1175,7 +1192,7 @@ namespace HelixEngine.UI
 
     public class PopupField<T> : BasePopupField<T, T>
     {
-        public new static readonly string ussClassName = "helix-popup-field";
+        public new static readonly string hssClassName = "helix-popup-field";
         public Func<T, string> formatSelectedValueCallback { get; set; }
         public Func<T, string> formatListItemCallback { get; set; }
 
@@ -1293,7 +1310,7 @@ namespace HelixEngine.UI
 
     public partial class EnumField
     {
-        public new static readonly string ussClassName = "helix-enum-field";
+        public new static readonly string hssClassName = "helix-enum-field";
         Type m_EnumType;
         Array m_Values;
 
@@ -1390,7 +1407,7 @@ namespace HelixEngine.UI
 
     public partial class MaskField
     {
-        public new static readonly string ussClassName = "helix-mask-field";
+        public new static readonly string hssClassName = "helix-mask-field";
         public MaskField(string label) : this() { this.label = label; }
 
         public MaskField(List<string> choices, int defaultMask, Func<string, string> formatSelectedValueCallback = null,
@@ -1409,7 +1426,7 @@ namespace HelixEngine.UI
 
     public partial class Mask64Field
     {
-        public new static readonly string ussClassName = "helix-mask64-field";
+        public new static readonly string hssClassName = "helix-mask64-field";
         public Mask64Field(string label) : this() { this.label = label; }
 
         public Mask64Field(List<string> choices, ulong defaultMask, Func<string, string> formatSelectedValueCallback = null,

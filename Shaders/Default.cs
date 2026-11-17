@@ -25,6 +25,14 @@ public sealed class Default : ShaderDefinition
     [Property("Texture 3"), DefaultTexture("white")] public Texture2D<float4> _Tex3;
     // The depth test (the reference's CompareFunction): always over the screen, less or equal in the world.
     [Property("Depth Test"), Default(8.0f)] public float _UIZTest;
+    // 1 where the target holds linear colors (a world space panel under a linear pipeline): the colors (sRGB) are
+    // made linear, the panel's white the scene's paper white.
+    [Property("Linear Output"), Default(0.0f)] public float _UILinear;
+
+    public struct MaterialData
+    {
+        public float _UILinear;
+    }
 
     public struct Varyings
     {
@@ -48,6 +56,9 @@ public sealed class Default : ShaderDefinition
         [Texture(2)] public static Texture2D<float4> _Tex2;
         [Texture(3)] public static Texture2D<float4> _Tex3;
         [Sampler(0)] public static SamplerState sampler0;
+        [Uniform(0)] public static MaterialData material;
+
+        static float ToLinear(float c) => c <= 0.04045f ? c / 12.92f : Pow((c + 0.055f) / 1.055f, 2.4f);
 
         [VertexShader]
         public static Varyings Vertex([Location(VertexInputs.Position)] float3 position, [Location(VertexInputs.Color)] float4 color,
@@ -159,6 +170,11 @@ public sealed class Default : ShaderDefinition
             float2 size = new float2(input.size.x, input.size.y);
             float coverage = 1.0f;
             float4 color = input.color;
+            if (material._UILinear > 0.5f)
+            {
+                float a = Max(color.w, 1e-5f);
+                color = new float4(ToLinear(color.x / a) * a, ToLinear(color.y / a) * a, ToLinear(color.z / a) * a, color.w);
+            }
             if (kind < 0.5f)
                 coverage = 1.0f;
             else if (kind > 4.5f && kind < 5.5f)
