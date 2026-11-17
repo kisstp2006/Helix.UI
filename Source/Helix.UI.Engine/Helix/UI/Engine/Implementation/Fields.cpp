@@ -179,13 +179,49 @@ namespace helix::ui
         previousString_ = string_;
     }
 
+    void AbstractBaseField::SetIntegerByScript(i32 slot, i64 value)
+    {
+        i64 before = IntegerInternal(slot);
+        SetIntegerInternal(slot, value);
+        if (IntegerInternal(slot) != before)
+        {
+            NotifyControl(handle(), ControlNotify::ValueChanged);
+            valueChanged_.Invoke();
+        }
+    }
+
+    void AbstractBaseField::SetNumberByScript(i32 slot, f64 value)
+    {
+        f64 before = NumberInternal(slot);
+        SetNumberInternal(slot, value);
+        if (NumberInternal(slot) != before)
+        {
+            NotifyControl(handle(), ControlNotify::ValueChanged);
+            valueChanged_.Invoke();
+        }
+    }
+
+    void AbstractBaseField::SetStringByScript(StringView value)
+    {
+        String before = StringInternal();
+        SetStringInternal(value);
+        if (StringInternal().View() != before.View())
+        {
+            NotifyControl(handle(), ControlNotify::ValueChanged);
+            valueChanged_.Invoke();
+        }
+    }
+
     void AbstractBaseField::ChangedByInput()
     {
         ShowValue();
         if (onChange_)
             onChange_(onChangeUser_, *this);
         else
+        {
             NotifyControl(handle(), ControlNotify::ValueChanged);
+            valueChanged_.Invoke();
+        }
     }
 
     void AbstractBaseField::OnTextChanged(bool committed)

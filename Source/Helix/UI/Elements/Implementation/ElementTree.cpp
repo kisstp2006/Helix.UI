@@ -63,24 +63,33 @@ namespace helix::ui
         auto keep = [&](u32 i) { return hooks_.keep && hooks_.keep(hooks_.user, ElementHandle{i, generation_[i]}); };
         if (keep(e.index))
             return;
-        // The subtree's slots; the elements kept go out with their subtrees.
-        Array<u32> slots, kept, open;
+        // The subtree's elements (by handle: a hook may destroy some of them itself, an object's destructor its
+        // parts); the elements kept go out with their subtrees.
+        Array<ElementHandle> slots, kept;
+        Array<u32> open;
         open.Push(e.index);
         while (!open.Empty())
         {
             u32 i = open.Back();
             open.Pop();
-            slots.Push(i);
+            slots.Push(ElementHandle{i, generation_[i]});
             for (u32 c = firstChild_[i]; c != kNone; c = next_[c])
-                (keep(c) ? kept : open).Push(c);
+                if (keep(c))
+                    kept.Push(ElementHandle{c, generation_[c]});
+                else
+                    open.Push(c);
         }
-        for (u32 i : kept)
-            Detach(ElementHandle{i, generation_[i]});
-        for (u32 i : slots)
-            if (hooks_.destroyed)
-                hooks_.destroyed(hooks_.user, ElementHandle{i, generation_[i]});
-        for (u32 i : slots)
+        for (ElementHandle k : kept)
+            Detach(k);
+        for (ElementHandle x : slots)
+            if (hooks_.destroyed && IsAlive(x))
+                hooks_.destroyed(hooks_.user, x);
+        // Each slot freed once: one a hook destroyed meanwhile is gone already.
+        for (ElementHandle x : slots)
         {
+            if (!IsAlive(x))
+                continue;
+            u32 i = x.index;
             live_[i] = 0;
             generation_[i]++;
             classes_[i].Clear();

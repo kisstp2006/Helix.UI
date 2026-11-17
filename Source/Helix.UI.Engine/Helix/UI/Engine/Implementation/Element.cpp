@@ -834,6 +834,20 @@ namespace helix::ui
         return index >= 0 && index < c->HierarchyChildCount() ? c->HierarchyElementAt(index) : nullptr;
     }
 
+    Element* Element::FindNative(StringView name) const
+    {
+        if (!alive())
+            return nullptr;
+        ElementTree& tree = world_->tree();
+        Atom atom = Intern(name);
+        ElementHandle found;
+        tree.ForEachInSubtree(handle_, [&](ElementHandle e, u32) {
+            if (!found.IsValid() && tree.Name(e) == atom)
+                found = e;
+        });
+        return found.IsValid() ? Element::Of(*world_, found) : nullptr;
+    }
+
     i32 Element::IndexOf(Element* child) const
     {
         Element* c = const_cast<Element*>(this)->contentContainer();

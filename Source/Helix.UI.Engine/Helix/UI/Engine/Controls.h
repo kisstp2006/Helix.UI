@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Helix/Engine/Event/Event.h>
 #include <Helix/UI/Engine/Control.h>
 
 // The simple controls: elements whose objects build their parts and behave by callbacks on the world's events. Their
@@ -100,6 +101,8 @@ namespace helix::ui
         void SetIconImage(engine::Texture2D* value);
         // Clicks so far (the C# side's clicked runs for each).
         HX_PROPERTY(ReadOnly) i32 clickCount() const { return clicks_; }
+        // Each click, for C++ scripts (clicked in their API; C#'s clicked is its Clickable's).
+        HX_EVENT(Internal, ApiName = "clicked") engine::Event<>& clickedNative() { return clicked_; }
         // A C++ owner told of each click (a group of buttons).
         void SetClickListener(void (*listener)(void* user, Button& button), void* user)
         {
@@ -128,6 +131,7 @@ namespace helix::ui
         void* listenerUser_ = nullptr;
         i32 clicks_ = 0;
         i32 pointer_ = -1;
+        engine::Event<> clicked_;
     };
 
     // A button that clicks when pressed, then again after delay and every interval (milliseconds) while held.

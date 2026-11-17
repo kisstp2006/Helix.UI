@@ -80,6 +80,8 @@ namespace helix::ui
         HX_PROPERTY() i32 childCount() const;
         // ElementAt, Insert, Remove and RemoveAt check their arguments in C# (the reference's exceptions).
         HX_FUNCTION(Internal) Element* ElementAtChecked(i32 index) const;
+        // The first element of the name in its subtree, itself first (C++ scripts' Find; C#'s Find is a query).
+        HX_FUNCTION(Internal, ApiName = "Find") Element* FindNative(StringView name) const;
         HX_FUNCTION() i32 IndexOf(Element* child) const;
         HX_FUNCTION() void Add(Element* child);
         HX_FUNCTION(Internal) bool InsertChecked(i32 index, Element* child);

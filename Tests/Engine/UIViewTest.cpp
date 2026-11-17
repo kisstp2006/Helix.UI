@@ -1277,3 +1277,379 @@ HX_TEST(UIScripts, CSharpCollectionsMenusAnimationsPaintingAndBindings)
     engine::InputFeed::Reset();
     DestroyImmediate(ui);
 }
+
+HX_TEST(UIScripts, CppScriptsBuildControlsAndHearTheirEvents)
+{
+    HX_REQUIRE(RegisterModules());
+    ui::testing::CppNotes().Clear();
+    AssetFolder folder;
+    folder.Write("cpp-controls.hxml", R"(<HXML><Element name="page"/></HXML>)");
+    folder.Open();
+    ReportScreen(400, 600);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    view->SetSource(LoadAt<UITemplate>("cpp-controls.hxml"));
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    ui->AddComponent(scripting::TypeOf<ui::testing::CppControlScript>());
+    RunScriptPhase(ScriptMessage::Update);
+    for (const String& n : ui::testing::CppNotes())
+        std::printf("    %s\n", n.CStr());
+    HX_CHECK(ui::testing::CppNotes().Size() == 3 && ui::testing::CppNotes()[0] == StringView("cpp-slider-changed") && ui::testing::CppNotes()[1] == StringView("cpp-foldout-changed") &&
+             ui::testing::CppNotes()[2] == StringView("cpp-values:40:Helix:7:false:false"));
+    ui::testing::CppNotes().Clear();
+    frame({});
+    frame({});
+    ElementTree& tree = view->panel()->tree();
+    LayoutEngine& layout = view->panel()->layout();
+    auto find = [&](StringView name) {
+        ElementHandle found;
+        tree.ForEachInSubtree(view->panel()->root(), [&](ElementHandle e, u32) {
+            if (!found.IsValid() && tree.Name(e) == Intern(name))
+                found = e;
+        });
+        return found;
+    };
+    auto click = [&](ElementHandle e) {
+        Rect r = layout.WorldRect(e);
+        Vector2 at(r.x + 12, r.y + r.height * 0.5f);
+        frame({Mouse(platform::EventType::MouseMove, at.x, at.y)});
+        frame({Mouse(platform::EventType::MouseDown, at.x, at.y), Mouse(platform::EventType::MouseUp, at.x, at.y)});
+    };
+    HX_REQUIRE(find("cpp-button").IsValid() && find("cpp-toggle").IsValid());
+    click(find("cpp-button"));
+    click(find("cpp-toggle"));
+    for (const String& n : ui::testing::CppNotes())
+        std::printf("    %s\n", n.CStr());
+    HX_CHECK(ui::testing::CppNotes().Size() == 2 && ui::testing::CppNotes()[0] == StringView("cpp-clicked") && ui::testing::CppNotes()[1] == StringView("cpp-toggle-changed"));
+    engine::InputFeed::Reset();
+    DestroyImmediate(ui);
+}
+
+namespace
+{
+    constexpr StringView kBehaviourPage = R"(<HXML>
+  <Element name="page" style="width: 360px;">
+    <RepeatButton name="repeat" text="Hold" delay="100" interval="50"/>
+    <SliderInt name="sliderInt" low-value="0" high-value="10" value="3" style="width: 300px;"/>
+    <MinMaxSlider name="minmax" min-value="2" max-value="8" low-limit="0" high-limit="10" style="width: 300px;"/>
+    <Foldout name="foldout" text="More" value="false"><Label name="inside" text="Inside"/></Foldout>
+    <TabView name="tabs"><Tab name="first" label="First"><Label text="1"/></Tab><Tab name="second" label="Second"><Label text="2"/></Tab></TabView>
+    <TwoPaneSplitView name="split" fixed-pane-initial-dimension="80" style="height: 40px;"><Element name="left"/><Element name="right"/></TwoPaneSplitView>
+    <IntegerField name="integer" label="Integer" value="10"/>
+    <Vector3Field name="vector" label="Vector" x="1" y="2" z="3"/>
+    <Hash128Field name="hash"/>
+    <Mask64Field name="mask64" choices="A, B, C" value="5"/>
+    <TextField name="limited" label="Limited" max-length="3"/>
+    <TextField name="secret" label="Secret" password="true" value="abc"/>
+    <TextField name="lines" label="Lines" multiline="true"/>
+    <ScrollView name="scroll" style="height: 40px;"><Element style="height: 200px;"/></ScrollView>
+  </Element>
+</HXML>)";
+}
+
+HX_TEST(UIControls, EachControlBehavesAsTheReferenceDocumentsIt)
+{
+    HX_REQUIRE(RegisterModules());
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("behaviour.hxml", kBehaviourPage);
+    folder.Open();
+    ReportScreen(400, 900);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    view->SetSource(LoadAt<UITemplate>("behaviour.hxml"));
+    for (const HxmlError& e : view->errors())
+        std::printf("    %u:%u: %s\n", e.line, e.column, String(e.message).CStr());
+    HX_CHECK(view->errors().Empty());
+    engine::InputFeed::Reset();
+    auto frame = [&](std::initializer_list<engine::InputEvent> events) {
+        clock.now += 1.0 / 60.0;
+        engine::Time::BeginFrame();
+        Array<engine::InputEvent> list;
+        for (const engine::InputEvent& e : events)
+            list.Push(e);
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        view->Update();
+    };
+    frame({});
+    frame({});
+    ElementTree& tree = view->panel()->tree();
+    LayoutEngine& layout = view->panel()->layout();
+    auto find = [&](StringView name) {
+        ElementHandle found;
+        tree.ForEachInSubtree(view->panel()->root(), [&](ElementHandle e, u32) {
+            if (!found.IsValid() && tree.Name(e) == Intern(name))
+                found = e;
+        });
+        return found;
+    };
+    auto rect = [&](StringView name) { return layout.WorldRect(find(name)); };
+    auto click = [&](Vector2 at) {
+        frame({Mouse(platform::EventType::MouseMove, at.x, at.y)});
+        frame({Mouse(platform::EventType::MouseDown, at.x, at.y), Mouse(platform::EventType::MouseUp, at.x, at.y)});
+    };
+    auto type = [&](StringView text) {
+        Array<engine::InputEvent> list;
+        for (char c : text)
+        {
+            engine::InputEvent e;
+            e.event.type = platform::EventType::Text;
+            e.event.text = {u32(u8(c))};
+            list.Push(e);
+        }
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(list.Data(), list.Size()), Span<const u32>());
+        clock.now += 1.0 / 60.0;
+        engine::Time::BeginFrame();
+        view->Update();
+    };
+
+    // RepeatButton: a click on the press, again after the delay, then every interval while held.
+    auto* repeat = static_cast<RepeatButton*>(Element::Of(find("repeat")));
+    Rect rr = rect("repeat");
+    Vector2 rc(rr.x + rr.width * 0.5f, rr.y + rr.height * 0.5f);
+    frame({Mouse(platform::EventType::MouseMove, rc.x, rc.y)});
+    frame({Mouse(platform::EventType::MouseDown, rc.x, rc.y)});
+    HX_CHECK(repeat->clickCount() == 1);
+    for (u32 i = 0; i < 12; i++)
+        frame({});
+    i32 held = repeat->clickCount();
+    frame({Mouse(platform::EventType::MouseUp, rc.x, rc.y)});
+    for (u32 i = 0; i < 6; i++)
+        frame({});
+    std::printf("    repeat clicks after 0.2 s: %d\n", held);
+    HX_CHECK(held >= 3 && held <= 4 && repeat->clickCount() == held);
+
+    // SliderInt: whole values only.
+    auto* sliderInt = static_cast<SliderInt*>(Element::Of(find("sliderInt")));
+    HX_CHECK(sliderInt->NumberInternal(0) == 3);
+    Rect sr = rect("sliderInt");
+    click(Vector2(sr.x + sr.width * 0.73f, sr.y + sr.height * 0.5f));
+    f64 whole = sliderInt->NumberInternal(0);
+    HX_CHECK(whole > 3 && whole == std::floor(whole));
+
+    // MinMaxSlider: its two values inside its limits.
+    auto* minmax = static_cast<MinMaxSlider*>(Element::Of(find("minmax")));
+    HX_CHECK(minmax->NumberInternal(0) == 2 && minmax->NumberInternal(1) == 8);
+
+    // Foldout: a click on its toggle opens it, its content shows.
+    auto* foldout = static_cast<Foldout*>(Element::Of(find("foldout")));
+    HX_CHECK(!foldout->value());
+    Rect fr = rect("foldout");
+    click(Vector2(fr.x + 10, fr.y + 8));
+    frame({});
+    HX_CHECK(foldout->value() && layout.WorldRect(find("inside")).height > 0);
+
+    // TabView: a click on a tab's header picks it.
+    auto* tabs = static_cast<TabView*>(Element::Of(find("tabs")));
+    HX_CHECK(tabs->selectedTabIndex() == 0);
+    auto* second = static_cast<Tab*>(Element::Of(find("second")));
+    Rect hr = layout.WorldRect(second->tabHeader()->handle());
+    click(Vector2(hr.x + hr.width * 0.5f, hr.y + hr.height * 0.5f));
+    HX_CHECK(tabs->selectedTabIndex() == 1);
+
+    // TwoPaneSplitView: the fixed pane at its initial size.
+    HX_CHECK(std::fabs(rect("left").width - 80) <= 1);
+
+    // IntegerField: a drag on its label changes the value.
+    auto* integer = static_cast<IntegerField*>(Element::Of(find("integer")));
+    Rect lr = layout.WorldRect(integer->labelElement()->handle());
+    Vector2 lc(lr.x + 6, lr.y + lr.height * 0.5f);
+    frame({Mouse(platform::EventType::MouseMove, lc.x, lc.y)});
+    frame({Mouse(platform::EventType::MouseDown, lc.x, lc.y)});
+    frame({Mouse(platform::EventType::MouseMove, lc.x + 40, lc.y)});
+    frame({Mouse(platform::EventType::MouseUp, lc.x + 40, lc.y)});
+    HX_CHECK(integer->IntegerInternal(0) > 10);
+
+    // Vector3Field: its components from markup.
+    auto* vector = static_cast<Vector3Field*>(Element::Of(find("vector")));
+    HX_CHECK(vector->NumberInternal(0) == 1 && vector->NumberInternal(1) == 2 && vector->NumberInternal(2) == 3);
+
+    // Hash128Field: a hash typed in is the value; text that is no hash is not.
+    auto* hash = static_cast<Hash128Field*>(Element::Of(find("hash")));
+    hash->SetTextInternal("0123456789abcdef0123456789abcdef");
+    String hashText = hash->TextInternal();
+    HX_CHECK(hashText == StringView("0123456789abcdef0123456789abcdef"));
+
+    // Mask64Field: the bits of its value.
+    auto* mask64 = static_cast<Mask64Field*>(Element::Of(find("mask64")));
+    HX_CHECK(mask64->IntegerInternal(0) == 5);
+
+    // TextField: max length cuts what is typed; a password shows its mask; multiline keeps lines.
+    auto* limited = static_cast<TextField*>(Element::Of(find("limited")));
+    Rect tr = rect("limited");
+    click(Vector2(tr.x + tr.width - 20, tr.y + tr.height * 0.5f));
+    type("abcdef");
+    HX_CHECK(limited->StringInternal() == StringView("abc"));
+    auto* secret = static_cast<TextField*>(Element::Of(find("secret")));
+    HX_CHECK(secret->TextOptionInternal(AbstractBaseField::Password) == 1 && secret->StringInternal() == StringView("abc"));
+    auto* lines = static_cast<TextField*>(Element::Of(find("lines")));
+    lines->SetStringInternal("one\ntwo");
+    HX_CHECK(lines->StringInternal() == StringView("one\ntwo"));
+
+    // ScrollView: the wheel scrolls by its wheel size, within its content.
+    auto* scroll = static_cast<ScrollView*>(Element::Of(find("scroll")));
+    Rect cr = rect("scroll");
+    engine::InputEvent wheel;
+    wheel.event.type = platform::EventType::MouseWheel;
+    wheel.event.wheel.dy = -40;
+    frame({Mouse(platform::EventType::MouseMove, cr.x + 10, cr.y + 10)});
+    frame({wheel});
+    frame({});
+    HX_CHECK(scroll->scrollOffset().y > 0 && scroll->scrollOffset().y <= 160 + 1);
+    engine::InputFeed::Reset();
+    DestroyImmediate(ui);
+}
+
+namespace
+{
+    // Every printable ASCII character a bar of its own height: text drawn the same everywhere (no machine's fonts).
+    StringView PageFont(Array<u8>& bytes)
+    {
+        using namespace font::testing;
+        FontSpec s;
+        s.glyphs.Resize(2 + 94);
+        s.glyphs[1].advance = 250;
+        s.cmap.Push({u32(' '), 1});
+        for (u32 c = 33; c < 127; c++)
+        {
+            u32 g = 2 + (c - 33);
+            s.glyphs[g].contours.Push(Square(60, 0, 420, i32(260 + (c % 9) * 55)));
+            s.glyphs[g].advance = 480;
+            s.cmap.Push({c, g});
+        }
+        s.names = {{String("1"), String("Page Test")}, {String("2"), String("Regular")}};
+        bytes = BuildFont(s);
+        return StringView(reinterpret_cast<const char*>(bytes.Data()), bytes.Size());
+    }
+}
+
+HX_TEST(UIControls, EveryControlDrawsTheSameOnEveryDevice)
+{
+    HX_REQUIRE(RegisterModules());
+    ManualClock clock;
+    constexpr u32 width = 400, height = 760;
+    u32 devices = 0;
+    engine::testing::ForEachDevice([&](rhi::Device& device) {
+        devices++;
+        AssetFolder folder;
+        Array<u8> font;
+        folder.Folder("Fonts");
+        folder.Write("Fonts/Page.ttf", PageFont(font));
+        String page(kControlsPage);
+        // The page in the test font (the theme names none).
+        String styled("<HXML><Style src=\"font.hss\"/>");
+        styled += page.View().Substr(6);
+        folder.Write("controls.hxml", styled.View());
+        folder.Write("font.hss", R"(:root, * { -helix-font-definition: url("Fonts/Page.ttf"); })");
+        folder.Open();
+        rhi::TextureHandle color =
+            device.CreateTexture({.format = rhi::Format::RGBA8Unorm, .width = width, .height = height, .usage = rhi::TextureRenderTarget | rhi::TextureSampled});
+        rhi::TextureHandle depth = device.CreateTexture({.format = rhi::Format::D32Float, .width = width, .height = height, .usage = rhi::TextureDepthStencil});
+        Graphics::SetDevice(&device);
+        Graphics::SetTarget({color, depth, width, height, rhi::Format::RGBA8Unorm, rhi::Format::D32Float});
+        ReportScreen(i32(width), i32(height));
+        auto* asset = ScriptableObject::CreateInstanceByName("ClearPipelineAsset");
+        HX_REQUIRE(asset != nullptr);
+        GraphicsSettings::SetDefaultRenderPipeline(asset);
+        GameObject* cameraObject = GameObject::Create("Camera");
+        Camera* camera = cameraObject->AddComponent<Camera>();
+        camera->SetClearFlags(CameraClearFlags::SolidColor);
+        camera->SetBackgroundColor(Color(0.16f, 0.17f, 0.2f, 1));
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        view->SetSource(LoadAt<UITemplate>("controls.hxml"));
+        // The parts that follow their geometry (tab headers, split panes) settle within a few frames.
+        for (u32 k = 0; k < 6; k++)
+        {
+            clock.now += 1.0 / 60.0;
+            engine::Time::BeginFrame();
+            view->Update();
+        }
+        HX_CHECK(view->errors().Empty());
+        Graphics::RenderFrame();
+        Array<u32> pixels;
+        pixels.Resize(width * height);
+        HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
+        HX_CHECK(engine::testing::MatchGolden("UIControlsPage", pixels.Data(), width, height));
+        DestroyImmediate(ui);
+        DestroyImmediate(cameraObject);
+        Graphics::SetTarget({});
+        device.Destroy(color);
+        device.Destroy(depth);
+    });
+    std::printf("    %u devices\n", devices);
+}
+
+HX_TEST(UIControls, TheControlsPageBuiltAgainLaysOutTheSame)
+{
+    HX_REQUIRE(RegisterModules());
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("again3.hxml", kControlsPage);
+    folder.Open();
+    ReportScreen(400, 760);
+    Array<u32> counts;
+    Array<f32> heights;
+    for (u32 round = 0; round < 3; round++)
+    {
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        view->SetSource(LoadAt<UITemplate>("again3.hxml"));
+        for (u32 k = 0; k < 6; k++)
+        {
+            clock.now += 1.0 / 60.0;
+            engine::Time::BeginFrame();
+            view->Update();
+        }
+        u32 n = 0;
+        view->panel()->tree().ForEachInSubtree(view->rootElement()->handle(), [&](ElementHandle, u32) { n++; });
+        Rect page = view->panel()->layout().WorldRect(view->panel()->tree().FirstChild(view->rootElement()->handle()));
+        std::printf("    round %u: %u elements, page %.1f high, %u vertices\n", round, n, f64(page.height), u32(view->uiMesh().Vertices().Size()));
+        counts.Push(n);
+        heights.Push(page.height);
+        DestroyImmediate(ui);
+    }
+    HX_CHECK(counts[0] == counts[1] && counts[1] == counts[2] && heights[0] == heights[1] && heights[1] == heights[2]);
+}
+
+// With the C# side up, script held elements outlive their page: the page built again must not share slots with them
+// (a destroy whose objects destroyed their parts freed those slots twice).
+HX_TEST(UIControls, TheControlsPageBuiltAgainWithScriptsLaysOutTheSame)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("again2.hxml", kControlsPage);
+    folder.Open();
+    ReportScreen(400, 760);
+    Array<u32> counts;
+    Array<f32> heights;
+    for (u32 round = 0; round < 3; round++)
+    {
+        GameObject* ui = GameObject::Create("UI");
+        auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+        view->SetSource(LoadAt<UITemplate>("again2.hxml"));
+        for (u32 k = 0; k < 6; k++)
+        {
+            clock.now += 1.0 / 60.0;
+            engine::Time::BeginFrame();
+            view->Update();
+        }
+        u32 n = 0;
+        view->panel()->tree().ForEachInSubtree(view->rootElement()->handle(), [&](ElementHandle, u32) { n++; });
+        Rect page = view->panel()->layout().WorldRect(view->panel()->tree().FirstChild(view->rootElement()->handle()));
+        std::printf("    round %u: %u elements, page %.1f high, %u vertices\n", round, n, f64(page.height), u32(view->uiMesh().Vertices().Size()));
+        counts.Push(n);
+        heights.Push(page.height);
+        DestroyImmediate(ui);
+    }
+    HX_CHECK(counts[0] == counts[1] && counts[1] == counts[2] && heights[0] == heights[1] && heights[1] == heights[2]);
+}

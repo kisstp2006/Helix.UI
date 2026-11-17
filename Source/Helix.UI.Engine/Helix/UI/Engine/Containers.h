@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Helix/Engine/Event/Event.h>
 #include <Helix/UI/Engine/Fields.h>
 
 // The controls that hold other elements: a foldout, scrollers and the scroll view, tabs, a split view.
@@ -10,6 +11,8 @@ namespace helix::ui
     class Foldout : public BindableElement
     {
     public:
+        // Each change of the value by the user, for C++ scripts (valueChanged in their API).
+        HX_EVENT(Internal, ApiName = "valueChanged") engine::Event<>& valueChangedNative() { return valueChangedEvent_; }
         using ControlBase = BindableElement;
         HX_FUNCTION(Constructor) Foldout();
         Foldout(ElementWorld& world, ElementHandle e);
@@ -35,6 +38,7 @@ namespace helix::ui
         Toggle* toggle_ = nullptr;
         ElementHandle toggleHandle_, content_;
         bool value_ = true, previous_ = true, toggleOnLabelClick_ = true;
+        engine::Event<> valueChangedEvent_;
     };
 
     HX_ENUM(Namespace = "HelixEngine.UI")
@@ -50,6 +54,8 @@ namespace helix::ui
     class Scroller : public Element
     {
     public:
+        // Each change of the value, for C++ scripts (valueChanged in their API).
+        HX_EVENT(Internal, ApiName = "valueChanged") engine::Event<>& valueChangedNative() { return valueChangedEvent_; }
         using ControlBase = Element;
         HX_FUNCTION(Constructor) Scroller();
         Scroller(ElementWorld& world, ElementHandle e);
@@ -91,6 +97,7 @@ namespace helix::ui
         f32 factor_ = 1;
         void (*listener_)(void* user, Scroller& s) = nullptr;
         void* listenerUser_ = nullptr;
+        engine::Event<> valueChangedEvent_;
     };
 
     HX_ENUM(Namespace = "HelixEngine.UI")
@@ -214,6 +221,8 @@ namespace helix::ui
     class TabView : public Element
     {
     public:
+        // Each tab picked, for C++ scripts (activeTabChanged in their API).
+        HX_EVENT(Internal, ApiName = "activeTabChanged") engine::Event<>& activeTabChangedNative() { return activeTabChangedEvent_; }
         using ControlBase = Element;
         HX_FUNCTION(Constructor) TabView();
         TabView(ElementWorld& world, ElementHandle e);
@@ -241,6 +250,7 @@ namespace helix::ui
         Array<ElementHandle> known_;
         i32 selected_ = 0;
         ElementHandle previous_;
+        engine::Event<> activeTabChangedEvent_;
     };
 
     HX_ENUM(Namespace = "HelixEngine.UI")

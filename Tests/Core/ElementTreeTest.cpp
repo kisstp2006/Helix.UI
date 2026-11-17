@@ -121,3 +121,44 @@ HX_TEST(ElementTree, DestroyingKeepsWhatAScriptHoldsAndTellsWhatWent)
     tree.Destroy(held);
     HX_CHECK(!tree.IsAlive(held) && !tree.IsAlive(inner) && w.destroyed.Size() == 3);
 }
+
+// A hook that destroys an element of the subtree being destroyed (an object's destructor taking its part): each slot
+// goes free once, so the elements made after are all apart.
+HX_TEST(ElementTree, ADestroyThatDestroysPartOfItsSubtreeFreesEachSlotOnce)
+{
+    ElementTree tree;
+    struct Watch
+    {
+        ElementTree* tree = nullptr;
+        ElementHandle part;
+    } w;
+    w.tree = &tree;
+    ElementHandle root = tree.Create(Intern("Root"));
+    ElementHandle owner = tree.Create(Intern("Owner"));
+    ElementHandle row = tree.Create(Intern("Row"));
+    w.part = tree.Create(Intern("Part"));
+    ElementHandle inner = tree.Create(Intern("Inner"));
+    tree.Append(root, owner);
+    tree.Append(root, row);
+    tree.Append(row, w.part);
+    tree.Append(w.part, inner);
+    ElementTree::Hooks hooks;
+    hooks.destroyed = [](void* u, ElementHandle e) {
+        auto* x = static_cast<Watch*>(u);
+        if (x->tree->Type(e) == Intern("Owner"))
+            x->tree->Destroy(x->part);
+    };
+    hooks.user = &w;
+    tree.SetHooks(hooks);
+    tree.Destroy(root);
+    HX_CHECK(tree.Count() == 0);
+    Array<u32> slots;
+    for (u32 k = 0; k < 8; k++)
+    {
+        ElementHandle e = tree.Create(Intern("New"));
+        for (u32 s : slots)
+            HX_CHECK(s != e.index);
+        slots.Push(e.index);
+    }
+    HX_CHECK(tree.Count() == 8);
+}

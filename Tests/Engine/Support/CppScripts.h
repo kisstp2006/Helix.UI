@@ -68,4 +68,47 @@ namespace helix::ui::testing
                                    root.IndexOf(a)));
         }
     };
+
+    // Controls made and driven from a C++ script: built through the script API, their values typed, their events
+    // (clicked, valueChanged, activeTabChanged) heard.
+    HX_CLASS(Namespace = "UIEngineTests")
+    class CppControlScript : public ::HelixEngine::GameBehaviour
+    {
+    public:
+        void Start()
+        {
+            namespace api = ::HelixEngine::UI;
+            api::UIView view = GetComponent<api::UIView>();
+            api::Element root = view.rootElement;
+            api::Button button = api::Button::New();
+            button.name = "cpp-button";
+            button.text = "Go";
+            root.Add(button);
+            button.clicked.Add({[](void*) { CppNotes().Push(String("cpp-clicked")); }, nullptr});
+            api::Toggle toggle = api::Toggle::New();
+            toggle.name = "cpp-toggle";
+            toggle.text = "Shadows";
+            root.Add(toggle);
+            toggle.valueChanged.Add({[](void*) { CppNotes().Push(String("cpp-toggle-changed")); }, nullptr});
+            api::Slider slider = api::Slider::New();
+            slider.name = "cpp-slider";
+            slider.label = "Volume";
+            root.Add(slider);
+            slider.valueChanged.Add({[](void*) { CppNotes().Push(String("cpp-slider-changed")); }, nullptr});
+            slider.value = 40.0f;
+            api::TextField text = api::TextField::New();
+            text.value = "Helix";
+            root.Add(text);
+            api::IntegerField number = api::IntegerField::New();
+            number.value = 7;
+            root.Add(number);
+            api::Foldout foldout = api::Foldout::New();
+            foldout.text = "More";
+            root.Add(foldout);
+            foldout.valueChanged.Add({[](void*) { CppNotes().Push(String("cpp-foldout-changed")); }, nullptr});
+            foldout.value = false;
+            CppNotes().Push(Format("cpp-values:{}:{}:{}:{}:{}", f32(slider.value), String(text.value).View(), i32(number.value),
+                                   bool(toggle.value), bool(foldout.value)));
+        }
+    };
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Helix/Engine/Event/Event.h>
 #include <Helix/UI/Engine/Controls.h>
 
 #include <memory>
@@ -31,6 +32,15 @@ namespace helix::ui
         HX_PROPERTY(ReadOnly) Label* labelElement() const;
         HX_PROPERTY() bool showMixedValue() const { return mixed_; }
         void SetShowMixedValue(bool value);
+        // Each change of the value by the user, for C++ scripts (valueChanged in their API; C# sends ChangeEvent).
+        HX_EVENT(Internal, ApiName = "valueChanged") engine::Event<>& valueChangedNative() { return valueChanged_; }
+
+        // ----------------------------------------------------------------------------- for C++ scripts
+        // The typed values of the C++ script API (C# has them on its generic bases): set by a script, shown and told
+        // when they changed, as the reference's value setters do.
+        void SetIntegerByScript(i32 slot, i64 value);
+        void SetNumberByScript(i32 slot, f64 value);
+        void SetStringByScript(StringView value);
 
         // ----------------------------------------------------------------------------- for the C# bases
         HX_FUNCTION(Internal) Element* VisualInputInternal() const;
@@ -115,6 +125,7 @@ namespace helix::ui
         bool mixed_ = false;
 
     private:
+        engine::Event<> valueChanged_;
         friend class TextInput;
         friend class PopupMenu;
         void InitField();
@@ -133,6 +144,10 @@ namespace helix::ui
         Toggle(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueNative", ApiName = "value") bool valueNative() const { return IntegerInternal(0) != 0; }
+        void SetValueNative(bool value) { SetIntegerByScript(0, value ? 1 : 0); }
+        HX_PROPERTY(Internal, Name = "textNative", ApiName = "text") String textNative() const { return StringInternal(); }
+        void SetTextNative(StringView value) { SetStringInternal(value); }
 
     protected:
         explicit Toggle(Atom type);
@@ -179,6 +194,8 @@ namespace helix::ui
         scripting::TypeId HelixType() const override;
         Element* contentContainer() override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueNative", ApiName = "value") i32 valueNative() const { return i32(IntegerInternal(0)); }
+        void SetValueNative(i32 value) { SetIntegerByScript(0, value); }
         // A radio button of it went on.
         void Picked(ElementHandle radio);
 
@@ -227,6 +244,8 @@ namespace helix::ui
         Slider(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueNative", ApiName = "value") f32 valueNative() const { return f32(NumberInternal(0)); }
+        void SetValueNative(f32 value) { SetNumberByScript(0, value); }
         // The value of a point along the tracker (0..1 of its length).
         f64 ValueAt(f64 k) const;
         void SetByUser(f64 value);
@@ -250,6 +269,8 @@ namespace helix::ui
     class SliderInt : public Slider
     {
     public:
+        HX_PROPERTY(Internal, Name = "valueIntNative", ApiName = "value") i32 valueIntNative() const { return i32(NumberInternal(0)); }
+        void SetValueIntNative(i32 value) { SetNumberByScript(0, value); }
         using ControlBase = Slider;
         HX_FUNCTION(Constructor) SliderInt();
         SliderInt(ElementWorld& world, ElementHandle e);
@@ -297,6 +318,8 @@ namespace helix::ui
         DropdownField(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "indexNative", ApiName = "index") i32 indexNative() const { return i32(IntegerInternal(0)); }
+        void SetIndexNative(i32 value) { SetIntegerByScript(0, value); }
 
     protected:
         explicit DropdownField(Atom type);
@@ -355,6 +378,8 @@ namespace helix::ui
         TextField(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueNative", ApiName = "value") String valueNative() const { return StringInternal(); }
+        void SetValueNative(StringView value) { SetStringByScript(value); }
 
     protected:
         explicit TextField(Atom type, StringView block, i32 characters);
@@ -374,6 +399,8 @@ namespace helix::ui
         IntegerField(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueIntNative", ApiName = "value") i32 valueIntNative() const { return i32(IntegerInternal(0)); }
+        void SetValueIntNative(i32 value) { SetIntegerByScript(0, value); }
         // The kinds of number.
         enum Kind : i32
         {
@@ -487,6 +514,8 @@ namespace helix::ui
         Vector2Field(ElementWorld& world, ElementHandle e);
         scripting::TypeId HelixType() const override;
         static Span<const ControlAttribute> MarkupAttributes();
+        HX_PROPERTY(Internal, Name = "valueFloatNative", ApiName = "value") f32 valueFloatNative() const { return f32(NumberInternal(0)); }
+        void SetValueFloatNative(f32 value) { SetNumberByScript(0, value); }
         // A part changed by the user.
         void PartChanged(ElementHandle part);
 

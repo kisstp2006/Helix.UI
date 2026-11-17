@@ -173,6 +173,24 @@ keeps its value in its native slots; what the user changes reaches its C# object
 a triple click the line), the clipboard (`GUIUtility.systemCopyBuffer`, the player's window) and the input method;
 popup fields open their menu over the panel.
 
+```cpp
+// A C++ script (the C++ script API): the controls' typed values and their events.
+namespace api = ::HelixEngine::UI;
+api::Element root = GetComponent<api::UIView>().rootElement;
+api::Slider speed = api::Slider::New();
+speed.label = "Speed";
+speed.value = 4.0f;
+root.Find("settings").Add(speed);
+speed.valueChanged.Add({[](void* self) { /* read the value */ }, this});
+api::Button go = api::Button::New();
+go.clicked.Add({[](void* self) { /* clicked */ }, this});
+```
+
+C++ scripts make the same controls through the C++ script API: `value` (Toggle, Slider, SliderInt, RadioButtonGroup,
+TextField, IntegerField, FloatField), `index` (DropdownField), `text`, `label`, and the events `clicked` (Button,
+RepeatButton), `valueChanged` (every field, Foldout, Scroller) and `activeTabChanged` (TabView); a value a script sets
+is told like a change of the user's (C#'s ChangeEvent, the C++ scripts' event). `Find` finds an element by name.
+
 ## Collections, menus and animations
 
 ```xml

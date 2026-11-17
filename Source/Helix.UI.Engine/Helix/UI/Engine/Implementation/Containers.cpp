@@ -64,6 +64,7 @@ namespace helix::ui
         value_ = v;
         Show();
         NotifyControl(handle(), ControlNotify::ValueChanged);
+        valueChangedEvent_.Invoke();
     }
 
     void Foldout::SetValueWithoutNotify(bool newValue)
@@ -208,6 +209,7 @@ namespace helix::ui
         if (listener_)
             listener_(listenerUser_, *this);
         NotifyControl(handle(), ControlNotify::ValueChanged);
+        valueChangedEvent_.Invoke();
     }
 
     void Scroller::SliderChanged(void* user, AbstractBaseField& field)
@@ -687,7 +689,10 @@ namespace helix::ui
         selected_ = index;
         Show();
         if (notify)
+        {
             NotifyControl(handle(), ControlNotify::Selected);
+            activeTabChangedEvent_.Invoke();
+        }
     }
 
     void TabView::Show()

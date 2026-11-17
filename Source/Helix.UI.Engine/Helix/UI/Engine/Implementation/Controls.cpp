@@ -285,6 +285,7 @@ namespace helix::ui
         if (listener_)
             listener_(listenerUser_, *this);
         NotifyControl(handle(), ControlNotify::Clicked);
+        clicked_.Invoke();
     }
 
     void Button::PointerDown(void* user, EventSystem& events, UIEvent& e)
