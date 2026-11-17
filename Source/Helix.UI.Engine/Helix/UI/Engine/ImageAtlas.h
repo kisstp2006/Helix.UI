@@ -36,6 +36,13 @@ namespace helix::ui
         Array<engine::PPtr<engine::Texture2D>> pages_;
         // Textures that cannot go in (by entity id).
         Array<u64> refused_;
+        // The update counts of the textures placed (a texture changed after it was placed draws from itself).
+        struct Placed
+        {
+            u64 id = 0;
+            u32 updateCount = 0;
+        };
+        Array<Placed> placed_;
         bool dirty_ = false;
     };
 }

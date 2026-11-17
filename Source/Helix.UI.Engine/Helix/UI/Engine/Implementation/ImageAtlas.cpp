@@ -28,6 +28,13 @@ namespace helix::ui
         for (u64 r : refused_)
             if (r == id)
                 return;
+        // A texture written to after it was placed (a runtime image) is a dynamic one: its copy would be stale.
+        for (const Placed& p : placed_)
+            if (p.id == id && p.updateCount != texture->updateCount())
+            {
+                refused_.Push(id);
+                return;
+            }
         u64 key = font::FontAtlas::Key(u32(id), u32(id >> 32), 2);
         const font::AtlasPlace* place = atlas_.Find(key);
         if (!place)
@@ -65,6 +72,7 @@ namespace helix::ui
                 return;
             }
             dirty_ = true;
+            placed_.Push(Placed{id, texture->updateCount()});
             place = atlas_.Find(key);
         }
         if (place->page >= pages_.Size())

@@ -224,7 +224,7 @@ HX_TEST(UIView, BuildsLaysOutAndDrawsOverTheCameraOnEveryDevice)
         view->panel()->tree().ForEachInSubtree(view->rootElement()->handle(), [&](ElementHandle, u32) { inPanel++; });
         HX_CHECK(inPanel == 4);
         HX_REQUIRE(view->mesh() != nullptr);
-        HX_CHECK(view->mesh()->vertexCount() == 4 * 4 && view->uiMesh().DrawCalls() == 1);
+        HX_CHECK(view->uiMesh().Vertices().Size() == 4 * 4 && view->mesh()->vertexCount() >= 4 * 4 && view->uiMesh().DrawCalls() == 1);
         Graphics::RenderFrame();
         Array<u32> pixels;
         pixels.Resize(width * height);

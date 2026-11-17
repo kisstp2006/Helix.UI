@@ -142,6 +142,10 @@ namespace helix::ui
         const StyleSheetData* theme_ = nullptr;
         bool themed_ = false;
         UIMesh uiMesh_;
+        // The upload's copy of the vertices and the mesh's buffer sizes (they only grow).
+        Array<UIVertex> uploadVertices_;
+        Array<engine::SubMeshDescriptor> subMeshes_;
+        u32 vertexCapacity_ = 0, indexCapacity_ = 0;
         engine::PPtr<engine::Mesh> mesh_;
         f32 scale_ = 1;
         Vector2 size_ = Vector2(0, 0);
@@ -1050,36 +1054,70 @@ namespace helix::ui
             m->MarkDynamic();
             mesh_ = engine::PPtr<engine::Mesh>(m);
         }
+        // The vertices go in as they are, one interleaved stream in UIVertex's layout (position with its depth, color,
+        // six channels), the indices as 32 bit ones: two copies, no conversion. The buffers only grow; the batches
+        // name the ranges in use.
+        static const engine::VertexAttributeDescriptor kLayout[] = {
+            {engine::VertexAttribute::Position, engine::VertexAttributeFormat::Float32, 3},
+            {engine::VertexAttribute::Color, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord0, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord1, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord2, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord3, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord4, engine::VertexAttributeFormat::Float32, 4},
+            {engine::VertexAttribute::TexCoord5, engine::VertexAttributeFormat::Float32, 4},
+        };
+        static_assert(sizeof(UIVertex) == 31 * sizeof(f32), "UIVertex is the mesh's interleaved layout");
         Span<const UIVertex> vertices = uiMesh_.Vertices();
-        usize n = vertices.Size();
-        Array<Vector3> positions;
-        Array<Color> colors;
-        Array<Vector4> channels[6];
-        positions.Reserve(n);
-        colors.Reserve(n);
-        for (Array<Vector4>& c : channels)
-            c.Reserve(n);
-        for (const UIVertex& v : vertices)
-        {
-            positions.Push(Vector3(v.position.x, v.position.y, 0));
-            colors.Push(v.color);
-            channels[0].Push(v.uvLocal);
-            channels[1].Push(v.parameters);
-            channels[2].Push(v.size);
-            channels[3].Push(v.radii);
-            channels[4].Push(v.borders);
-            channels[5].Push(v.clipRect);
-        }
-        m->Clear();
-        m->SetVertices(Span<const Vector3>(positions.Data(), positions.Size()));
-        m->SetColors(Span<const Color>(colors.Data(), colors.Size()));
-        for (i32 c = 0; c < 6; c++)
-            m->SetUVs(c, Span<const Vector4>(channels[c].Data(), channels[c].Size()));
-        Span<const UIBatch> batches = uiMesh_.Batches();
         Span<const u32> indices = uiMesh_.Indices();
-        m->SetSubMeshCount(i32(batches.Size() > 0 ? batches.Size() : 1));
-        for (u32 b = 0; b < batches.Size(); b++)
-            m->SetTriangles(Span<const i32>(reinterpret_cast<const i32*>(indices.Data()) + batches[b].firstIndex, batches[b].indexCount), i32(b));
+        Span<const UIBatch> batches = uiMesh_.Batches();
+        u32 n = u32(vertices.Size()), k = u32(indices.Size());
+        // The panel is flat in its space (a 3D turn of an element is in its x and y): the depth goes in as zero.
+        uploadVertices_.Resize(n);
+        if (n)
+            std::memcpy(uploadVertices_.Data(), vertices.Data(), usize(n) * sizeof(UIVertex));
+        Vector3 lo(0, 0, 0), hi(0, 0, 0);
+        for (u32 i = 0; i < n; i++)
+        {
+            UIVertex& v = uploadVertices_[i];
+            v.z = 0;
+            if (i == 0)
+                lo = hi = Vector3(v.position.x, v.position.y, 0);
+            lo.x = v.position.x < lo.x ? v.position.x : lo.x;
+            lo.y = v.position.y < lo.y ? v.position.y : lo.y;
+            hi.x = v.position.x > hi.x ? v.position.x : hi.x;
+            hi.y = v.position.y > hi.y ? v.position.y : hi.y;
+        }
+        if (n > vertexCapacity_ || vertexCapacity_ == 0)
+        {
+            vertexCapacity_ = n > 1024 ? n + n / 2 : 1024;
+            m->SetVertexBufferParams(i32(vertexCapacity_), Span<const engine::VertexAttributeDescriptor>(kLayout, 8));
+        }
+        if (k > indexCapacity_ || indexCapacity_ == 0)
+        {
+            indexCapacity_ = k > 4096 ? k + k / 2 : 4096;
+            m->SetIndexBufferParams(i32(indexCapacity_), engine::IndexFormat::UInt32);
+        }
+        constexpr engine::MeshUpdateFlags kFlags = engine::MeshUpdateFlags::DontValidateIndices | engine::MeshUpdateFlags::DontRecalculateBounds;
+        m->SetVertexBufferData(Span<const UIVertex>(uploadVertices_.Data(), n), 0, 0, i32(n), 0, kFlags);
+        m->SetIndexBufferData(indices, 0, 0, i32(k), kFlags);
+        Bounds bounds(Vector3((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, 0), Vector3(hi.x - lo.x, hi.y - lo.y, 0));
+        subMeshes_.Clear();
+        for (const UIBatch& batch : batches)
+        {
+            engine::SubMeshDescriptor d;
+            d.indexStart = i32(batch.firstIndex);
+            d.indexCount = i32(batch.indexCount);
+            d.topology = engine::MeshTopology::Triangles;
+            d.bounds = bounds;
+            d.firstVertex = 0;
+            d.vertexCount = i32(n);
+            subMeshes_.Push(d);
+        }
+        if (subMeshes_.Empty())
+            subMeshes_.Push(engine::SubMeshDescriptor());
+        m->SetSubMeshes(Span<const engine::SubMeshDescriptor>(subMeshes_.Data(), subMeshes_.Size()), kFlags);
+        m->SetBounds(bounds);
         Atlas().Upload();
     }
 
