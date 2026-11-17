@@ -1,4 +1,55 @@
 type,member,signature
+Event,.ctor,Event() / Event(int) / Event(Event)
+Event,GetEventCount,static int GetEventCount()
+Event,GetTypeForControl,EventType GetTypeForControl(int)
+Event,KeyboardEvent,static Event KeyboardEvent(string)
+Event,PopEvent,static bool PopEvent(Event)
+Event,ToString,string ToString()
+Event,Use,void Use()
+Event,alt,bool alt { get; set; }
+Event,button,int button { get; set; }
+Event,capsLock,bool capsLock { get; set; }
+Event,character,Char character { get; set; }
+Event,clickCount,int clickCount { get; set; }
+Event,command,bool command { get; set; }
+Event,commandName,string commandName { get; set; }
+Event,control,bool control { get; set; }
+Event,current,static Event current { get; set; }
+Event,delta,Vector2 delta { get; set; }
+Event,displayIndex,int displayIndex { get; set; }
+Event,functionKey,bool functionKey { get; }
+Event,isKey,bool isKey { get; }
+Event,isMouse,bool isMouse { get; }
+Event,isScrollWheel,bool isScrollWheel { get; }
+Event,keyCode,KeyCode keyCode { get; set; }
+Event,modifiers,EventModifiers modifiers { get; set; }
+Event,mousePosition,Vector2 mousePosition { get; set; }
+Event,numeric,bool numeric { get; set; }
+Event,operators,"Equality(Event, Event) / Inequality(Event, Event) / Implicit(Event)"
+Event,penStatus,PenStatus penStatus { get; set; }
+Event,pointerType,PointerType pointerType { get; set; }
+Event,pressure,float pressure { get; set; }
+Event,rawType,EventType rawType { get; set; }
+Event,shift,bool shift { get; set; }
+Event,tilt,Vector2 tilt { get; set; }
+Event,twist,float twist { get; set; }
+Event,type,EventType type { get; set; }
+EventCommandNames,Copy,const string Copy
+EventCommandNames,Cut,const string Cut
+EventCommandNames,Delete,const string Delete
+EventCommandNames,DeselectAll,const string DeselectAll
+EventCommandNames,Duplicate,const string Duplicate
+EventCommandNames,Find,const string Find
+EventCommandNames,FrameSelected,const string FrameSelected
+EventCommandNames,FrameSelectedWithLock,const string FrameSelectedWithLock
+EventCommandNames,InvertSelection,const string InvertSelection
+EventCommandNames,Paste,const string Paste
+EventCommandNames,Rename,const string Rename
+EventCommandNames,SelectAll,const string SelectAll
+EventCommandNames,SelectChildren,const string SelectChildren
+EventCommandNames,SelectPrefabRoot,const string SelectPrefabRoot
+EventCommandNames,SoftDelete,const string SoftDelete
+EventCommandNames,UndoRedoPerformed,const string UndoRedoPerformed
 EventModifiers,Alt,EventModifiers.Alt = 4
 EventModifiers,CapsLock,EventModifiers.CapsLock = 32
 EventModifiers,Command,EventModifiers.Command = 8
@@ -7,10 +58,262 @@ EventModifiers,FunctionKey,EventModifiers.FunctionKey = 64
 EventModifiers,None,EventModifiers.None = 0
 EventModifiers,Numeric,EventModifiers.Numeric = 16
 EventModifiers,Shift,EventModifiers.Shift = 1
+EventType,ContextClick,EventType.ContextClick = 16
+EventType,DragExited,EventType.DragExited = 15
+EventType,DragPerform,EventType.DragPerform = 10
+EventType,DragUpdated,EventType.DragUpdated = 9
+EventType,ExecuteCommand,EventType.ExecuteCommand = 14
+EventType,Ignore,EventType.Ignore = 11
+EventType,KeyDown,EventType.KeyDown = 4
+EventType,KeyUp,EventType.KeyUp = 5
+EventType,Layout,EventType.Layout = 8
+EventType,MouseDown,EventType.MouseDown = 0
+EventType,MouseDrag,EventType.MouseDrag = 3
+EventType,MouseEnterWindow,EventType.MouseEnterWindow = 20
+EventType,MouseLeaveWindow,EventType.MouseLeaveWindow = 21
+EventType,MouseMove,EventType.MouseMove = 2
+EventType,MouseUp,EventType.MouseUp = 1
+EventType,Repaint,EventType.Repaint = 7
+EventType,ScrollWheel,EventType.ScrollWheel = 6
+EventType,TouchDown,EventType.TouchDown = 30
+EventType,TouchEnter,EventType.TouchEnter = 33
+EventType,TouchLeave,EventType.TouchLeave = 34
+EventType,TouchMove,EventType.TouchMove = 32
+EventType,TouchStationary,EventType.TouchStationary = 35
+EventType,TouchUp,EventType.TouchUp = 31
+EventType,Used,EventType.Used = 12
+EventType,ValidateCommand,EventType.ValidateCommand = 13
+EventType,dragPerform,EventType.dragPerform = 10
+EventType,dragUpdated,EventType.dragUpdated = 9
+EventType,ignore,EventType.ignore = 11
+EventType,keyDown,EventType.keyDown = 4
+EventType,keyUp,EventType.keyUp = 5
+EventType,layout,EventType.layout = 8
+EventType,mouseDown,EventType.mouseDown = 0
+EventType,mouseDrag,EventType.mouseDrag = 3
+EventType,mouseMove,EventType.mouseMove = 2
+EventType,mouseUp,EventType.mouseUp = 1
+EventType,repaint,EventType.repaint = 7
+EventType,scrollWheel,EventType.scrollWheel = 6
+EventType,used,EventType.used = 12
+ExitGuiException,.ctor,ExitGuiException()
+FocusType,Keyboard,FocusType.Keyboard = 1
+FocusType,Native,FocusType.Native = 0
+FocusType,Passive,FocusType.Passive = 2
 FontStyle,Bold,FontStyle.Bold = 1
 FontStyle,BoldAndItalic,FontStyle.BoldAndItalic = 3
 FontStyle,Italic,FontStyle.Italic = 2
 FontStyle,Normal,FontStyle.Normal = 0
+Gui,BeginClip,"static void BeginClip(Rect) / static void BeginClip(Rect, Vector2, Vector2, bool)"
+Gui,BeginGroup,"static void BeginGroup(Rect) / static void BeginGroup(Rect, string) / static void BeginGroup(Rect, GuiContent, GuiStyle) / static void BeginGroup(Rect, GuiStyle)"
+Gui,BeginScrollView,"static Vector2 BeginScrollView(Rect, Vector2, Rect) / static Vector2 BeginScrollView(Rect, Vector2, Rect, bool, bool) / static Vector2 BeginScrollView(Rect, Vector2, Rect, GuiStyle, GuiStyle) / static Vector2 BeginScrollView(Rect, Vector2, Rect, bool, bool, GuiStyle, GuiStyle)"
+Gui,Box,"static void Box(Rect, string) / static void Box(Rect, Texture2D) / static void Box(Rect, GuiContent) / static void Box(Rect, string, GuiStyle) / static void Box(Rect, Texture2D, GuiStyle) / static void Box(Rect, GuiContent, GuiStyle)"
+Gui,BringWindowToBack,static void BringWindowToBack(int)
+Gui,BringWindowToFront,static void BringWindowToFront(int)
+Gui,Button,"static bool Button(Rect, string) / static bool Button(Rect, Texture2D) / static bool Button(Rect, GuiContent) / static bool Button(Rect, string, GuiStyle) / static bool Button(Rect, Texture2D, GuiStyle) / static bool Button(Rect, GuiContent, GuiStyle)"
+Gui,DragWindow,static void DragWindow() / static void DragWindow(Rect)
+Gui,DrawTexture,"static void DrawTexture(Rect, Texture2D) / static void DrawTexture(Rect, Texture2D, ScaleMode) / static void DrawTexture(Rect, Texture2D, ScaleMode, bool) / static void DrawTexture(Rect, Texture2D, ScaleMode, bool, float) / static void DrawTexture(Rect, Texture2D, ScaleMode, bool, float, Color, float, float)"
+Gui,DrawTextureWithTexCoords,"static void DrawTextureWithTexCoords(Rect, Texture2D, Rect) / static void DrawTextureWithTexCoords(Rect, Texture2D, Rect, bool)"
+Gui,EndClip,static void EndClip()
+Gui,EndGroup,static void EndGroup()
+Gui,EndScrollView,static void EndScrollView() / static void EndScrollView(bool)
+Gui,FocusControl,static void FocusControl(string)
+Gui,FocusWindow,static void FocusWindow(int)
+Gui,GetNameOfFocusedControl,static string GetNameOfFocusedControl()
+Gui,HorizontalScrollbar,"static float HorizontalScrollbar(Rect, float, float, float, float) / static float HorizontalScrollbar(Rect, float, float, float, float, GuiStyle)"
+Gui,HorizontalSlider,"static float HorizontalSlider(Rect, float, float, float) / static float HorizontalSlider(Rect, float, float, float, GuiStyle, GuiStyle)"
+Gui,Label,"static void Label(Rect, string) / static void Label(Rect, Texture2D) / static void Label(Rect, GuiContent) / static void Label(Rect, string, GuiStyle) / static void Label(Rect, Texture2D, GuiStyle) / static void Label(Rect, GuiContent, GuiStyle)"
+Gui,ModalWindow,"static Rect ModalWindow(int, Rect, Gui.WindowFunction, string) / static Rect ModalWindow(int, Rect, Gui.WindowFunction, Texture2D) / static Rect ModalWindow(int, Rect, Gui.WindowFunction, GuiContent) / static Rect ModalWindow(int, Rect, Gui.WindowFunction, string, GuiStyle) / static Rect ModalWindow(int, Rect, Gui.WindowFunction, Texture2D, GuiStyle) / static Rect ModalWindow(int, Rect, Gui.WindowFunction, GuiContent, GuiStyle)"
+Gui,PasswordField,"static string PasswordField(Rect, string, Char) / static string PasswordField(Rect, string, Char, int) / static string PasswordField(Rect, string, Char, GuiStyle) / static string PasswordField(Rect, string, Char, int, GuiStyle)"
+Gui,RepeatButton,"static bool RepeatButton(Rect, string) / static bool RepeatButton(Rect, Texture2D) / static bool RepeatButton(Rect, GuiContent) / static bool RepeatButton(Rect, string, GuiStyle) / static bool RepeatButton(Rect, Texture2D, GuiStyle) / static bool RepeatButton(Rect, GuiContent, GuiStyle)"
+Gui,ScrollTo,static void ScrollTo(Rect)
+Gui,ScrollTowards,"static bool ScrollTowards(Rect, float)"
+Gui,SelectionGrid,"static int SelectionGrid(Rect, int, string[], int) / static int SelectionGrid(Rect, int, Texture2D[], int) / static int SelectionGrid(Rect, int, GuiContent[], int) / static int SelectionGrid(Rect, int, string[], int, GuiStyle) / static int SelectionGrid(Rect, int, GuiContent[], int, GuiStyle)"
+Gui,SetNextControlName,static void SetNextControlName(string)
+Gui,Slider,"static float Slider(Rect, float, float, float, float, GuiStyle, GuiStyle, bool, int)"
+Gui,TextArea,"static string TextArea(Rect, string) / static string TextArea(Rect, string, int) / static string TextArea(Rect, string, GuiStyle) / static string TextArea(Rect, string, int, GuiStyle)"
+Gui,TextField,"static string TextField(Rect, string) / static string TextField(Rect, string, int) / static string TextField(Rect, string, GuiStyle) / static string TextField(Rect, string, int, GuiStyle)"
+Gui,Toggle,"static bool Toggle(Rect, bool, string) / static bool Toggle(Rect, bool, Texture2D) / static bool Toggle(Rect, bool, GuiContent) / static bool Toggle(Rect, bool, string, GuiStyle) / static bool Toggle(Rect, bool, Texture2D, GuiStyle) / static bool Toggle(Rect, bool, GuiContent, GuiStyle)"
+Gui,Toolbar,"static int Toolbar(Rect, int, string[]) / static int Toolbar(Rect, int, Texture2D[]) / static int Toolbar(Rect, int, GuiContent[]) / static int Toolbar(Rect, int, string[], GuiStyle) / static int Toolbar(Rect, int, GuiContent[], GuiStyle) / static int Toolbar(Rect, int, Texture2D[], GuiStyle) / static int Toolbar(Rect, int, string[], GuiStyle, Gui.ToolbarButtonSize) / static int Toolbar(Rect, int, Texture2D[], GuiStyle, Gui.ToolbarButtonSize) / static int Toolbar(Rect, int, GuiContent[], GuiStyle, Gui.ToolbarButtonSize)"
+Gui,UnfocusWindow,static void UnfocusWindow()
+Gui,VerticalScrollbar,"static float VerticalScrollbar(Rect, float, float, float, float) / static float VerticalScrollbar(Rect, float, float, float, float, GuiStyle)"
+Gui,VerticalSlider,"static float VerticalSlider(Rect, float, float, float) / static float VerticalSlider(Rect, float, float, float, GuiStyle, GuiStyle)"
+Gui,Window,"static Rect Window(int, Rect, Gui.WindowFunction, string) / static Rect Window(int, Rect, Gui.WindowFunction, Texture2D) / static Rect Window(int, Rect, Gui.WindowFunction, GuiContent) / static Rect Window(int, Rect, Gui.WindowFunction, string, GuiStyle) / static Rect Window(int, Rect, Gui.WindowFunction, Texture2D, GuiStyle) / static Rect Window(int, Rect, Gui.WindowFunction, GuiContent, GuiStyle)"
+Gui,backgroundColor,static Color backgroundColor { get; set; }
+Gui,changed,static bool changed { get; set; }
+Gui,color,static Color color { get; set; }
+Gui,contentColor,static Color contentColor { get; set; }
+Gui,depth,static int depth { get; set; }
+Gui,enabled,static bool enabled { get; set; }
+Gui,matrix,static Matrix4x4 matrix { get; set; }
+Gui,skin,static GuiSkin skin { get; set; }
+Gui,tooltip,static string tooltip { get; set; }
+Gui.ClipScope,.ctor,"ClipScope(Rect) / ClipScope(Rect, Vector2)"
+Gui.GroupScope,.ctor,"GroupScope(Rect) / GroupScope(Rect, string) / GroupScope(Rect, GuiStyle) / GroupScope(Rect, GuiContent, GuiStyle) / GroupScope(Rect, string, GuiStyle) / GroupScope(Rect, Texture2D, GuiStyle)"
+Gui.Scope,Dispose,void Dispose()
+Gui.ScrollViewScope,.ctor,"ScrollViewScope(Rect, Vector2, Rect) / ScrollViewScope(Rect, Vector2, Rect, bool, bool) / ScrollViewScope(Rect, Vector2, Rect, GuiStyle, GuiStyle) / ScrollViewScope(Rect, Vector2, Rect, bool, bool, GuiStyle, GuiStyle)"
+Gui.ScrollViewScope,handleScrollWheel,bool handleScrollWheel { get; set; }
+Gui.ScrollViewScope,scrollPosition,Vector2 scrollPosition { get; }
+Gui.ToolbarButtonSize,FitToContents,Gui.ToolbarButtonSize.FitToContents = 1
+Gui.ToolbarButtonSize,Fixed,Gui.ToolbarButtonSize.Fixed = 0
+Gui.WindowFunction,delegate,void (int)
+GuiContent,.ctor,"GuiContent() / GuiContent(string) / GuiContent(Texture2D) / GuiContent(string, Texture2D) / GuiContent(string, string) / GuiContent(Texture2D, string) / GuiContent(string, Texture2D, string) / GuiContent(GuiContent)"
+GuiContent,ToString,string ToString()
+GuiContent,image,Texture2D image { get; set; }
+GuiContent,none,static GuiContent none { get; }
+GuiContent,operators,"Equality(GuiContent, GuiContent) / Inequality(GuiContent, GuiContent) / Implicit(GuiContent)"
+GuiContent,text,string text { get; set; }
+GuiContent,tooltip,string tooltip { get; set; }
+GuiLayout,BeginArea,"static void BeginArea(Rect) / static void BeginArea(Rect, string) / static void BeginArea(Rect, GuiStyle) / static void BeginArea(Rect, string, GuiStyle)"
+GuiLayout,BeginHorizontal,"static void BeginHorizontal(params GuiLayoutOption[]) / static void BeginHorizontal(GuiStyle, params GuiLayoutOption[]) / static void BeginHorizontal(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,BeginScrollView,"static Vector2 BeginScrollView(Vector2, params GuiLayoutOption[]) / static Vector2 BeginScrollView(Vector2, bool, bool, params GuiLayoutOption[]) / static Vector2 BeginScrollView(Vector2, GuiStyle, GuiStyle, params GuiLayoutOption[]) / static Vector2 BeginScrollView(Vector2, GuiStyle, params GuiLayoutOption[]) / static Vector2 BeginScrollView(Vector2, bool, bool, GuiStyle, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,BeginVertical,"static void BeginVertical(params GuiLayoutOption[]) / static void BeginVertical(GuiStyle, params GuiLayoutOption[]) / static void BeginVertical(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,Box,"static void Box(string, params GuiLayoutOption[]) / static void Box(GuiContent, params GuiLayoutOption[]) / static void Box(string, GuiStyle, params GuiLayoutOption[]) / static void Box(GuiContent, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,Button,"static bool Button(string, params GuiLayoutOption[]) / static bool Button(Texture2D, params GuiLayoutOption[]) / static bool Button(GuiContent, params GuiLayoutOption[]) / static bool Button(string, GuiStyle, params GuiLayoutOption[]) / static bool Button(GuiContent, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,EndArea,static void EndArea()
+GuiLayout,EndHorizontal,static void EndHorizontal()
+GuiLayout,EndScrollView,static void EndScrollView()
+GuiLayout,EndVertical,static void EndVertical()
+GuiLayout,ExpandHeight,static GuiLayoutOption ExpandHeight(bool)
+GuiLayout,ExpandWidth,static GuiLayoutOption ExpandWidth(bool)
+GuiLayout,FlexibleSpace,static void FlexibleSpace()
+GuiLayout,Height,static GuiLayoutOption Height(float)
+GuiLayout,HorizontalScrollbar,"static float HorizontalScrollbar(float, float, float, float, params GuiLayoutOption[])"
+GuiLayout,HorizontalSlider,"static float HorizontalSlider(float, float, float, params GuiLayoutOption[])"
+GuiLayout,Label,"static void Label(string, params GuiLayoutOption[]) / static void Label(Texture2D, params GuiLayoutOption[]) / static void Label(GuiContent, params GuiLayoutOption[]) / static void Label(string, GuiStyle, params GuiLayoutOption[]) / static void Label(GuiContent, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,MaxHeight,static GuiLayoutOption MaxHeight(float)
+GuiLayout,MaxWidth,static GuiLayoutOption MaxWidth(float)
+GuiLayout,MinHeight,static GuiLayoutOption MinHeight(float)
+GuiLayout,MinWidth,static GuiLayoutOption MinWidth(float)
+GuiLayout,PasswordField,"static string PasswordField(string, Char, params GuiLayoutOption[])"
+GuiLayout,RepeatButton,"static bool RepeatButton(string, params GuiLayoutOption[]) / static bool RepeatButton(GuiContent, params GuiLayoutOption[]) / static bool RepeatButton(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,SelectionGrid,"static int SelectionGrid(int, string[], int, params GuiLayoutOption[]) / static int SelectionGrid(int, GuiContent[], int, params GuiLayoutOption[])"
+GuiLayout,Space,static void Space(float)
+GuiLayout,TextArea,"static string TextArea(string, params GuiLayoutOption[]) / static string TextArea(string, int, params GuiLayoutOption[])"
+GuiLayout,TextField,"static string TextField(string, params GuiLayoutOption[]) / static string TextField(string, int, params GuiLayoutOption[]) / static string TextField(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,Toggle,"static bool Toggle(bool, string, params GuiLayoutOption[]) / static bool Toggle(bool, GuiContent, params GuiLayoutOption[]) / static bool Toggle(bool, string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout,Toolbar,"static int Toolbar(int, string[], params GuiLayoutOption[]) / static int Toolbar(int, GuiContent[], params GuiLayoutOption[]) / static int Toolbar(int, Texture2D[], params GuiLayoutOption[]) / static int Toolbar(int, string[], GuiStyle, params GuiLayoutOption[]) / static int Toolbar(int, GuiContent[], GuiStyle, params GuiLayoutOption[]) / static int Toolbar(int, string[], GuiStyle, Gui.ToolbarButtonSize, params GuiLayoutOption[]) / static int Toolbar(int, GuiContent[], GuiStyle, Gui.ToolbarButtonSize, params GuiLayoutOption[]) / static int Toolbar(int, string[], bool[], GuiStyle, Gui.ToolbarButtonSize, params GuiLayoutOption[]) / static int Toolbar(int, GuiContent[], bool[], GuiStyle, Gui.ToolbarButtonSize, params GuiLayoutOption[])"
+GuiLayout,VerticalScrollbar,"static float VerticalScrollbar(float, float, float, float, params GuiLayoutOption[])"
+GuiLayout,VerticalSlider,"static float VerticalSlider(float, float, float, params GuiLayoutOption[])"
+GuiLayout,Width,static GuiLayoutOption Width(float)
+GuiLayout,Window,"static Rect Window(int, Rect, Gui.WindowFunction, string, params GuiLayoutOption[]) / static Rect Window(int, Rect, Gui.WindowFunction, Texture2D, params GuiLayoutOption[]) / static Rect Window(int, Rect, Gui.WindowFunction, GuiContent, params GuiLayoutOption[]) / static Rect Window(int, Rect, Gui.WindowFunction, string, GuiStyle, params GuiLayoutOption[]) / static Rect Window(int, Rect, Gui.WindowFunction, Texture2D, GuiStyle, params GuiLayoutOption[]) / static Rect Window(int, Rect, Gui.WindowFunction, GuiContent, GuiStyle, params GuiLayoutOption[])"
+GuiLayout.AreaScope,.ctor,"AreaScope(Rect) / AreaScope(Rect, string) / AreaScope(Rect, string, GuiStyle)"
+GuiLayout.HorizontalScope,.ctor,"HorizontalScope(params GuiLayoutOption[]) / HorizontalScope(GuiStyle, params GuiLayoutOption[]) / HorizontalScope(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayout.ScrollViewScope,.ctor,"ScrollViewScope(Vector2, params GuiLayoutOption[]) / ScrollViewScope(Vector2, bool, bool, params GuiLayoutOption[]) / ScrollViewScope(Vector2, GuiStyle, GuiStyle, params GuiLayoutOption[]) / ScrollViewScope(Vector2, GuiStyle, params GuiLayoutOption[])"
+GuiLayout.ScrollViewScope,handleScrollWheel,bool handleScrollWheel { get; set; }
+GuiLayout.ScrollViewScope,scrollPosition,Vector2 scrollPosition { get; }
+GuiLayout.VerticalScope,.ctor,"VerticalScope(params GuiLayoutOption[]) / VerticalScope(GuiStyle, params GuiLayoutOption[]) / VerticalScope(string, GuiStyle, params GuiLayoutOption[])"
+GuiLayoutOption,operators,"Equality(GuiLayoutOption, GuiLayoutOption) / Inequality(GuiLayoutOption, GuiLayoutOption) / Implicit(GuiLayoutOption)"
+GuiLayoutUtility,GetAspectRect,"static Rect GetAspectRect(float, params GuiLayoutOption[])"
+GuiLayoutUtility,GetLastRect,static Rect GetLastRect()
+GuiLayoutUtility,GetRect,"static Rect GetRect(float, float, params GuiLayoutOption[]) / static Rect GetRect(float, float, GuiStyle, params GuiLayoutOption[]) / static Rect GetRect(float, float, float, float, params GuiLayoutOption[]) / static Rect GetRect(GuiContent, GuiStyle, params GuiLayoutOption[])"
+GuiSettings,.ctor,GuiSettings()
+GuiSettings,cursorColor,Color cursorColor { get; set; }
+GuiSettings,cursorFlashSpeed,float cursorFlashSpeed { get; set; }
+GuiSettings,doubleClickSelectsWord,bool doubleClickSelectsWord { get; set; }
+GuiSettings,operators,"Equality(GuiSettings, GuiSettings) / Inequality(GuiSettings, GuiSettings) / Implicit(GuiSettings)"
+GuiSettings,selectionColor,Color selectionColor { get; set; }
+GuiSettings,tripleClickSelectsLine,bool tripleClickSelectsLine { get; set; }
+GuiSkin,.ctor,GuiSkin()
+GuiSkin,FindStyle,GuiStyle FindStyle(string)
+GuiSkin,GetEnumerator,IEnumerator GetEnumerator()
+GuiSkin,GetStyle,GuiStyle GetStyle(string)
+GuiSkin,box,GuiStyle box { get; set; }
+GuiSkin,button,GuiStyle button { get; set; }
+GuiSkin,customStyles,GuiStyle[] customStyles { get; set; }
+GuiSkin,font,FontAsset font { get; set; }
+GuiSkin,horizontalScrollbar,GuiStyle horizontalScrollbar { get; set; }
+GuiSkin,horizontalScrollbarLeftButton,GuiStyle horizontalScrollbarLeftButton { get; set; }
+GuiSkin,horizontalScrollbarRightButton,GuiStyle horizontalScrollbarRightButton { get; set; }
+GuiSkin,horizontalScrollbarThumb,GuiStyle horizontalScrollbarThumb { get; set; }
+GuiSkin,horizontalSlider,GuiStyle horizontalSlider { get; set; }
+GuiSkin,horizontalSliderThumb,GuiStyle horizontalSliderThumb { get; set; }
+GuiSkin,label,GuiStyle label { get; set; }
+GuiSkin,scrollView,GuiStyle scrollView { get; set; }
+GuiSkin,settings,GuiSettings settings { get; }
+GuiSkin,textArea,GuiStyle textArea { get; set; }
+GuiSkin,textField,GuiStyle textField { get; set; }
+GuiSkin,toggle,GuiStyle toggle { get; set; }
+GuiSkin,verticalScrollbar,GuiStyle verticalScrollbar { get; set; }
+GuiSkin,verticalScrollbarDownButton,GuiStyle verticalScrollbarDownButton { get; set; }
+GuiSkin,verticalScrollbarThumb,GuiStyle verticalScrollbarThumb { get; set; }
+GuiSkin,verticalScrollbarUpButton,GuiStyle verticalScrollbarUpButton { get; set; }
+GuiSkin,verticalSlider,GuiStyle verticalSlider { get; set; }
+GuiSkin,verticalSliderThumb,GuiStyle verticalSliderThumb { get; set; }
+GuiSkin,window,GuiStyle window { get; set; }
+GuiStyle,.ctor,GuiStyle() / GuiStyle(GuiStyle)
+GuiStyle,CalcHeight,"float CalcHeight(GuiContent, float)"
+GuiStyle,CalcMinMaxWidth,"void CalcMinMaxWidth(GuiContent, out float, out float)"
+GuiStyle,CalcScreenSize,Vector2 CalcScreenSize(Vector2)
+GuiStyle,CalcSize,Vector2 CalcSize(GuiContent)
+GuiStyle,Draw,"void Draw(Rect, bool, bool, bool, bool) / void Draw(Rect, string, bool, bool, bool, bool) / void Draw(Rect, Texture2D, bool, bool, bool, bool) / void Draw(Rect, GuiContent, bool, bool, bool, bool) / void Draw(Rect, GuiContent, int) / void Draw(Rect, GuiContent, int, bool) / void Draw(Rect, GuiContent, int, bool, bool)"
+GuiStyle,DrawCursor,"void DrawCursor(Rect, GuiContent, int, int)"
+GuiStyle,DrawWithTextSelection,"void DrawWithTextSelection(Rect, GuiContent, int, int, int)"
+GuiStyle,GetCursorPixelPosition,"Vector2 GetCursorPixelPosition(Rect, GuiContent, int)"
+GuiStyle,GetCursorStringIndex,"int GetCursorStringIndex(Rect, GuiContent, Vector2)"
+GuiStyle,ToString,string ToString()
+GuiStyle,active,GuiStyleState active { get; set; }
+GuiStyle,alignment,TextAnchor alignment { get; set; }
+GuiStyle,border,RectOffset border { get; set; }
+GuiStyle,clipping,TextClipping clipping { get; set; }
+GuiStyle,contentOffset,Vector2 contentOffset { get; set; }
+GuiStyle,fixedHeight,float fixedHeight { get; set; }
+GuiStyle,fixedWidth,float fixedWidth { get; set; }
+GuiStyle,focused,GuiStyleState focused { get; set; }
+GuiStyle,font,FontAsset font { get; set; }
+GuiStyle,fontSize,int fontSize { get; set; }
+GuiStyle,fontStyle,FontStyle fontStyle { get; set; }
+GuiStyle,hover,GuiStyleState hover { get; set; }
+GuiStyle,imagePosition,ImagePosition imagePosition { get; set; }
+GuiStyle,isHeightDependantOnWidth,bool isHeightDependantOnWidth { get; }
+GuiStyle,lineHeight,float lineHeight { get; }
+GuiStyle,margin,RectOffset margin { get; set; }
+GuiStyle,name,string name { get; set; }
+GuiStyle,none,static GuiStyle none { get; }
+GuiStyle,normal,GuiStyleState normal { get; set; }
+GuiStyle,onActive,GuiStyleState onActive { get; set; }
+GuiStyle,onFocused,GuiStyleState onFocused { get; set; }
+GuiStyle,onHover,GuiStyleState onHover { get; set; }
+GuiStyle,onNormal,GuiStyleState onNormal { get; set; }
+GuiStyle,operators,"Implicit(string) / Equality(GuiStyle, GuiStyle) / Inequality(GuiStyle, GuiStyle) / Implicit(GuiStyle)"
+GuiStyle,overflow,RectOffset overflow { get; set; }
+GuiStyle,padding,RectOffset padding { get; set; }
+GuiStyle,richText,bool richText { get; set; }
+GuiStyle,stretchHeight,bool stretchHeight { get; set; }
+GuiStyle,stretchWidth,bool stretchWidth { get; set; }
+GuiStyle,wordWrap,bool wordWrap { get; set; }
+GuiStyleState,.ctor,GuiStyleState()
+GuiStyleState,background,Texture2D background { get; set; }
+GuiStyleState,operators,"Equality(GuiStyleState, GuiStyleState) / Inequality(GuiStyleState, GuiStyleState) / Implicit(GuiStyleState)"
+GuiStyleState,scaledBackgrounds,Texture2D[] scaledBackgrounds { get; set; }
+GuiStyleState,textColor,Color textColor { get; set; }
+GuiUtility,AlignRectToDevice,"static Rect AlignRectToDevice(Rect) / static Rect AlignRectToDevice(Rect, out int, out int)"
+GuiUtility,ExitGui,static void ExitGui()
+GuiUtility,GetControlID,"static int GetControlID(FocusType) / static int GetControlID(int, FocusType) / static int GetControlID(FocusType, Rect) / static int GetControlID(int, FocusType, Rect) / static int GetControlID(GuiContent, FocusType) / static int GetControlID(GuiContent, FocusType, Rect)"
+GuiUtility,GetStateObject,"static object GetStateObject(Type, int)"
+GuiUtility,GuiToScreenPoint,static Vector2 GuiToScreenPoint(Vector2)
+GuiUtility,GuiToScreenRect,static Rect GuiToScreenRect(Rect)
+GuiUtility,QueryStateObject,"static object QueryStateObject(Type, int)"
+GuiUtility,RotateAroundPivot,"static void RotateAroundPivot(float, Vector2)"
+GuiUtility,ScaleAroundPivot,"static void ScaleAroundPivot(Vector2, Vector2)"
+GuiUtility,ScreenToGuiPoint,static Vector2 ScreenToGuiPoint(Vector2)
+GuiUtility,ScreenToGuiRect,static Rect ScreenToGuiRect(Rect)
+GuiUtility,hasModalWindow,static bool hasModalWindow { get; }
+GuiUtility,hotControl,static int hotControl { get; set; }
+GuiUtility,keyboardControl,static int keyboardControl { get; set; }
+GuiUtility,systemCopyBuffer,static string systemCopyBuffer { get; set; }
+ImagePosition,ImageAbove,ImagePosition.ImageAbove = 1
+ImagePosition,ImageLeft,ImagePosition.ImageLeft = 0
+ImagePosition,ImageOnly,ImagePosition.ImageOnly = 2
+ImagePosition,TextOnly,ImagePosition.TextOnly = 3
+PenStatus,Barrel,PenStatus.Barrel = 2
+PenStatus,Contact,PenStatus.Contact = 1
+PenStatus,Eraser,PenStatus.Eraser = 8
+PenStatus,Inverted,PenStatus.Inverted = 4
+PenStatus,None,PenStatus.None = 0
+PointerType,Mouse,PointerType.Mouse = 0
+PointerType,Pen,PointerType.Pen = 2
+PointerType,Touch,PointerType.Touch = 1
 Properties.CreatePropertyAttribute,.ctor,CreatePropertyAttribute()
 Properties.CreatePropertyAttribute,ReadOnly,bool ReadOnly { get; set; }
 Properties.DontCreatePropertyAttribute,.ctor,DontCreatePropertyAttribute()
@@ -49,6 +352,20 @@ Properties.PropertyPathPartKind,Index,Properties.PropertyPathPartKind.Index = 1
 Properties.PropertyPathPartKind,Key,Properties.PropertyPathPartKind.Key = 2
 Properties.PropertyPathPartKind,Name,Properties.PropertyPathPartKind.Name = 0
 Properties.TypeConverter,delegate,TDestination (ref TSource)
+RectOffset,.ctor,"RectOffset() / RectOffset(int, int, int, int)"
+RectOffset,Add,Rect Add(Rect)
+RectOffset,Remove,Rect Remove(Rect)
+RectOffset,ToString,string ToString()
+RectOffset,bottom,int bottom { get; set; }
+RectOffset,horizontal,int horizontal { get; }
+RectOffset,left,int left { get; set; }
+RectOffset,operators,"Equality(RectOffset, RectOffset) / Inequality(RectOffset, RectOffset) / Implicit(RectOffset)"
+RectOffset,right,int right { get; set; }
+RectOffset,top,int top { get; set; }
+RectOffset,vertical,int vertical { get; }
+ScaleMode,ScaleAndCrop,ScaleMode.ScaleAndCrop = 1
+ScaleMode,ScaleToFit,ScaleMode.ScaleToFit = 2
+ScaleMode,StretchToFill,ScaleMode.StretchToFill = 0
 Text.FontAsset,.ctor,FontAsset()
 Text.FontAsset,HasCharacter,"bool HasCharacter(int, bool = False)"
 Text.FontAsset,TryAddCharacters,bool TryAddCharacters(string)
@@ -65,6 +382,100 @@ TextAnchor,MiddleRight,TextAnchor.MiddleRight = 5
 TextAnchor,UpperCenter,TextAnchor.UpperCenter = 1
 TextAnchor,UpperLeft,TextAnchor.UpperLeft = 0
 TextAnchor,UpperRight,TextAnchor.UpperRight = 2
+TextClipping,Clip,TextClipping.Clip = 1
+TextClipping,Ellipsis,TextClipping.Ellipsis = 2
+TextClipping,Overflow,TextClipping.Overflow = 0
+TextEditor,.ctor,TextEditor()
+TextEditor,Backspace,bool Backspace()
+TextEditor,CanPaste,bool CanPaste()
+TextEditor,Copy,void Copy()
+TextEditor,Cut,bool Cut()
+TextEditor,DblClickSnap,void DblClickSnap(TextEditor.DblClickSnapping)
+TextEditor,Delete,bool Delete()
+TextEditor,DeleteLineBack,bool DeleteLineBack()
+TextEditor,DeleteSelection,bool DeleteSelection()
+TextEditor,DeleteWordBack,bool DeleteWordBack()
+TextEditor,DeleteWordForward,bool DeleteWordForward()
+TextEditor,DetectFocusChange,void DetectFocusChange()
+TextEditor,DrawCursor,void DrawCursor(string)
+TextEditor,ExpandSelectGraphicalLineEnd,void ExpandSelectGraphicalLineEnd()
+TextEditor,ExpandSelectGraphicalLineStart,void ExpandSelectGraphicalLineStart()
+TextEditor,FindStartOfNextWord,int FindStartOfNextWord(int)
+TextEditor,HandleKeyEvent,bool HandleKeyEvent(Event)
+TextEditor,HasClickedOnHREF,"bool HasClickedOnHREF(Vector2, string)"
+TextEditor,HasClickedOnLink,"bool HasClickedOnLink(Vector2, string)"
+TextEditor,Insert,void Insert(Char)
+TextEditor,IsOverSelection,bool IsOverSelection(Vector2)
+TextEditor,MouseDragSelectsWholeWords,void MouseDragSelectsWholeWords(bool)
+TextEditor,MoveAltCursorToPosition,void MoveAltCursorToPosition(Vector2)
+TextEditor,MoveCursorToPosition,void MoveCursorToPosition(Vector2)
+TextEditor,MoveDown,void MoveDown()
+TextEditor,MoveGraphicalLineEnd,void MoveGraphicalLineEnd()
+TextEditor,MoveGraphicalLineStart,void MoveGraphicalLineStart()
+TextEditor,MoveLeft,void MoveLeft()
+TextEditor,MoveLineEnd,void MoveLineEnd()
+TextEditor,MoveLineStart,void MoveLineStart()
+TextEditor,MoveParagraphBackward,void MoveParagraphBackward()
+TextEditor,MoveParagraphForward,void MoveParagraphForward()
+TextEditor,MoveRight,void MoveRight()
+TextEditor,MoveSelectionToAltCursor,void MoveSelectionToAltCursor()
+TextEditor,MoveTextEnd,void MoveTextEnd()
+TextEditor,MoveTextStart,void MoveTextStart()
+TextEditor,MoveToEndOfPreviousWord,void MoveToEndOfPreviousWord()
+TextEditor,MoveToStartOfNextWord,void MoveToStartOfNextWord()
+TextEditor,MoveUp,void MoveUp()
+TextEditor,MoveWordLeft,void MoveWordLeft()
+TextEditor,MoveWordRight,void MoveWordRight()
+TextEditor,OnFocus,void OnFocus()
+TextEditor,OnLostFocus,void OnLostFocus()
+TextEditor,Paste,bool Paste()
+TextEditor,ReplaceSelection,void ReplaceSelection(string)
+TextEditor,SaveBackup,void SaveBackup()
+TextEditor,SelectAll,void SelectAll()
+TextEditor,SelectCurrentParagraph,void SelectCurrentParagraph()
+TextEditor,SelectCurrentWord,void SelectCurrentWord()
+TextEditor,SelectDown,void SelectDown()
+TextEditor,SelectGraphicalLineEnd,void SelectGraphicalLineEnd()
+TextEditor,SelectGraphicalLineStart,void SelectGraphicalLineStart()
+TextEditor,SelectLeft,void SelectLeft()
+TextEditor,SelectNone,void SelectNone()
+TextEditor,SelectParagraphBackward,void SelectParagraphBackward()
+TextEditor,SelectParagraphForward,void SelectParagraphForward()
+TextEditor,SelectRight,void SelectRight()
+TextEditor,SelectTextEnd,void SelectTextEnd()
+TextEditor,SelectTextStart,void SelectTextStart()
+TextEditor,SelectToEndOfPreviousWord,void SelectToEndOfPreviousWord()
+TextEditor,SelectToPosition,void SelectToPosition(Vector2)
+TextEditor,SelectToStartOfNextWord,void SelectToStartOfNextWord()
+TextEditor,SelectUp,void SelectUp()
+TextEditor,SelectWordLeft,void SelectWordLeft()
+TextEditor,SelectWordRight,void SelectWordRight()
+TextEditor,SelectedText,string SelectedText { get; }
+TextEditor,Undo,void Undo()
+TextEditor,UpdateScrollOffsetIfNeeded,void UpdateScrollOffsetIfNeeded(Event)
+TextEditor,altCursorPosition,int altCursorPosition { get; set; }
+TextEditor,content,GuiContent content { get; set; }
+TextEditor,controlID,int controlID { get; set; }
+TextEditor,cursorIndex,int cursorIndex { get; set; }
+TextEditor,doubleClickSnapping,TextEditor.DblClickSnapping doubleClickSnapping { get; set; }
+TextEditor,graphicalCursorPos,Vector2 graphicalCursorPos { get; set; }
+TextEditor,graphicalSelectCursorPos,Vector2 graphicalSelectCursorPos { get; set; }
+TextEditor,hasHorizontalCursor,bool hasHorizontalCursor { get; set; }
+TextEditor,hasHorizontalCursorPos,bool hasHorizontalCursorPos { get; set; }
+TextEditor,hasSelection,bool hasSelection { get; }
+TextEditor,isMultiline,bool isMultiline { get; }
+TextEditor,isPasswordField,bool isPasswordField { get; set; }
+TextEditor,multiline,bool multiline { get; set; }
+TextEditor,operators,"Equality(TextEditor, TextEditor) / Inequality(TextEditor, TextEditor) / Implicit(TextEditor)"
+TextEditor,position,Rect position { get; set; }
+TextEditor,revealCursor,bool revealCursor { get; set; }
+TextEditor,scrollOffset,Vector2 scrollOffset { get; set; }
+TextEditor,selectIndex,int selectIndex { get; set; }
+TextEditor,showCursor,bool showCursor { get; set; }
+TextEditor,style,GuiStyle style { get; set; }
+TextEditor,text,string text { get; set; }
+TextEditor.DblClickSnapping,PARAGRAPHS,TextEditor.DblClickSnapping.PARAGRAPHS = 1
+TextEditor.DblClickSnapping,WORDS,TextEditor.DblClickSnapping.WORDS = 0
 UI.AbstractBaseField,.ctor,AbstractBaseField()
 UI.AbstractBaseField,contentContainer,Element contentContainer { get; }
 UI.AbstractBaseField,label,string label { get; set; }
@@ -1443,9 +1854,6 @@ UI.Scale,None,static Scale None()
 UI.Scale,ToString,string ToString()
 UI.Scale,operators,"Implicit(Vector2) / Implicit(Vector3) / Equality(Scale, Scale) / Inequality(Scale, Scale)"
 UI.Scale,value,Vector3 value { get; set; }
-UI.ScaleMode,ScaleAndCrop,UI.ScaleMode.ScaleAndCrop = 1
-UI.ScaleMode,ScaleToFit,UI.ScaleMode.ScaleToFit = 2
-UI.ScaleMode,StretchToFill,UI.ScaleMode.StretchToFill = 0
 UI.ScrollView,.ctor,ScrollView() / ScrollView(ScrollViewMode)
 UI.ScrollView,ScrollTo,void ScrollTo(Element)
 UI.ScrollView,contentContainer,Element contentContainer { get; }

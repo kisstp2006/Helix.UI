@@ -4,23 +4,6 @@ using System.Runtime.InteropServices;
 using Helix.Interop;
 using Helix.Scripting;
 
-namespace HelixEngine
-{
-    // The modifier keys of an event.
-    [Flags]
-    public enum EventModifiers
-    {
-        None = 0,
-        Shift = 1,
-        Control = 2,
-        Alt = 4,
-        Command = 8,
-        Numeric = 16,
-        CapsLock = 32,
-        FunctionKey = 64,
-    }
-}
-
 namespace HelixEngine.UI
 {
     public enum PropagationPhase

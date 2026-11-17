@@ -67,6 +67,11 @@ HX_TEST(RichText, LengthsSizesAndStandaloneTags)
     HX_CHECK(StyleAt(t, 0).hasAlign && StyleAt(t, 0).align == TextAlignment::Center && (StyleAt(t, 0).flags & TextFlags::Mark));
     HX_CHECK(StyleAt(t, 0).marginLeft.value == 10 && StyleAt(t, 0).marginRight.value == 10 && StyleAt(t, 1).marginLeft.value == 0);
     HX_CHECK(StyleAt(t, 1).link == 0 && t.links.Size() == 1 && t.links[0].id == "id1" && t.links[0].firstElement == 1 && t.links[0].count == 1);
+    HX_CHECK(!t.links[0].href);
+    // An anchor: a link whose id is its address.
+    ParseRichText("go <a href=\"https://example.org/x\">here</a>!", true, TextStyle(), t);
+    HX_CHECK(t.links.Size() == 1 && t.links[0].href && t.links[0].id == "https://example.org/x" && t.links[0].firstElement == 3 && t.links[0].count == 4);
+    HX_CHECK(Plain(t) == "go here!");
 }
 
 HX_TEST(RichText, UnknownTagsNoparseStylesAndPlainMode)

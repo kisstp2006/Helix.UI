@@ -111,4 +111,63 @@ namespace helix::ui::testing
                                    bool(toggle.value), bool(foldout.value)));
         }
     };
+
+    // The test's OnGui for a C++ script (the native GUI's calls), told the script's GameObject.
+    inline void (*&GuiHook())(StringView name)
+    {
+        static void (*hook)(StringView) = nullptr;
+        return hook;
+    }
+
+    HX_CLASS(Namespace = "UIEngineTests")
+    class CppGuiHook : public ::HelixEngine::GameBehaviour
+    {
+    public:
+        void OnGui()
+        {
+            if (GuiHook())
+            {
+                String n = name;
+                GuiHook()(n.View());
+            }
+        }
+    };
+
+    // The immediate GUI from the C++ script API: a button, a layout area, a window whose function is the event's.
+    HX_CLASS(Namespace = "UIEngineTests")
+    class CppGuiScript : public ::HelixEngine::GameBehaviour
+    {
+    public:
+        void Start()
+        {
+            token_ = ::HelixEngine::Gui::windowFunctionCalled.Add({[](void*, ::helix::i32 id) {
+                                                                       if (id != 7)
+                                                                           return;
+                                                                       ::HelixEngine::Gui::Label(::helix::Rect(8, 24, 100, 20), "Inside");
+                                                                       if (::HelixEngine::Gui::Button(::helix::Rect(8, 48, 80, 20), "Close"))
+                                                                           CppNotes().Push(String("cpp-window-button"));
+                                                                       ::HelixEngine::Gui::DragWindow();
+                                                                   },
+                                                                   nullptr});
+        }
+
+        void OnDestroy() { ::HelixEngine::Gui::windowFunctionCalled.Remove(token_); }
+
+        void OnGui()
+        {
+            namespace api = ::HelixEngine;
+            if (api::Gui::Button(::helix::Rect(10, 10, 80, 24), "Press"))
+                CppNotes().Push(String("cpp-gui-button"));
+            api::GuiLayout::BeginArea(::helix::Rect(10, 50, 160, 100));
+            if (api::GuiLayout::Button("Layout"))
+                CppNotes().Push(String("cpp-layout-button"));
+            api::GuiLayout::EndArea();
+            api::GuiStyle windowStyle = api::Gui::skin.Get().window;
+            window_ = api::Gui::WindowInternal(7, window_, api::GuiContent::New("Win"), windowStyle, false);
+        }
+
+    private:
+        ::helix::Rect window_ = ::helix::Rect(200, 10, 120, 90);
+        ::helix::u64 token_ = 0;
+    };
 }

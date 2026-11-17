@@ -401,6 +401,23 @@ namespace helix::ui
             return StringView();
         }
 
+        // <a href="address">: a link whose id is the address.
+        bool OpenAnchor(Parser& p, StringView, StringView attributes)
+        {
+            StringView href = Attribute(attributes, "href");
+            if (href.Size() >= 2 && href[0] == '"' && href[href.Size() - 1] == '"')
+                href = href.Substr(1, href.Size() - 2);
+            if (href.Empty())
+                return false;
+            TextLink link;
+            link.id = String(href);
+            link.href = true;
+            link.firstElement = u32(p.out.elements.Size());
+            p.out.links.Push(Move(link));
+            p.style.link = i32(p.out.links.Size() - 1);
+            return true;
+        }
+
         bool OpenSprite(Parser& p, StringView v, StringView attributes)
         {
             RichTextElement e;
@@ -453,6 +470,7 @@ namespace helix::ui
             {"width", &OpenWidth, &CloseWidth},
             {"rotate", &OpenRotate, &CloseRotate},
             {"link", &OpenLink, &CloseLink},
+            {"a", &OpenAnchor, &CloseLink},
             {"gradient", &OpenGradient, &CloseGradient},
             {"br", &OpenBreak, nullptr},
             {"space", &OpenSpace, nullptr},

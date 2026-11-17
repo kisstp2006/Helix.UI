@@ -24,7 +24,9 @@
 #include <Helix/UI/Engine/ControlParts.h>
 #include <Helix/UI/Engine/Element.h>
 #include <Helix/UI/Engine/FontAsset.h>
+#include <Helix/UI/Engine/Gui.h>
 #include <Helix/UI/Engine/ImageAtlas.h>
+#include <Helix/UI/Engine/Implementation/Overlay.h>
 
 #include <cmath>
 #include <cstring>
@@ -110,8 +112,9 @@ namespace helix::ui
         bool ScreenToPanel(Vector2 screen, Vector2& at, f32& distance);
         // Takes the screen's pointers at all (texture panels only through their settings' function).
         bool TakesInput();
-        engine::Mesh* mesh() const { return mesh_.Get(); }
+        engine::Mesh* mesh() const { return upload_.mesh(); }
         const UIMesh& uiMesh() const { return uiMesh_; }
+        const overlay::MeshUpload& upload() const { return upload_; }
         TextHost& host() { return *host_; }
 
         void Add(UIView* view);
@@ -142,11 +145,7 @@ namespace helix::ui
         const StyleSheetData* theme_ = nullptr;
         bool themed_ = false;
         UIMesh uiMesh_;
-        // The upload's copy of the vertices and the mesh's buffer sizes (they only grow).
-        Array<UIVertex> uploadVertices_;
-        Array<engine::SubMeshDescriptor> subMeshes_;
-        u32 vertexCapacity_ = 0, indexCapacity_ = 0;
-        engine::PPtr<engine::Mesh> mesh_;
+        overlay::MeshUpload upload_;
         f32 scale_ = 1;
         Vector2 size_ = Vector2(0, 0);
     };
@@ -168,6 +167,8 @@ namespace helix::ui
             Array<MaterialEntry> materials;
             bool missingShader = false;
             ImageAtlas* atlas = nullptr;
+            // The immediate GUI's drawing after the panels.
+            void (*gui)(engine::CommandBuffer&) = nullptr;
         };
 
         Views& V()
@@ -254,14 +255,7 @@ namespace helix::ui
             return order;
         }
 
-        void DrawPanel(RuntimePanel& p, engine::CommandBuffer& cmd)
-        {
-            engine::Mesh* mesh = p.mesh();
-            Span<const UIBatch> batches = p.uiMesh().Batches();
-            for (u32 b = 0; b < batches.Size(); b++)
-                if (engine::Material* m = MaterialFor(batches[b]))
-                    cmd.DrawMesh(mesh, Matrix4x4::identity, m, i32(b));
-        }
+        void DrawPanel(RuntimePanel& p, engine::CommandBuffer& cmd) { p.upload().Draw(p.uiMesh(), cmd); }
 
         // The panels, once a frame after the cameras: over the screen (pixels from the top left mapped to the target)
         // or into their target textures.
@@ -306,6 +300,26 @@ namespace helix::ui
             }
             if (!onScreen)
                 cmd.SetRenderTarget(engine::RenderTargetIdentifier(engine::BuiltinRenderTextureType::CameraTarget));
+            // The immediate GUI over everything (it sets its own view).
+            if (V().gui)
+            {
+                cmd.SetViewport(Rect(0, 0, f32(screen.width), f32(screen.height)));
+                V().gui(cmd);
+            }
+        }
+
+        // The overlay is there while there are panels or a GUI.
+        void UpdateDrawer()
+        {
+            Views& v = V();
+            bool wanted = !v.panels.Empty() || v.gui;
+            if (wanted && !v.drawer)
+                v.drawer = engine::Graphics::screenOverlayRendering().Add(&Draw);
+            else if (!wanted && v.drawer)
+            {
+                engine::Graphics::screenOverlayRendering().Remove(v.drawer);
+                v.drawer = 0;
+            }
         }
 
         // ----------------------------------------------------------------------------------------------- input
@@ -564,13 +578,20 @@ namespace helix::ui
             if (order.Empty())
                 return;
             PanelOrder panels(order.Data(), order.Size());
-            for (const engine::InputEvent& e : engine::InputFeed::Frame())
+            Span<const engine::InputEvent> events = engine::InputFeed::Frame();
+            for (usize i = 0; i < events.Size(); i++)
+            {
+                // What the immediate GUI used is not the panels'.
+                if (gui::system::UsedInput(frame, i))
+                    continue;
+                const engine::InputEvent& e = events[i];
                 for (const InputRoute& r : kInputRoutes)
                     if (r.type == e.event.type)
                     {
                         r.route(panels, e);
                         break;
                     }
+            }
             UpdateCursor(panels);
         }
 
@@ -588,10 +609,9 @@ namespace helix::ui
                 for (RuntimePanel* p : v.panels)
                     if (p->Owns(settings))
                         return p;
-            if (v.panels.Empty())
-                v.drawer = engine::Graphics::screenOverlayRendering().Add(&Draw);
             auto* p = new RuntimePanel(settings, ++v.serial, world);
             v.panels.Push(p);
+            UpdateDrawer();
             return p;
         }
 
@@ -619,11 +639,7 @@ namespace helix::ui
             if (v.keyboard == p)
                 v.keyboard = nullptr;
             delete p;
-            if (v.panels.Empty() && v.drawer)
-            {
-                engine::Graphics::screenOverlayRendering().Remove(v.drawer);
-                v.drawer = 0;
-            }
+            UpdateDrawer();
         }
 
         void RemoveFromList(UIView* view)
@@ -774,12 +790,7 @@ namespace helix::ui
         panel_->SetTextHost(host_.get());
     }
 
-    RuntimePanel::~RuntimePanel()
-    {
-        panel_.reset();
-        if (engine::Mesh* m = mesh_.Get())
-            engine::Object::DestroyImmediate(m);
-    }
+    RuntimePanel::~RuntimePanel() { panel_.reset(); }
 
     void RuntimePanel::Add(UIView* view)
     {
@@ -948,7 +959,7 @@ namespace helix::ui
         Matrix4x4 local = Matrix4x4::Scale(Vector3(1, -1, 1)) * Matrix4x4::Translate(Vector3(-pivot.x, -pivot.y, 0));
         toWorld_ = transform ? transform->localToWorldMatrix() * local : local;
         // Queued for this frame's cameras, its batches in order (one bounds for all keeps their order).
-        engine::Mesh* mesh = mesh_.Get();
+        engine::Mesh* mesh = upload_.mesh();
         Span<const UIBatch> batches = uiMesh_.Batches();
         if (!mesh || mesh->vertexCount() == 0)
             return;
@@ -1044,81 +1055,138 @@ namespace helix::ui
         Upload();
     }
 
-    void RuntimePanel::Upload()
+    void RuntimePanel::Upload() { upload_.Upload(uiMesh_); }
+
+    // ------------------------------------------------------------------------------------------------------- overlay
+
+    namespace overlay
     {
-        engine::Mesh* m = mesh_.Get();
-        if (!m)
+        ImageAtlas& SharedAtlas() { return Atlas(); }
+
+        TextFont* DefaultFont(Array<TextFont*>& fallbacks)
         {
-            m = engine::Mesh::Create();
-            m->hideFlags = engine::HideFlags::DontSave;
-            m->MarkDynamic();
-            mesh_ = engine::PPtr<engine::Mesh>(m);
+            TextFont* primary = nullptr;
+            for (const char* family : kDefaultFamilies)
+                if (FontAsset* a = FontAsset::CreateFontAsset(family))
+                    if (TextFont* f = a->textFont())
+                    {
+                        if (!primary)
+                            primary = f;
+                        else if (f != primary)
+                            fallbacks.Push(f);
+                    }
+            return primary;
         }
-        // The vertices go in as they are, one interleaved stream in UIVertex's layout (position with its depth, color,
-        // six channels), the indices as 32 bit ones: two copies, no conversion. The buffers only grow; the batches
-        // name the ranges in use.
-        static const engine::VertexAttributeDescriptor kLayout[] = {
-            {engine::VertexAttribute::Position, engine::VertexAttributeFormat::Float32, 3},
-            {engine::VertexAttribute::Color, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord0, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord1, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord2, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord3, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord4, engine::VertexAttributeFormat::Float32, 4},
-            {engine::VertexAttribute::TexCoord5, engine::VertexAttributeFormat::Float32, 4},
-        };
-        static_assert(sizeof(UIVertex) == 31 * sizeof(f32), "UIVertex is the mesh's interleaved layout");
-        Span<const UIVertex> vertices = uiMesh_.Vertices();
-        Span<const u32> indices = uiMesh_.Indices();
-        Span<const UIBatch> batches = uiMesh_.Batches();
-        u32 n = u32(vertices.Size()), k = u32(indices.Size());
-        // The panel is flat in its space (a 3D turn of an element is in its x and y): the depth goes in as zero.
-        uploadVertices_.Resize(n);
-        if (n)
-            std::memcpy(uploadVertices_.Data(), vertices.Data(), usize(n) * sizeof(UIVertex));
-        Vector3 lo(0, 0, 0), hi(0, 0, 0);
-        for (u32 i = 0; i < n; i++)
+
+        engine::Texture2D* GlyphTexture(const TextQuad& quad)
         {
-            UIVertex& v = uploadVertices_[i];
-            v.z = 0;
-            if (i == 0)
-                lo = hi = Vector3(v.position.x, v.position.y, 0);
-            lo.x = v.position.x < lo.x ? v.position.x : lo.x;
-            lo.y = v.position.y < lo.y ? v.position.y : lo.y;
-            hi.x = v.position.x > hi.x ? v.position.x : hi.x;
-            hi.y = v.position.y > hi.y ? v.position.y : hi.y;
+            FontAsset* a = FontAsset::Of(quad.font);
+            return a ? a->AtlasTexture(quad.page, quad.colorGlyph) : nullptr;
         }
-        if (n > vertexCapacity_ || vertexCapacity_ == 0)
+
+        engine::Material* MaterialFor(const UIBatch& batch, bool world) { return ui::MaterialFor(batch, world); }
+
+        void SetGuiDrawer(void (*draw)(engine::CommandBuffer& cmd))
         {
-            vertexCapacity_ = n > 1024 ? n + n / 2 : 1024;
-            m->SetVertexBufferParams(i32(vertexCapacity_), Span<const engine::VertexAttributeDescriptor>(kLayout, 8));
+            V().gui = draw;
+            UpdateDrawer();
         }
-        if (k > indexCapacity_ || indexCapacity_ == 0)
+
+        MeshUpload::~MeshUpload()
         {
-            indexCapacity_ = k > 4096 ? k + k / 2 : 4096;
-            m->SetIndexBufferParams(i32(indexCapacity_), engine::IndexFormat::UInt32);
+            if (engine::Mesh* m = mesh_.Get())
+                engine::Object::DestroyImmediate(m);
         }
-        constexpr engine::MeshUpdateFlags kFlags = engine::MeshUpdateFlags::DontValidateIndices | engine::MeshUpdateFlags::DontRecalculateBounds;
-        m->SetVertexBufferData(Span<const UIVertex>(uploadVertices_.Data(), n), 0, 0, i32(n), 0, kFlags);
-        m->SetIndexBufferData(indices, 0, 0, i32(k), kFlags);
-        Bounds bounds(Vector3((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, 0), Vector3(hi.x - lo.x, hi.y - lo.y, 0));
-        subMeshes_.Clear();
-        for (const UIBatch& batch : batches)
+
+        void MeshUpload::Upload(const UIMesh& source)
         {
-            engine::SubMeshDescriptor d;
-            d.indexStart = i32(batch.firstIndex);
-            d.indexCount = i32(batch.indexCount);
-            d.topology = engine::MeshTopology::Triangles;
-            d.bounds = bounds;
-            d.firstVertex = 0;
-            d.vertexCount = i32(n);
-            subMeshes_.Push(d);
+            engine::Mesh* m = mesh_.Get();
+            if (!m)
+            {
+                m = engine::Mesh::Create();
+                m->hideFlags = engine::HideFlags::DontSave;
+                m->MarkDynamic();
+                mesh_ = engine::PPtr<engine::Mesh>(m);
+                // A new mesh (the last one went with the objects) has no buffers yet.
+                vertexCapacity_ = indexCapacity_ = 0;
+            }
+            // The vertices go in as they are, one interleaved stream in UIVertex's layout (position with its depth, color,
+            // six channels), the indices as 32 bit ones: two copies, no conversion. The buffers only grow; the batches
+            // name the ranges in use.
+            static const engine::VertexAttributeDescriptor kLayout[] = {
+                {engine::VertexAttribute::Position, engine::VertexAttributeFormat::Float32, 3},
+                {engine::VertexAttribute::Color, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord0, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord1, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord2, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord3, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord4, engine::VertexAttributeFormat::Float32, 4},
+                {engine::VertexAttribute::TexCoord5, engine::VertexAttributeFormat::Float32, 4},
+            };
+            static_assert(sizeof(UIVertex) == 31 * sizeof(f32), "UIVertex is the mesh's interleaved layout");
+            Span<const UIVertex> vertices = source.Vertices();
+            Span<const u32> indices = source.Indices();
+            Span<const UIBatch> batches = source.Batches();
+            u32 n = u32(vertices.Size()), k = u32(indices.Size());
+            // The panel is flat in its space (a 3D turn of an element is in its x and y): the depth goes in as zero.
+            vertices_.Resize(n);
+            if (n)
+                std::memcpy(vertices_.Data(), vertices.Data(), usize(n) * sizeof(UIVertex));
+            Vector3 lo(0, 0, 0), hi(0, 0, 0);
+            for (u32 i = 0; i < n; i++)
+            {
+                UIVertex& v = vertices_[i];
+                v.z = 0;
+                if (i == 0)
+                    lo = hi = Vector3(v.position.x, v.position.y, 0);
+                lo.x = v.position.x < lo.x ? v.position.x : lo.x;
+                lo.y = v.position.y < lo.y ? v.position.y : lo.y;
+                hi.x = v.position.x > hi.x ? v.position.x : hi.x;
+                hi.y = v.position.y > hi.y ? v.position.y : hi.y;
+            }
+            if (n > vertexCapacity_ || vertexCapacity_ == 0)
+            {
+                vertexCapacity_ = n > 1024 ? n + n / 2 : 1024;
+                m->SetVertexBufferParams(i32(vertexCapacity_), Span<const engine::VertexAttributeDescriptor>(kLayout, 8));
+            }
+            if (k > indexCapacity_ || indexCapacity_ == 0)
+            {
+                indexCapacity_ = k > 4096 ? k + k / 2 : 4096;
+                m->SetIndexBufferParams(i32(indexCapacity_), engine::IndexFormat::UInt32);
+            }
+            constexpr engine::MeshUpdateFlags kFlags = engine::MeshUpdateFlags::DontValidateIndices | engine::MeshUpdateFlags::DontRecalculateBounds;
+            m->SetVertexBufferData(Span<const UIVertex>(vertices_.Data(), n), 0, 0, i32(n), 0, kFlags);
+            m->SetIndexBufferData(indices, 0, 0, i32(k), kFlags);
+            Bounds bounds(Vector3((lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, 0), Vector3(hi.x - lo.x, hi.y - lo.y, 0));
+            subMeshes_.Clear();
+            for (const UIBatch& batch : batches)
+            {
+                engine::SubMeshDescriptor d;
+                d.indexStart = i32(batch.firstIndex);
+                d.indexCount = i32(batch.indexCount);
+                d.topology = engine::MeshTopology::Triangles;
+                d.bounds = bounds;
+                d.firstVertex = 0;
+                d.vertexCount = i32(n);
+                subMeshes_.Push(d);
+            }
+            if (subMeshes_.Empty())
+                subMeshes_.Push(engine::SubMeshDescriptor());
+            m->SetSubMeshes(Span<const engine::SubMeshDescriptor>(subMeshes_.Data(), subMeshes_.Size()), kFlags);
+            m->SetBounds(bounds);
+            Atlas().Upload();
         }
-        if (subMeshes_.Empty())
-            subMeshes_.Push(engine::SubMeshDescriptor());
-        m->SetSubMeshes(Span<const engine::SubMeshDescriptor>(subMeshes_.Data(), subMeshes_.Size()), kFlags);
-        m->SetBounds(bounds);
-        Atlas().Upload();
+
+        void MeshUpload::Draw(const UIMesh& source, engine::CommandBuffer& cmd) const
+        {
+            engine::Mesh* mesh = mesh_.Get();
+            if (!mesh)
+                return;
+            Span<const UIBatch> batches = source.Batches();
+            for (u32 b = 0; b < batches.Size(); b++)
+                if (engine::Material* m = ui::MaterialFor(batches[b]))
+                    cmd.DrawMesh(mesh, Matrix4x4::identity, m, i32(b));
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------- UIView

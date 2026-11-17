@@ -862,7 +862,7 @@ namespace helix::ui
             i = e;
         }
         for (const TextLink& l : parsed_.links)
-            out.linkInfo.Push({l.id, l.firstElement, l.count});
+            out.linkInfo.Push({l.id, l.firstElement, l.count, l.href});
         for (u32 p = 0; p < out.pageCount; p++)
         {
             PageInfo page;

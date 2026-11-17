@@ -20,6 +20,8 @@ namespace helix::ui
             // The fonts of the machine made so far: "family/style" to the asset.
             Array<String> systemKeys;
             Array<engine::PPtr<FontAsset>> systemAssets;
+            // Whether the machine had the face (an asset made of it that was destroyed is made again).
+            Array<bool> systemFound;
         };
 
         Registry& R()
@@ -212,7 +214,14 @@ namespace helix::ui
         key += styleName;
         for (usize i = 0; i < r.systemKeys.Size(); i++)
             if (r.systemKeys[i] == key)
-                return r.systemAssets[i].Get();
+            {
+                if (FontAsset* a = r.systemAssets[i].Get(); a || !r.systemFound[i])
+                    return a;
+                r.systemKeys.RemoveAt(i);
+                r.systemAssets.RemoveAt(i);
+                r.systemFound.RemoveAt(i);
+                break;
+            }
         FontAsset* asset = nullptr;
         if (const SystemFontFace* face = SystemFonts::Find(familyName, styleName))
         {
@@ -235,6 +244,7 @@ namespace helix::ui
         }
         r.systemKeys.Push(Move(key));
         r.systemAssets.Push(engine::PPtr<FontAsset>(asset));
+        r.systemFound.Push(asset != nullptr);
         return asset;
     }
 

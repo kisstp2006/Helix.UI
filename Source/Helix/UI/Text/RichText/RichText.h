@@ -102,6 +102,8 @@ namespace helix::ui
     {
         String id;
         u32 firstElement = 0, count = 0;
+        // An <a href="..."> (its id the address) rather than a <link="...">.
+        bool href = false;
     };
 
     // Named styles (<style="Name">): the opening and closing tag text they stand for.

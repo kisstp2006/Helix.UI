@@ -161,8 +161,8 @@ namespace helix::ui
         f64 next_ = -1;
     };
 
-    // How an image fills its box.
-    HX_ENUM(Namespace = "HelixEngine.UI")
+    // How an image fills its box (the UI's images and the immediate GUI's textures).
+    HX_ENUM(Namespace = "HelixEngine")
     enum class ScaleMode : i32
     {
         StretchToFill = 0,

@@ -38,6 +38,7 @@ find_program(HELIX_DOTNET NAMES dotnet HINTS "$ENV{HELIX_DOTNET_ROOT}" "$ENV{DOT
 helix_dependency_dir(shaders_dir Shaders)
 helix_dependency_dir(engine_dir Engine)
 helix_dependency_dir(math_dir Math)
+helix_dependency_dir(ui_platform_dir Platform)
 set(engine_source "${engine_dir}/Source")
 set(ui_engine_source "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix.UI.Engine")
 set(ui_artifacts "${CMAKE_BINARY_DIR}/HelixUI")
@@ -75,7 +76,7 @@ helix_apply_options(helix_ui_engine)
 set(ui_bound_headers "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix/UI/Elements/ElementTree.h" "${ui_engine_source}/Helix/UI/Engine/Element.h"
     "${ui_engine_source}/Helix/UI/Engine/UIAssets.h" "${ui_engine_source}/Helix/UI/Engine/FontAsset.h" "${ui_engine_source}/Helix/UI/Engine/UIView.h"
     "${ui_engine_source}/Helix/UI/Engine/TemplateContainer.h" "${ui_engine_source}/Helix/UI/Engine/UIPanelSettings.h"
-    "${ui_engine_source}/Helix/UI/Engine/PanelInputConfiguration.h" "${ui_engine_source}/Helix/UI/Engine/Controls.h"
+    "${ui_engine_source}/Helix/UI/Engine/PanelInputConfiguration.h" "${ui_engine_source}/Helix/UI/Engine/Controls.h" "${ui_engine_source}/Helix/UI/Engine/GuiTypes.h" "${ui_engine_source}/Helix/UI/Engine/Gui.h"
     "${ui_engine_source}/Helix/UI/Engine/Fields.h" "${ui_engine_source}/Helix/UI/Engine/Containers.h"
     "${ui_engine_source}/Helix/UI/Engine/VectorImage.h")
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
@@ -83,10 +84,10 @@ set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${en
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"
     "${engine_source}/Helix/Engine/Texture/Texture.h" "${engine_source}/Helix/Engine/Texture/RenderTexture.h"
     "${engine_source}/Helix/Engine/Rendering/Camera.h" "${engine_source}/Helix/Engine/Math/Hash128.h" "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h"
-    "${math_dir}/Source/Helix/Math/Geometry.h")
+    "${math_dir}/Source/Helix/Math/Geometry.h" "${ui_platform_dir}/Source/Helix/Platform/Window/Input.h")
 helix_bindgen(helix_ui_engine MODULE HelixUI NAMESPACE HelixEngine.UI KIND NativeGame API HEADERS ${ui_bound_headers}
               REFERENCES ${ui_engine_references} REFERENCE_NAMESPACE HelixEngine
-              INCLUDE_ROOTS "${ui_engine_source}" "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${engine_source}" "${math_dir}/Source"
+              INCLUDE_ROOTS "${ui_engine_source}" "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${engine_source}" "${math_dir}/Source" "${ui_platform_dir}/Source"
               CS_OUTPUT ui_cs)
 set(HELIX_UI_BINDINGS "${ui_cs}" CACHE INTERNAL "")
 
@@ -129,7 +130,7 @@ endif()
 if(TARGET helix_ui_engine_tests)
     set(tests_dir "${CMAKE_CURRENT_SOURCE_DIR}/Tests")
     helix_bindgen(helix_ui_engine_tests MODULE UIEngineTests NAMESPACE UIEngineTests KIND NativeGame HEADERS "${tests_dir}/Engine/Support/TestPipeline.h"
-                  "${tests_dir}/Engine/Support/CppScripts.h" REFERENCES ${ui_engine_references} ${ui_bound_headers} REFERENCE_NAMESPACE HelixEngine INCLUDE_ROOTS "${tests_dir}" "${engine_source}" "${math_dir}/Source"
+                  "${tests_dir}/Engine/Support/CppScripts.h" REFERENCES ${ui_engine_references} ${ui_bound_headers} REFERENCE_NAMESPACE HelixEngine INCLUDE_ROOTS "${tests_dir}" "${engine_source}" "${math_dir}/Source" "${ui_platform_dir}/Source"
                   "${ui_engine_source}" "${CMAKE_CURRENT_SOURCE_DIR}/Source")
     set(tests_generated "${CMAKE_CURRENT_BINARY_DIR}/Generated")
     add_custom_command(

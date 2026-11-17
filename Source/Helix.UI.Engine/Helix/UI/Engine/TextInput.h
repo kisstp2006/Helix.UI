@@ -5,7 +5,7 @@
 // The text input of the text fields (not for scripts): the text as codepoints, the cursor and the selection's other
 // end (codepoint indices), the options; its parts in the field's input: the text, the selection's boxes, the caret.
 // Pointers place the cursor (a double click selects a word, a triple one the line), keys edit and move it, the
-// clipboard is GUIUtility.systemCopyBuffer, the input method composes at the caret.
+// clipboard is the system clipboard (GuiUtility.systemCopyBuffer), the input method composes at the caret.
 namespace helix::ui
 {
     class TextInput

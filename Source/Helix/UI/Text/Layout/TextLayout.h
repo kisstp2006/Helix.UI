@@ -107,7 +107,8 @@ namespace helix::ui
         f32 pointSize = 0;
         u32 style = 0;
         u32 lineNumber = 0, pageNumber = 0;
-        // The pen where it starts, its advance and its line's ascender, baseline and descender (y down).
+        // The pen where it starts and where it ends after it (xAdvance), its line's ascender, baseline and descender (y
+        // down).
         f32 origin = 0, xAdvance = 0, ascender = 0, baseLine = 0, descender = 0;
         // The corners of its quad (the first glyph's for a cluster).
         Vector2 topLeft, topRight, bottomLeft, bottomRight;
@@ -142,6 +143,8 @@ namespace helix::ui
     {
         String id;
         u32 firstCharacterIndex = 0, characterCount = 0;
+        // An <a href="..."> (its id the address).
+        bool href = false;
     };
 
     // A glyph's quad: corners clockwise from the top left, uvs of its image (0 to 1, v down), its color and where its

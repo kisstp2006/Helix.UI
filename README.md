@@ -25,6 +25,7 @@ or none).
 | `Source/Helix.UI.Engine/` | The engine module HelixUI: `UITemplate` (.hxml), `StyleSheet` (.hss), `ThemeStyleSheet` (.tss) and `FontAsset` (.ttf, .otf, .ttc) assets, the `UIView` component and `UIPanelSettings`, the panels (shared by the views of one settings asset, scaled, sorted, drawn over the screen, into a render texture or in the world), `PanelInputConfiguration`, the image atlas, the cursor of the hovered element |
 | `Source/Helix.UI.Engine/Helix/UI/Engine/Controls.h`, `Fields.h`, `Containers.h` | The controls as C++ classes (bound to C# and the C++ script API): `TextElement`, `Label`, `Button`, `RepeatButton`, `Image`, `Box`, `GroupBox`, `HelpBox`, `PopupWindow`, `ProgressBar`; the fields over `AbstractBaseField` (`Toggle`, `RadioButton`, `RadioButtonGroup`, `ToggleButtonGroup`, `Slider`, `SliderInt`, `MinMaxSlider`, `TextField`, the number fields, the vector, rect and bounds fields, `Hash128Field`, `DropdownField`, `EnumField`, `MaskField`, `Mask64Field`); `Foldout`, `Scroller`, `ScrollView`, `TabView` and `Tab`, `TwoPaneSplitView` |
 | `Themes/HelixDefault.tss` | Helix's default runtime theme (built into the module): the controls' looks by their `helix-` classes, its variables on the panel's root |
+| `Source/Helix.UI.Engine/Helix/UI/Engine/Gui.h`, `GuiTypes.h` | The immediate GUI (namespace `HelixEngine`, one C++ implementation for C# and C++ scripts): `Gui`, `GuiLayout`, `GuiLayoutUtility`, `GuiUtility`, `GuiStyle` and `GuiStyleState`, `GuiSkin` (Helix's default skin, its images drawn by the UI), `GuiContent`, `RectOffset`, `GuiSettings`, `Event`, `TextEditor`; the passes of each `OnGui`, control ids, hot and keyboard controls, clips and groups, scroll views, windows, the layout solver |
 | `Source/Helix.UI.Engine/Helix/UI/Engine/Element.h` | `CallbackEventHandler`, `Focusable`, `Element`, `TemplateContainer`, `VectorImage`: the elements for scripts (C# and the C++ script API), made when a script first needs them; an element lives while it is in a tree or a script holds it; the element types of C# and C++ script classes |
 | `Source/Helix.UI.Runtime/` | The C# side (`Helix.UI.Runtime`, namespace `HelixEngine.UI`): the generated bindings and C# written by hand: `Element`'s hierarchy and queries (`Find`, `FindAll`), every event class over the panel's events, `RegisterCallback`, `SendEvent`, `IPanel`, `FocusController`, pointer and mouse capture, the scheduler, `IStyle` and `resolvedStyle` with their values (`Translate`, `Rotate`, `Scale`, `BackgroundSize`, `TextShadow`, `Cursor` ...), `customStyle`, `styleSheets`, `HxmlElement` and `HxmlAttribute`, `UITemplate.CloneTree`; the fields' generic bases (`BaseField<T>`, `BaseBoolField`, `BaseSlider<T>`, `TextInputBaseField<T>`, `TextValueField<T>`, `BaseCompositeField<,,>`, `BasePopupField<,>`, `PopupField<T>`, `BaseMaskField<T>`), `ChangeEvent<T>`, `InputEvent`, `INotifyValueChanged<T>`, `Clickable` and the manipulators, `RuntimePanelUtils`, `UIPanelSettings.SetScreenToPanelSpaceFunction`; the collections (`ListView`, `TreeView`, `MultiColumnListView`, `MultiColumnTreeView`, their controllers, `Columns`, sorting), the menus (`DropdownMenu`, `GenericDropdownMenu`, `ContextualMenuManipulator`), `KeyboardNavigationManipulator`, the experimental animations (`ValueAnimation<T>`, `Easing`, `element.experimental.animation`), `generateVisualContent` with `MeshGenerationContext` and `Painter2D`, the data binding (`DataBinding`, `CustomBinding`, `ConverterGroups`) and `HelixEngine.Properties` (`PropertyPath`, `PropertyContainer`) |
 | `Shaders/` | The UI's C# shader (`Hidden/UI/Default`: rounded boxes and borders from their distance, images, distance field, coverage and color glyphs, rounded clips, four texture slots) |
@@ -170,7 +171,7 @@ The controls are C++ classes: markup makes their objects, which build their part
 theme's looks) and behave by callbacks on the world's events, so they work in any panel and without .NET. A field
 keeps its value in its native slots; what the user changes reaches its C# object, which sends the `ChangeEvent<T>`
 (a value set from C# sends it there). Text fields edit with the keyboard, the pointer (a double click selects a word,
-a triple click the line), the clipboard (`GUIUtility.systemCopyBuffer`, the player's window) and the input method;
+a triple click the line), the clipboard (`GuiUtility.systemCopyBuffer`, the player's window) and the input method;
 popup fields open their menu over the panel.
 
 ```cpp
@@ -248,6 +249,53 @@ element or its ancestors (`dataSource`, `dataSourcePath`), reads and writes memb
 reflection (public members, `[CreateProperty]`, `[SerializeField]`), converts through the global converters and
 its `ConverterGroup`s, and updates when the source tells of a change (`INotifyBindablePropertyChanged`), when its
 view hash changes or every frame; `TwoWay` bindings write the control's changes back.
+
+## Immediate GUI
+
+```csharp
+void OnGui()
+{
+    if (Gui.Button(new Rect(10, 10, 120, 24), "Play"))
+        StartGame();
+    m_Volume = Gui.HorizontalSlider(new Rect(10, 40, 120, 20), m_Volume, 0, 1);
+    m_Window = GuiLayout.Window(1, m_Window, id =>
+    {
+        m_Name = GuiLayout.TextField(m_Name);
+        using (new GuiLayout.HorizontalScope())
+        {
+            GuiLayout.FlexibleSpace();
+            if (GuiLayout.Button("OK", GuiLayout.Width(60))) Close();
+        }
+        Gui.DragWindow();
+    }, "Settings");
+}
+```
+
+```cpp
+void OnGui()                                                  // a C++ script's, through the script API
+{
+    namespace api = ::HelixEngine;
+    if (api::Gui::Button(::helix::Rect(10, 10, 120, 24), "Play"))
+        StartGame();
+    api::GuiLayout::BeginArea(::helix::Rect(10, 50, 200, 100));
+    count_ = i32(api::GuiLayout::HorizontalSlider(f32(count_), 0, 10));
+    api::GuiLayout::EndArea();
+}
+```
+
+`OnGui` of every enabled script (C# and C++) runs once a pass: the frame's input events are sent before Update (the
+player loop's IMGUISendQueuedEvents), each to the front-most script first (the smallest `Gui.depth`) until one uses
+it (an event a script used does not reach the UI panels); Layout and Repaint run as the frame is drawn, the deepest
+script first, and the GUI is drawn over the cameras after the UI panels, with any render pipeline or none. A script with `useGuiLayout` gets a Layout pass before each event:
+`GuiLayout` records its controls and groups there (sizes from the styles, margins collapsed, options such as `Width`
+and `ExpandHeight`, `FlexibleSpace` taking the room left) and the other passes get their rects in the same order.
+Controls ask `GuiUtility.GetControlID` for ids that stay the same while the calls do; the held control
+(`hotControl`) takes the mouse, the keyboard control the keys, tab moves through the text fields. Groups, clips and
+scroll views move the origin and cut what is drawn (the mouse is in their space too); `Gui.matrix` scales and turns
+the whole GUI. Windows run their function after the script's `OnGui`, take the clicks over them, come to the front
+when clicked and move by `DragWindow`; a modal window takes all the input. The text controls edit through
+`TextEditor` (selection, words, lines, the clipboard, undo). Styles draw their state's background 9-sliced and their
+content (an image and text placed by the alignment); `Gui.skin` is Helix's default skin unless a script sets one.
 
 ## Element types of scripts
 

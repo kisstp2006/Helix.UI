@@ -1,7 +1,7 @@
 #include <Helix/UI/Engine/TextInput.h>
 
 #include <Helix/Core/Strings/Format.h>
-#include <Helix/Engine/Input/GUIUtility.h>
+#include <Helix/Engine/Input/SystemClipboard.h>
 #include <Helix/UI/Engine/ControlParts.h>
 #include <Helix/UI/Engine/Panel.h>
 
@@ -260,7 +260,8 @@ namespace helix::ui
             usize k = 0;
             while (k + 1 < starts_.Size() && starts_[k + 1] <= ci.index)
                 k++;
-            if (local.x < ci.origin + ci.xAdvance * 0.5f)
+            // Before the middle of the character (xAdvance is where the pen ends after it).
+            if (local.x < (ci.origin + ci.xAdvance) * 0.5f)
                 return i32(k);
             best = i32(k) + 1;
         }
@@ -313,7 +314,7 @@ namespace helix::ui
             }
             if (last)
             {
-                x = last->origin + last->xAdvance;
+                x = last->xAdvance;
                 top = last->ascender < last->descender ? last->ascender : last->descender;
                 height = last->descender > last->ascender ? last->descender - last->ascender : last->ascender - last->descender;
             }
@@ -484,7 +485,7 @@ namespace helix::ui
         {
             if (self->cursor_ == self->select_ || self->options_[AbstractBaseField::Password])
                 return;
-            engine::GUIUtility::SetSystemCopyBuffer(self->Selected().View());
+            engine::SystemClipboard::SetText(self->Selected().View());
             if (e.keyCode == kKeyX && !readOnly)
             {
                 self->DeleteSelection();
@@ -495,7 +496,7 @@ namespace helix::ui
         {
             if (readOnly)
                 return;
-            Array<u32> pasted = Codepoints(engine::GUIUtility::systemCopyBuffer().View());
+            Array<u32> pasted = Codepoints(engine::SystemClipboard::Text().View());
             self->Insert(Span<const u32>(pasted.Data(), pasted.Size()));
             self->Changed();
         }
