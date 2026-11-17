@@ -25,6 +25,8 @@ namespace helix::ui
         : world_(world), tree_(world.tree()), layout_(world.layout()), styles_(world.styles()),
           events_(world.tree(), world.layout(), world.styles(), &world.callbacks())
     {
+        // The controls' markup types (a static library's registrar may not be linked in).
+        RegisterControls();
         root_ = tree_.Create(Intern("Element"));
         tree_.SetPicking(root_, PickingMode::Ignore);
         events_.SetRoot(root_);
