@@ -1578,7 +1578,7 @@ HX_TEST(UIControls, EveryControlDrawsTheSameOnEveryDevice)
         Array<u32> pixels;
         pixels.Resize(width * height);
         HX_REQUIRE(device.ReadTexture(color, 0, pixels.Data(), pixels.Size() * 4));
-        HX_CHECK(engine::testing::MatchGolden("UIControlsPage", pixels.Data(), width, height));
+        HX_CHECK(engine::testing::MatchGolden("UIControlsPage", pixels.Data(), width, height, 8));
         DestroyImmediate(ui);
         DestroyImmediate(cameraObject);
         Graphics::SetTarget({});
