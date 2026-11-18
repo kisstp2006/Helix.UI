@@ -26,7 +26,8 @@ namespace helix::engine
 // read again from their source while the game runs and the view built again when they change. The panels read the
 // engine's input each frame (InputFeed): pointers go to the top-most screen panel with an element under them, else to
 // the nearest world space panel their ray hits (PanelInputConfiguration), keys to the panel last pressed in; a focused
-// text element keeps the input method on.
+// text element keeps the input method on. While the input is redirected to an event system (PanelInput) it hands the
+// panels their input instead.
 namespace helix::ui
 {
     class RuntimePanel;

@@ -716,6 +716,7 @@ namespace helix::ui
                             q.color = sprite.tint ? ci.color : Color(1, 1, 1, ci.color.a);
                             q.sprite = sprite.texture;
                             q.colorGlyph = true;
+                            q.character = cluster;
                             out.quads.Push(q);
                             ci.isVisible = true;
                         }
@@ -752,6 +753,7 @@ namespace helix::ui
                 q.colorGlyph = entry->color;
                 q.sdfScale = k;
                 q.bold = (st2.flags & TextFlags::Bold) != 0;
+                q.character = cluster;
                 if (!ci.isVisible)
                 {
                     ci.topLeft = q.corners[0];

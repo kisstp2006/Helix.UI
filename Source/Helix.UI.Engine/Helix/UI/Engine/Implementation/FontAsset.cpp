@@ -32,7 +32,7 @@ namespace helix::ui
     }
 
     FontAsset::FontAsset(const FontAsset& other)
-        : engine::ScriptableObject(other), renderMode_(other.renderMode_), samplingPointSize_(other.samplingPointSize_), atlasPadding_(other.atlasPadding_),
+        : TextAsset(other), renderMode_(other.renderMode_), samplingPointSize_(other.samplingPointSize_), atlasPadding_(other.atlasPadding_),
           atlasSize_(other.atlasSize_), fallbacks_(other.fallbacks_), face_(other.face_)
     {
         Rebuild();
@@ -301,5 +301,202 @@ namespace helix::ui
         l.integrate = &Integrate;
         l.release = [](void* d) { delete static_cast<Decoded*>(d); };
         engine::RegisterAssetLoader(l);
+    }
+
+    // ------------------------------------------------------------------------------------------------ TextAsset
+
+    namespace
+    {
+        // The reference's simple hash of names (the text system's lookups by name).
+        i32 SimpleHash(StringView s)
+        {
+            i32 hash = 0;
+            for (char c : s)
+                hash = ((hash << 5) + hash) ^ i32(u8(c));
+            return hash;
+        }
+    }
+
+    i32 TextAsset::hashCode() const { return SimpleHash(Name()); }
+    i32 TextAsset::materialHashCode() const { return material() ? SimpleHash(material()->Name()) : 0; }
+
+    // ------------------------------------------------------------------------------------------------ the tables
+
+    Array<GlyphData> FontAsset::GlyphTableInternal()
+    {
+        Array<GlyphData> out;
+        TextFont* f = textFont();
+        if (!f)
+            return out;
+        GlyphCache& cache = f->Cache();
+        f32 unit = f32(cache.SamplingSize()) / f32(face_->UnitsPerEm() ? face_->UnitsPerEm() : 1000);
+        i32 pad = i32(cache.Padding());
+        for (auto e : cache.Entries())
+        {
+            const GlyphEntry& g = e.value;
+            GlyphData d;
+            d.index = e.key;
+            d.scale = 1.0f / (g.scale > 0 ? g.scale : 1.0f);
+            d.atlasIndex = i32(g.page);
+            if (!g.empty)
+            {
+                d.glyphRect = GlyphRect{i32(g.x) + pad, i32(g.y) + pad, i32(g.width) - 2 * pad, i32(g.height) - 2 * pad};
+                d.metrics.width = f32(g.width) - 2.0f * f32(pad);
+                d.metrics.height = f32(g.height) - 2.0f * f32(pad);
+                d.metrics.horizontalBearingX = f32(g.left + pad);
+                d.metrics.horizontalBearingY = -f32(g.top + pad);
+            }
+            d.metrics.horizontalAdvance = f32(face_->Advance(e.key)) * unit;
+            out.Push(d);
+        }
+        // In glyph order.
+        for (usize i = 1; i < out.Size(); i++)
+            for (usize j = i; j > 0 && out[j].index < out[j - 1].index; j--)
+                std::swap(out[j], out[j - 1]);
+        return out;
+    }
+
+    Array<CharacterData> FontAsset::CharacterTableInternal()
+    {
+        // The characters added, and those whose glyphs the text rendered (by the face's map of the printable ranges).
+        Array<CharacterData> out = characters_;
+        TextFont* f = textFont();
+        if (!f)
+            return out;
+        auto known = [&](u32 c) {
+            for (const CharacterData& d : out)
+                if (d.unicode == c)
+                    return true;
+            return false;
+        };
+        const HashMap<u32, GlyphEntry>& entries = f->Cache().Entries();
+        for (u32 c = 0x20; c < 0x3000; c++)
+        {
+            u32 g = face_->Glyph(char32_t(c));
+            if (g && entries.Find(g) && !known(c))
+                out.Push(CharacterData{c, g, 1});
+        }
+        return out;
+    }
+
+    FaceInfoData FontAsset::FaceInfoInternal() const
+    {
+        FaceInfo i = faceInfo();
+        FaceInfoData d;
+        d.pointSize = i.pointSize;
+        d.scale = i.scale;
+        d.unitsPerEM = i.unitsPerEM;
+        d.lineHeight = i.lineHeight;
+        d.ascentLine = i.ascentLine;
+        d.capLine = i.capLine;
+        d.meanLine = i.meanLine;
+        d.baseline = i.baseline;
+        d.descentLine = i.descentLine;
+        d.superscriptOffset = i.superscriptOffset;
+        d.superscriptSize = i.superscriptSize;
+        d.subscriptOffset = i.subscriptOffset;
+        d.subscriptSize = i.subscriptSize;
+        d.underlineOffset = i.underlineOffset;
+        d.underlineThickness = i.underlineThickness;
+        d.strikethroughOffset = i.strikethroughOffset;
+        d.strikethroughThickness = i.strikethroughThickness;
+        d.tabWidth = i.tabWidth;
+        return d;
+    }
+
+    String FontAsset::FamilyNameInternal() const { return face_ ? String(face_->Family()) : String(); }
+    String FontAsset::StyleNameInternal() const { return face_ ? String(face_->Style()) : String(); }
+
+    u32 FontAsset::GlyphIndexInternal(u32 unicode) const { return face_ ? face_->Glyph(char32_t(unicode)) : 0; }
+
+    Array<u32> FontAsset::TryAddCharactersInternal(Span<const u32> unicodes)
+    {
+        Array<u32> missing;
+        TextFont* f = textFont();
+        for (u32 c : unicodes)
+        {
+            u32 g = f ? face_->Glyph(char32_t(c)) : 0;
+            if (!g)
+            {
+                missing.Push(c);
+                continue;
+            }
+            f->Cache().Get(g);
+            bool listed = false;
+            for (const CharacterData& d : characters_)
+                listed = listed || d.unicode == c;
+            if (!listed)
+                characters_.Push(CharacterData{c, g, 1});
+        }
+        return missing;
+    }
+
+    bool FontAsset::HasCharacterInternal(u32 unicode, bool searchFallbacks, bool tryAddCharacter)
+    {
+        if (face_ && face_->Has(char32_t(unicode)))
+        {
+            if (tryAddCharacter)
+                TryAddCharactersInternal(Span<const u32>(&unicode, 1));
+            return true;
+        }
+        if (searchFallbacks)
+            for (const engine::PPtr<FontAsset>& f : fallbacks_)
+                if (FontAsset* a = f.Get(); a && a != this && a->HasCharacterInternal(unicode, true, tryAddCharacter))
+                    return true;
+        return false;
+    }
+
+    void FontAsset::SetAtlasSizeInternal(i32 value)
+    {
+        if (atlasSize_ == value)
+            return;
+        atlasSize_ = value;
+        Rebuild();
+    }
+
+    Array<FontAsset*> FontAsset::FallbacksInternal() const
+    {
+        Array<FontAsset*> out;
+        for (const engine::PPtr<FontAsset>& f : fallbacks_)
+            out.Push(f.Get());
+        return out;
+    }
+
+    Array<engine::Texture2D*> FontAsset::AtlasTexturesInternal()
+    {
+        UpdateAtlasTextures();
+        Array<engine::Texture2D*> out;
+        for (const engine::PPtr<engine::Texture2D>& t : pages_)
+            out.Push(t.Get());
+        if (out.Empty())
+            if (engine::Texture2D* first = AtlasTexture(0, false))
+                out.Push(first);
+        return out;
+    }
+
+    void FontAsset::ClearFontAssetData(bool setAtlasSizeToZero)
+    {
+        characters_.Clear();
+        if (font_)
+            font_->Cache().Clear();
+        if (setAtlasSizeToZero)
+        {
+            for (engine::PPtr<engine::Texture2D>& t : pages_)
+                if (engine::Texture2D* tex = t.Get())
+                    engine::Object::DestroyImmediate(tex);
+            pages_.Clear();
+        }
+        uploaded_ = ~0u;
+    }
+
+    FontAsset* FontAsset::WeightTypefaceInternal(i32 index, bool italic) const
+    {
+        return index >= 0 && index < 10 ? weights_[index][italic ? 1 : 0].Get() : nullptr;
+    }
+
+    void FontAsset::SetWeightTypefaceInternal(i32 index, bool italic, FontAsset* font)
+    {
+        if (index >= 0 && index < 10)
+            weights_[index][italic ? 1 : 0] = engine::PPtr<FontAsset>(font);
     }
 }

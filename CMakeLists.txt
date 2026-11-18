@@ -82,7 +82,7 @@ set(ui_bound_headers "${CMAKE_CURRENT_SOURCE_DIR}/Source/Helix/UI/Elements/Eleme
 set(ui_engine_references "${engine_source}/Helix/Engine/Object/EntityId.h" "${engine_source}/Helix/Engine/Object/Object.h"
     "${engine_source}/Helix/Engine/GameObject/GameObject.h" "${engine_source}/Helix/Engine/Script/GameBehaviour.h"
     "${engine_source}/Helix/Engine/Script/ScriptableObject.h" "${engine_source}/Helix/Engine/Transform/Transform.h"
-    "${engine_source}/Helix/Engine/Texture/Texture.h" "${engine_source}/Helix/Engine/Texture/RenderTexture.h"
+    "${engine_source}/Helix/Engine/Texture/Texture.h" "${engine_source}/Helix/Engine/Texture/RenderTexture.h" "${engine_source}/Helix/Engine/Material/Material.h"
     "${engine_source}/Helix/Engine/Rendering/Camera.h" "${engine_source}/Helix/Engine/Math/Hash128.h" "${math_dir}/Source/Helix/Math/Vector.h" "${math_dir}/Source/Helix/Math/Color.h" "${math_dir}/Source/Helix/Math/Matrix4x4.h"
     "${math_dir}/Source/Helix/Math/Geometry.h" "${ui_platform_dir}/Source/Helix/Platform/Window/Input.h")
 helix_bindgen(helix_ui_engine MODULE HelixUI NAMESPACE HelixEngine.UI KIND NativeGame API HEADERS ${ui_bound_headers}

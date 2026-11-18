@@ -67,6 +67,10 @@ namespace helix::ui
         font::FontAtlas& ColorAtlas() { return colorAtlas_; }
         // Bumped whenever a glyph is added (the pages need uploading).
         u32 Version() const { return version_; }
+        // The glyphs rendered so far.
+        const HashMap<u32, GlyphEntry>& Entries() const { return entries_; }
+        // Every image gone (the atlases start anew).
+        void Clear();
 
     private:
         std::shared_ptr<const Face> face_;

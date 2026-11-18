@@ -821,7 +821,7 @@ HX_TEST(UIView, AWorldSpacePanelIsDrawnInTheSceneAndTakesRaysFromTheEventCameras
         view->Update();
         HX_REQUIRE(view->panel() != nullptr);
         bool deep = false;
-        for (const UIVertex& v : view->uiMesh().Vertices())
+        for (const ui::UIVertex& v : view->uiMesh().Vertices())
             deep = deep || std::fabs(v.z) > 0.5f;
         HX_CHECK(deep);
         Graphics::RenderFrame();

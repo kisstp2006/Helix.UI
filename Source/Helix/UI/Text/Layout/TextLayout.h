@@ -161,6 +161,8 @@ namespace helix::ui
         // Screen pixels per distance field pixel (the shader's antialiasing width), and bold (a thicker threshold).
         f32 sdfScale = 1;
         bool bold = false;
+        // The character (its index in the text info) the quad draws; ~0 for the ellipsis.
+        u32 character = ~0u;
     };
 
     // A solid rectangle under or over the glyphs: marks (drawn before the glyphs), underlines and strikethroughs.

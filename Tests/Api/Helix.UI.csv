@@ -366,13 +366,185 @@ RectOffset,vertical,int vertical { get; }
 ScaleMode,ScaleAndCrop,ScaleMode.ScaleAndCrop = 1
 ScaleMode,ScaleToFit,ScaleMode.ScaleToFit = 2
 ScaleMode,StretchToFill,ScaleMode.StretchToFill = 0
+Text.AtlasPopulationMode,Dynamic,Text.AtlasPopulationMode.Dynamic = 1
+Text.AtlasPopulationMode,DynamicOS,Text.AtlasPopulationMode.DynamicOS = 2
+Text.AtlasPopulationMode,Static,Text.AtlasPopulationMode.Static = 0
+Text.Character,.ctor,"Character() / Character(uint, Glyph) / Character(uint, FontAsset, Glyph) / Character(uint, uint)"
+Text.FaceInfo,Compare,bool Compare(FaceInfo)
+Text.FaceInfo,ascentLine,float ascentLine { get; set; }
+Text.FaceInfo,baseline,float baseline { get; set; }
+Text.FaceInfo,capLine,float capLine { get; set; }
+Text.FaceInfo,descentLine,float descentLine { get; set; }
+Text.FaceInfo,faceIndex,int faceIndex { get; set; }
+Text.FaceInfo,familyName,string familyName { get; set; }
+Text.FaceInfo,lineHeight,float lineHeight { get; set; }
+Text.FaceInfo,meanLine,float meanLine { get; set; }
+Text.FaceInfo,pointSize,float pointSize { get; set; }
+Text.FaceInfo,scale,float scale { get; set; }
+Text.FaceInfo,strikethroughOffset,float strikethroughOffset { get; set; }
+Text.FaceInfo,strikethroughThickness,float strikethroughThickness { get; set; }
+Text.FaceInfo,styleName,string styleName { get; set; }
+Text.FaceInfo,subscriptOffset,float subscriptOffset { get; set; }
+Text.FaceInfo,subscriptSize,float subscriptSize { get; set; }
+Text.FaceInfo,superscriptOffset,float superscriptOffset { get; set; }
+Text.FaceInfo,superscriptSize,float superscriptSize { get; set; }
+Text.FaceInfo,tabWidth,float tabWidth { get; set; }
+Text.FaceInfo,underlineOffset,float underlineOffset { get; set; }
+Text.FaceInfo,underlineThickness,float underlineThickness { get; set; }
+Text.FaceInfo,unitsPerEM,int unitsPerEM { get; set; }
 Text.FontAsset,.ctor,FontAsset()
-Text.FontAsset,HasCharacter,"bool HasCharacter(int, bool = False)"
-Text.FontAsset,TryAddCharacters,bool TryAddCharacters(string)
+Text.FontAsset,ClearFontAssetData,void ClearFontAssetData(bool = False)
+Text.FontAsset,CreateFontAsset,"static FontAsset CreateFontAsset(string, string, int = 90)"
+Text.FontAsset,GetCharacters,static string GetCharacters(FontAsset)
+Text.FontAsset,GetCharactersArray,static int[] GetCharactersArray(FontAsset)
+Text.FontAsset,HasCharacter,"bool HasCharacter(int) / bool HasCharacter(Char, bool = False, bool = False) / bool HasCharacter(uint, bool = False, bool = False) / bool HasCharacter(int, bool = False)"
+Text.FontAsset,HasCharacters,"bool HasCharacters(string) / bool HasCharacters(string, out List<Char>) / bool HasCharacters(string, out uint[], bool = False, bool = False)"
+Text.FontAsset,ReadFontAssetDefinition,void ReadFontAssetDefinition()
+Text.FontAsset,TryAddCharacters,"bool TryAddCharacters(uint[], bool = False) / bool TryAddCharacters(uint[], out uint[], bool = False) / bool TryAddCharacters(string, out string, bool = False) / bool TryAddCharacters(string)"
+Text.FontAsset,TryGetGlyphIndex,"bool TryGetGlyphIndex(uint, out uint)"
 Text.FontAsset,atlasHeight,int atlasHeight { get; }
 Text.FontAsset,atlasPadding,int atlasPadding { get; set; }
+Text.FontAsset,atlasPopulationMode,AtlasPopulationMode atlasPopulationMode { get; set; }
+Text.FontAsset,atlasRenderMode,GlyphRenderMode atlasRenderMode { get; set; }
+Text.FontAsset,atlasTexture,Texture2D atlasTexture { get; }
+Text.FontAsset,atlasTextureCount,int atlasTextureCount { get; }
+Text.FontAsset,atlasTextures,Texture2D[] atlasTextures { get; set; }
 Text.FontAsset,atlasWidth,int atlasWidth { get; }
+Text.FontAsset,boldStyleSpacing,float boldStyleSpacing { get; set; }
+Text.FontAsset,boldStyleWeight,float boldStyleWeight { get; set; }
+Text.FontAsset,characterLookupTable,"Dictionary<uint, Character> characterLookupTable { get; }"
+Text.FontAsset,characterTable,List<Character> characterTable { get; set; }
+Text.FontAsset,creationSettings,FontAssetCreationSettings creationSettings { get; set; }
+Text.FontAsset,faceInfo,FaceInfo faceInfo { get; set; }
+Text.FontAsset,fallbackFontAssetTable,List<FontAsset> fallbackFontAssetTable { get; set; }
+Text.FontAsset,fontFeatureTable,FontFeatureTable fontFeatureTable { get; set; }
+Text.FontAsset,fontWeightTable,FontWeightPair[] fontWeightTable { get; set; }
+Text.FontAsset,getFontFeatures,bool getFontFeatures { get; set; }
+Text.FontAsset,glyphLookupTable,"Dictionary<uint, Glyph> glyphLookupTable { get; }"
+Text.FontAsset,glyphTable,List<Glyph> glyphTable { get; set; }
+Text.FontAsset,isMultiAtlasTexturesEnabled,bool isMultiAtlasTexturesEnabled { get; set; }
+Text.FontAsset,italicStyleSlant,byte italicStyleSlant { get; set; }
+Text.FontAsset,regularStyleSpacing,float regularStyleSpacing { get; set; }
+Text.FontAsset,regularStyleWeight,float regularStyleWeight { get; set; }
 Text.FontAsset,samplingPointSize,int samplingPointSize { get; set; }
+Text.FontAsset,tabMultiple,byte tabMultiple { get; set; }
+Text.FontAssetCreationSettings,atlasHeight,int atlasHeight
+Text.FontAssetCreationSettings,atlasWidth,int atlasWidth
+Text.FontAssetCreationSettings,characterSequence,string characterSequence
+Text.FontAssetCreationSettings,characterSetSelectionMode,int characterSetSelectionMode
+Text.FontAssetCreationSettings,faceIndex,int faceIndex
+Text.FontAssetCreationSettings,fontStyle,int fontStyle
+Text.FontAssetCreationSettings,fontStyleModifier,float fontStyleModifier
+Text.FontAssetCreationSettings,includeFontFeatures,bool includeFontFeatures
+Text.FontAssetCreationSettings,packingMode,int packingMode
+Text.FontAssetCreationSettings,padding,int padding
+Text.FontAssetCreationSettings,paddingMode,int paddingMode
+Text.FontAssetCreationSettings,pointSize,float pointSize
+Text.FontAssetCreationSettings,pointSizeSamplingMode,int pointSizeSamplingMode
+Text.FontAssetCreationSettings,referencedFontAssetGUID,string referencedFontAssetGUID
+Text.FontAssetCreationSettings,referencedTextAssetGUID,string referencedTextAssetGUID
+Text.FontAssetCreationSettings,renderMode,int renderMode
+Text.FontAssetCreationSettings,sourceFontFileGUID,string sourceFontFileGUID
+Text.FontAssetCreationSettings,sourceFontFileName,string sourceFontFileName
+Text.FontFeatureTable,.ctor,FontFeatureTable()
+Text.FontFeatureTable,SortGlyphPairAdjustmentRecords,void SortGlyphPairAdjustmentRecords()
+Text.FontFeatureTable,glyphPairAdjustmentRecords,List<GlyphPairAdjustmentRecord> glyphPairAdjustmentRecords { get; set; }
+Text.FontFeatureTable,ligatureRecords,List<LigatureSubstitutionRecord> ligatureRecords { get; set; }
+Text.FontFeatureTable,markToBaseAdjustmentRecords,List<MarkToBaseAdjustmentRecord> markToBaseAdjustmentRecords { get; set; }
+Text.FontFeatureTable,markToMarkAdjustmentRecords,List<MarkToMarkAdjustmentRecord> markToMarkAdjustmentRecords { get; set; }
+Text.FontFeatureTable,multipleSubstitutionRecords,List<MultipleSubstitutionRecord> multipleSubstitutionRecords { get; set; }
+Text.FontWeightPair,italicTypeface,FontAsset italicTypeface
+Text.FontWeightPair,regularTypeface,FontAsset regularTypeface
+Text.Glyph,.ctor,"Glyph() / Glyph(Glyph) / Glyph(uint, GlyphMetrics, GlyphRect) / Glyph(uint, GlyphMetrics, GlyphRect, float, int)"
+Text.Glyph,Compare,bool Compare(Glyph)
+Text.Glyph,atlasIndex,int atlasIndex { get; set; }
+Text.Glyph,classDefinitionType,GlyphClassDefinitionType classDefinitionType { get; set; }
+Text.Glyph,glyphRect,GlyphRect glyphRect { get; set; }
+Text.Glyph,index,uint index { get; set; }
+Text.Glyph,metrics,GlyphMetrics metrics { get; set; }
+Text.Glyph,scale,float scale { get; set; }
+Text.GlyphAnchorPoint,xCoordinate,float xCoordinate { get; set; }
+Text.GlyphAnchorPoint,yCoordinate,float yCoordinate { get; set; }
+Text.GlyphClassDefinitionType,Base,Text.GlyphClassDefinitionType.Base = 1
+Text.GlyphClassDefinitionType,Component,Text.GlyphClassDefinitionType.Component = 4
+Text.GlyphClassDefinitionType,Ligature,Text.GlyphClassDefinitionType.Ligature = 2
+Text.GlyphClassDefinitionType,Mark,Text.GlyphClassDefinitionType.Mark = 3
+Text.GlyphClassDefinitionType,Undefined,Text.GlyphClassDefinitionType.Undefined = 0
+Text.GlyphMetrics,.ctor,"GlyphMetrics(float, float, float, float, float)"
+Text.GlyphMetrics,height,float height { get; set; }
+Text.GlyphMetrics,horizontalAdvance,float horizontalAdvance { get; set; }
+Text.GlyphMetrics,horizontalBearingX,float horizontalBearingX { get; set; }
+Text.GlyphMetrics,horizontalBearingY,float horizontalBearingY { get; set; }
+Text.GlyphMetrics,operators,"Equality(GlyphMetrics, GlyphMetrics) / Inequality(GlyphMetrics, GlyphMetrics)"
+Text.GlyphMetrics,width,float width { get; set; }
+Text.GlyphRect,.ctor,"GlyphRect(int, int, int, int) / GlyphRect(Rect)"
+Text.GlyphRect,height,int height { get; set; }
+Text.GlyphRect,operators,"Equality(GlyphRect, GlyphRect) / Inequality(GlyphRect, GlyphRect)"
+Text.GlyphRect,width,int width { get; set; }
+Text.GlyphRect,x,int x { get; set; }
+Text.GlyphRect,y,int y { get; set; }
+Text.GlyphRect,zero,static GlyphRect zero { get; }
+Text.LigatureSubstitutionRecord,componentGlyphIDs,uint[] componentGlyphIDs { get; set; }
+Text.LigatureSubstitutionRecord,ligatureGlyphID,uint ligatureGlyphID { get; set; }
+Text.LowLevel.FontFeatureLookupFlags,IgnoreLigatures,Text.LowLevel.FontFeatureLookupFlags.IgnoreLigatures = 4
+Text.LowLevel.FontFeatureLookupFlags,IgnoreSpacingAdjustments,Text.LowLevel.FontFeatureLookupFlags.IgnoreSpacingAdjustments = 256
+Text.LowLevel.FontFeatureLookupFlags,None,Text.LowLevel.FontFeatureLookupFlags.None = 0
+Text.LowLevel.GlyphAdjustmentRecord,.ctor,"GlyphAdjustmentRecord(uint, GlyphValueRecord)"
+Text.LowLevel.GlyphAdjustmentRecord,glyphIndex,uint glyphIndex { get; set; }
+Text.LowLevel.GlyphAdjustmentRecord,glyphValueRecord,GlyphValueRecord glyphValueRecord { get; set; }
+Text.LowLevel.GlyphPackingMode,BestAreaFit,Text.LowLevel.GlyphPackingMode.BestAreaFit = 2
+Text.LowLevel.GlyphPackingMode,BestLongSideFit,Text.LowLevel.GlyphPackingMode.BestLongSideFit = 1
+Text.LowLevel.GlyphPackingMode,BestShortSideFit,Text.LowLevel.GlyphPackingMode.BestShortSideFit = 0
+Text.LowLevel.GlyphPackingMode,BottomLeftRule,Text.LowLevel.GlyphPackingMode.BottomLeftRule = 3
+Text.LowLevel.GlyphPackingMode,ContactPointRule,Text.LowLevel.GlyphPackingMode.ContactPointRule = 4
+Text.LowLevel.GlyphPairAdjustmentRecord,.ctor,"GlyphPairAdjustmentRecord(GlyphAdjustmentRecord, GlyphAdjustmentRecord)"
+Text.LowLevel.GlyphPairAdjustmentRecord,featureLookupFlags,FontFeatureLookupFlags featureLookupFlags { get; set; }
+Text.LowLevel.GlyphPairAdjustmentRecord,firstAdjustmentRecord,GlyphAdjustmentRecord firstAdjustmentRecord { get; set; }
+Text.LowLevel.GlyphPairAdjustmentRecord,secondAdjustmentRecord,GlyphAdjustmentRecord secondAdjustmentRecord { get; set; }
+Text.LowLevel.GlyphRenderMode,COLOR,Text.LowLevel.GlyphRenderMode.COLOR = 69637
+Text.LowLevel.GlyphRenderMode,COLOR_HINTED,Text.LowLevel.GlyphRenderMode.COLOR_HINTED = 69641
+Text.LowLevel.GlyphRenderMode,RASTER,Text.LowLevel.GlyphRenderMode.RASTER = 4165
+Text.LowLevel.GlyphRenderMode,RASTER_HINTED,Text.LowLevel.GlyphRenderMode.RASTER_HINTED = 4169
+Text.LowLevel.GlyphRenderMode,SDF,Text.LowLevel.GlyphRenderMode.SDF = 4134
+Text.LowLevel.GlyphRenderMode,SDF16,Text.LowLevel.GlyphRenderMode.SDF16 = 16422
+Text.LowLevel.GlyphRenderMode,SDF32,Text.LowLevel.GlyphRenderMode.SDF32 = 32806
+Text.LowLevel.GlyphRenderMode,SDF8,Text.LowLevel.GlyphRenderMode.SDF8 = 8230
+Text.LowLevel.GlyphRenderMode,SDFAA,Text.LowLevel.GlyphRenderMode.SDFAA = 4133
+Text.LowLevel.GlyphRenderMode,SDFAA_HINTED,Text.LowLevel.GlyphRenderMode.SDFAA_HINTED = 4137
+Text.LowLevel.GlyphRenderMode,SMOOTH,Text.LowLevel.GlyphRenderMode.SMOOTH = 4117
+Text.LowLevel.GlyphRenderMode,SMOOTH_HINTED,Text.LowLevel.GlyphRenderMode.SMOOTH_HINTED = 4121
+Text.LowLevel.GlyphValueRecord,.ctor,"GlyphValueRecord(float, float, float, float)"
+Text.LowLevel.GlyphValueRecord,operators,"Addition(GlyphValueRecord, GlyphValueRecord)"
+Text.LowLevel.GlyphValueRecord,xAdvance,float xAdvance { get; set; }
+Text.LowLevel.GlyphValueRecord,xPlacement,float xPlacement { get; set; }
+Text.LowLevel.GlyphValueRecord,yAdvance,float yAdvance { get; set; }
+Text.LowLevel.GlyphValueRecord,yPlacement,float yPlacement { get; set; }
+Text.MarkPositionAdjustment,xPositionAdjustment,float xPositionAdjustment { get; set; }
+Text.MarkPositionAdjustment,yPositionAdjustment,float yPositionAdjustment { get; set; }
+Text.MarkToBaseAdjustmentRecord,baseGlyphAnchorPoint,GlyphAnchorPoint baseGlyphAnchorPoint { get; set; }
+Text.MarkToBaseAdjustmentRecord,baseGlyphID,uint baseGlyphID { get; set; }
+Text.MarkToBaseAdjustmentRecord,markGlyphID,uint markGlyphID { get; set; }
+Text.MarkToBaseAdjustmentRecord,markPositionAdjustment,MarkPositionAdjustment markPositionAdjustment { get; set; }
+Text.MarkToMarkAdjustmentRecord,baseMarkGlyphAnchorPoint,GlyphAnchorPoint baseMarkGlyphAnchorPoint { get; set; }
+Text.MarkToMarkAdjustmentRecord,baseMarkGlyphID,uint baseMarkGlyphID { get; set; }
+Text.MarkToMarkAdjustmentRecord,combiningMarkGlyphID,uint combiningMarkGlyphID { get; set; }
+Text.MarkToMarkAdjustmentRecord,combiningMarkPositionAdjustment,MarkPositionAdjustment combiningMarkPositionAdjustment { get; set; }
+Text.MultipleSubstitutionRecord,substituteGlyphIDs,uint[] substituteGlyphIDs { get; set; }
+Text.MultipleSubstitutionRecord,targetGlyphID,uint targetGlyphID { get; set; }
+Text.TextAsset,.ctor,TextAsset()
+Text.TextAsset,hashCode,int hashCode { get; }
+Text.TextAsset,instanceID,int instanceID { get; }
+Text.TextAsset,material,Material material { get; set; }
+Text.TextAsset,materialHashCode,int materialHashCode { get; }
+Text.TextAsset,version,string version { get; }
+Text.TextElement,elementType,TextElementType elementType { get; }
+Text.TextElement,glyph,Glyph glyph { get; set; }
+Text.TextElement,glyphIndex,uint glyphIndex { get; set; }
+Text.TextElement,scale,float scale { get; set; }
+Text.TextElement,textAsset,TextAsset textAsset { get; set; }
+Text.TextElement,unicode,uint unicode { get; set; }
+Text.TextElementType,Character,Text.TextElementType.Character = 1
+Text.TextElementType,Sprite,Text.TextElementType.Sprite = 2
 TextAnchor,LowerCenter,TextAnchor.LowerCenter = 7
 TextAnchor,LowerLeft,TextAnchor.LowerLeft = 6
 TextAnchor,LowerRight,TextAnchor.LowerRight = 8

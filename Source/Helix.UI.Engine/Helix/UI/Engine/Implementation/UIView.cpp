@@ -1,4 +1,5 @@
 #include <Helix/UI/Engine/UIView.h>
+#include <Helix/UI/Engine/PanelInput.h>
 
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Core/Strings/Format.h>
@@ -162,6 +163,8 @@ namespace helix::ui
             u64 inputFrame = 0;
             i64 tickFrame = -1;
             RuntimePanel* keyboard = nullptr;
+            // An event system outside the UI takes the input (PanelInput).
+            bool eventSystem = false;
             CursorKey cursor;
             // One material per set of textures in the slots.
             Array<MaterialEntry> materials;
@@ -578,6 +581,12 @@ namespace helix::ui
             if (order.Empty())
                 return;
             PanelOrder panels(order.Data(), order.Size());
+            // Redirected: the event system hands the panels their input.
+            if (!PanelInput::ReadsOwnInput())
+            {
+                UpdateCursor(panels);
+                return;
+            }
             Span<const engine::InputEvent> events = engine::InputFeed::Frame();
             for (usize i = 0; i < events.Size(); i++)
             {
@@ -1423,4 +1432,99 @@ namespace helix::ui
                 return p->scale();
         return 1.0f;
     }
+
+    // ------------------------------------------------------------------------------------------------- PanelInput
+
+    namespace
+    {
+        RuntimePanel* PanelById(u64 id)
+        {
+            for (RuntimePanel* p : V().panels)
+                if (p->serial() == id)
+                    return p;
+            return nullptr;
+        }
+    }
+
+    void PanelInput::SetEventSystemPresent(bool value) { V().eventSystem = value; }
+
+    bool PanelInput::ReadsOwnInput()
+    {
+        PanelInputConfiguration* config = PanelInputConfiguration::current();
+        i32 mode = config ? config->PanelInputRedirectionInternal() : 0;
+        // AutoRedirect, NoRedirect, AlwaysRedirect.
+        if (mode == 1)
+            return true;
+        if (mode == 2)
+            return false;
+        return !V().eventSystem;
+    }
+
+    Array<u64> PanelInput::Panels()
+    {
+        Array<u64> out;
+        for (RuntimePanel* p : InputOrder())
+            out.Push(p->serial());
+        return out;
+    }
+
+    bool PanelInput::Alive(u64 panel) { return PanelById(panel) != nullptr; }
+
+    String PanelInput::Name(u64 panel)
+    {
+        RuntimePanel* p = PanelById(panel);
+        if (!p)
+            return String();
+        if (UIPanelSettings* s = p->settings())
+            return String(s->Name());
+        Span<UIView* const> views = p->views();
+        return views.Empty() ? String("Panel") : String(views[0]->gameObject()->Name());
+    }
+
+    f32 PanelInput::SortingOrder(u64 panel)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p ? p->order() : 0.0f;
+    }
+
+    i32 PanelInput::InputIndex(u64 panel)
+    {
+        Array<RuntimePanel*> order = InputOrder();
+        for (usize i = 0; i < order.Size(); i++)
+            if (order[i]->serial() == panel)
+                return i32(i);
+        return -1;
+    }
+
+    bool PanelInput::IsWorld(u64 panel)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p && p->world();
+    }
+
+    bool PanelInput::ScreenToPanel(u64 panel, Vector2 screen, Vector2& at, f32& distance)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p && p->TakesInput() && p->ScreenToPanel(screen, at, distance);
+    }
+
+    bool PanelInput::Pick(u64 panel, Vector2 at)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p && p->panel().events().Pick(at).IsValid();
+    }
+
+    EventSystem* PanelInput::Events(u64 panel)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p ? &p->panel().events() : nullptr;
+    }
+
+    UIView* PanelInput::FirstView(u64 panel)
+    {
+        RuntimePanel* p = PanelById(panel);
+        return p && !p->views().Empty() ? p->views()[0] : nullptr;
+    }
+
+    void PanelInput::SetKeyboardPanel(u64 panel) { V().keyboard = PanelById(panel); }
 }

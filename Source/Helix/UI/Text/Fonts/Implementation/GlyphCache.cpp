@@ -52,6 +52,14 @@ namespace helix::ui
         bitmaps_.Read(face_->Font(), error);
     }
 
+    void GlyphCache::Clear()
+    {
+        entries_.Clear();
+        atlas_.Clear();
+        colorAtlas_.Clear();
+        version_++;
+    }
+
     const GlyphEntry* GlyphCache::Get(u32 glyph)
     {
         if (const GlyphEntry* e = entries_.Find(glyph))
