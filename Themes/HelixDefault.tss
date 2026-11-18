@@ -945,6 +945,29 @@
     color: var(--helix-color-text-disabled);
 }
 
+.helix-base-dropdown__label {
+    flex-grow: 1;
+}
+
+.helix-base-dropdown__shortcut {
+    white-space: nowrap;
+    margin-left: 24px;
+    color: var(--helix-color-text-dim);
+}
+
+.helix-base-dropdown__item:disabled .helix-base-dropdown__shortcut {
+    color: var(--helix-color-text-disabled);
+}
+
+.helix-base-dropdown__submenu-arrow {
+    width: 5px;
+    height: 5px;
+    margin: 0 0 0 12px;
+    border-width: 0 2px 2px 0;
+    border-color: var(--helix-color-text-dim);
+    rotate: -45deg;
+}
+
 .helix-tooltip {
     padding: 3px 6px 3px 6px;
     background-color: rgb(24, 25, 30);

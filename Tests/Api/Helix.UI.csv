@@ -1657,6 +1657,13 @@ UI.Image,scaleMode,ScaleMode scaleMode { get; set; }
 UI.Image,sourceRect,Rect sourceRect { get; set; }
 UI.Image,tintColor,Color tintColor { get; set; }
 UI.Image,uv,Rect uv { get; set; }
+UI.ImguiContainer,.ctor,ImguiContainer() / ImguiContainer(Action)
+UI.ImguiContainer,Dispose,void Dispose()
+UI.ImguiContainer,MarkDirtyLayout,void MarkDirtyLayout()
+UI.ImguiContainer,contextType,ContextType contextType { get; set; }
+UI.ImguiContainer,cullingEnabled,bool cullingEnabled { get; set; }
+UI.ImguiContainer,hssClassName,static string hssClassName
+UI.ImguiContainer,onGuiHandler,Action onGuiHandler { get; set; }
 UI.InputEvent,.ctor,InputEvent()
 UI.InputEvent,GetPooled,"static InputEvent GetPooled(string, string)"
 UI.InputEvent,newData,string newData { get; }

@@ -1,5 +1,6 @@
 #include <Helix/UI/Engine/Implementation/GuiState.h>
 #include <Helix/UI/Engine/Implementation/Overlay.h>
+#include <Helix/UI/Engine/ScriptPaint.h>
 
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Engine/Input/InputFeed.h>
@@ -9,7 +10,9 @@
 #include <Helix/Engine/Script/ScriptClass.h>
 #include <Helix/Engine/Script/ScriptRuntime.h>
 #include <Helix/Engine/Time/Time.h>
+#include <Helix/Scripting/Bindings/Interop.h>
 
+#include <bit>
 #include <cmath>
 
 // The immediate GUI's frame: the scripts with OnGui by depth, each event of the frame's input through them (a Layout
@@ -23,10 +26,25 @@ namespace helix::ui::gui
     {
         LogChannel GuiLog{"UI"};
 
+        // A script with OnGui, or a container's handler in its rectangle.
         struct Entry
         {
             engine::GameBehaviour* behaviour = nullptr;
             Owner* owner = nullptr;
+            void (*call)(void*) = nullptr;
+            void* user = nullptr;
+            bool area = false;
+            Rect rect;
+
+            bool Alive() const { return behaviour ? behaviour->isActiveAndEnabled() : call != nullptr; }
+            bool Layout() const { return behaviour ? behaviour->useGuiLayout() : true; }
+            void Call() const
+            {
+                if (behaviour)
+                    engine::CallScriptMessage(behaviour, engine::ScriptMessage::OnGui);
+                else
+                    call(user);
+            }
         };
 
         struct Frame
@@ -78,7 +96,7 @@ namespace helix::ui::gui
             });
             // Owners whose scripts went take their windows with them.
             for (usize i = 0; i < s.owners.Size();)
-                if (!s.owners[i]->seen)
+                if (!s.owners[i]->seen && !s.owners[i]->container)
                 {
                     u64 key = s.owners[i]->key;
                     for (usize k = 0; k < s.windows.Size();)
@@ -125,9 +143,10 @@ namespace helix::ui::gui
             s.tooltip.Clear();
             s.scrolls.Clear();
             s.clips.Clear();
+            // The screen, or a container's rectangle (its top left the origin).
             Clip root;
-            root.visible = Rect(-1e6f, -1e6f, 2e6f, 2e6f);
-            root.origin = Vector2(0, 0);
+            root.visible = e.area ? e.rect : Rect(-1e6f, -1e6f, 2e6f, 2e6f);
+            root.origin = e.area ? Vector2(e.rect.x, e.rect.y) : Vector2(0, 0);
             s.clips.Push(root);
             s.raw.CopyFrom(raw);
             s.event.CopyFrom(raw);
@@ -137,11 +156,11 @@ namespace helix::ui::gui
             s.current = &s.event;
             s.inPass = true;
             Gui::SetMatrix(Matrix4x4::identity);
-            bool layout = e.behaviour->useGuiLayout();
-            Vector2 screen = F().screen;
+            bool layout = e.Layout();
+            Vector2 screen = e.area ? Vector2(e.rect.width, e.rect.height) : F().screen;
             if (layout)
                 BeginLayout(e.owner->cache, Rect(0, 0, screen.x, screen.y), nullptr);
-            engine::CallScriptMessage(e.behaviour, engine::ScriptMessage::OnGui);
+            e.Call();
             if (layout)
                 EndLayout(e.owner->cache);
             if (s.clips.Size() > 1)
@@ -176,9 +195,9 @@ namespace helix::ui::gui
             for (usize n = 0; n < entries.Size(); n++)
             {
                 const Entry& e = repaint ? entries[entries.Size() - 1 - n] : entries[n];
-                if (!e.behaviour || !e.behaviour->isActiveAndEnabled())
+                if (!e.Alive())
                     continue;
-                if (e.behaviour->useGuiLayout())
+                if (e.Layout())
                 {
                     Pass(e, layout);
                     // The layout may have moved the windows' targets (a window grew).
@@ -253,6 +272,9 @@ namespace helix::ui::gui
             {
                 const engine::InputEvent& in = input[index];
                 f.used[index] = false;
+                // The immediate GUI is the main display's.
+                if (in.display != 0)
+                    continue;
                 const platform::Event& p = in.event;
                 Event e;
                 e.SetModifiers(Modifiers(p.modifiers));
@@ -363,7 +385,7 @@ namespace helix::ui::gui
         {
             State& s = S();
             F().screen = Screen();
-            s.mesh.Clear();
+            s.Mesh().Clear();
             Array<Entry> entries = Collect();
             for (Window* w : s.windows)
                 w->called = false;
@@ -384,18 +406,18 @@ namespace helix::ui::gui
                     k++;
         }
 
-        const UIMesh& Mesh() { return S().mesh; }
+        const UIMesh& Mesh() { return S().Mesh(); }
 
         void Draw(engine::CommandBuffer& cmd)
         {
             State& s = S();
-            if (s.mesh.Vertices().Empty())
+            if (s.Mesh().Vertices().Empty())
                 return;
             Frame& f = F();
-            f.upload.Upload(s.mesh);
+            f.upload.Upload(s.Mesh());
             Vector2 screen = f.screen;
             cmd.SetViewProjectionMatrices(Matrix4x4::identity, Matrix4x4::Ortho(0, screen.x, screen.y, 0, -100000, 100000));
-            f.upload.Draw(s.mesh, cmd);
+            f.upload.Draw(s.Mesh(), cmd);
         }
 
         void ResetForTests()
@@ -415,13 +437,179 @@ namespace helix::ui::gui
             s.lastClickTime = -1;
             s.screenMouse = Vector2(0, 0);
             s.focusByName = false;
-            s.mesh.Clear();
+            s.Mesh().Clear();
             for (Event* q : s.queue)
                 delete q;
             s.queue.Clear();
             s.popped = 0;
             F().inputFrame = engine::InputFeed::FrameNumber();
             ResetLayoutForTests();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------ containers
+
+    namespace container
+    {
+        namespace
+        {
+            // A container's owner: its key apart from the scripts' entity ids.
+            constexpr u64 kContainerBit = u64(1) << 63;
+
+            Owner* OwnerOf(u64 key)
+            {
+                State& s = S();
+                u64 k = key | kContainerBit;
+                for (Owner* o : s.owners)
+                    if (o->key == k)
+                        return o;
+                auto* o = new Owner();
+                o->key = k;
+                o->container = true;
+                o->cache = NewLayoutCache();
+                s.owners.Push(o);
+                return o;
+            }
+        }
+
+        bool Run(u64 key, const Rect& rect, const Event& e, void (*handler)(void* user), void* user, UIMesh* mesh)
+        {
+            State& s = S();
+            // Not inside another pass (a handler that draws a container's panel).
+            if (s.inPass || !handler)
+                return false;
+            Entry entry;
+            entry.owner = OwnerOf(key);
+            entry.call = handler;
+            entry.user = user;
+            entry.area = true;
+            entry.rect = rect;
+            // The pointer and the buttons the event tells of.
+            EventType type = e.type();
+            if (type == EventType::MouseDown || type == EventType::MouseUp || type == EventType::MouseMove || type == EventType::MouseDrag ||
+                type == EventType::ScrollWheel || type == EventType::ContextClick)
+                s.screenMouse = e.mousePosition();
+            if (type == EventType::MouseDown)
+                s.heldButtons |= 1 << e.button();
+            else if (type == EventType::MouseUp)
+                s.heldButtons &= ~(1 << e.button());
+            // Repaint draws into the panel's mesh; its clip and map are the panel's again after.
+            UIMesh* saved = s.meshTarget;
+            UIClip clip;
+            Affine map;
+            if (mesh)
+            {
+                clip = mesh->Clip();
+                map = mesh->Transform();
+                s.meshTarget = mesh;
+            }
+            Array<Entry> entries;
+            entries.Push(entry);
+            bool used = Round(entries, e);
+            if (mesh)
+            {
+                mesh->SetClip(clip);
+                mesh->SetTransform(map);
+            }
+            s.meshTarget = saved;
+            // Windows of the container not called in its Repaint are gone.
+            if (type == EventType::Repaint)
+            {
+                for (usize k = 0; k < s.windows.Size();)
+                {
+                    if (s.windows[k]->owner == entry.owner->key && !s.windows[k]->called)
+                    {
+                        delete s.windows[k];
+                        s.windows.RemoveAt(k);
+                    }
+                    else
+                        k++;
+                }
+            }
+            return used;
+        }
+
+        void Remove(u64 key)
+        {
+            State& s = S();
+            u64 k = key | kContainerBit;
+            for (usize i = 0; i < s.windows.Size();)
+                if (s.windows[i]->owner == k)
+                {
+                    delete s.windows[i];
+                    s.windows.RemoveAt(i);
+                }
+                else
+                    i++;
+            for (usize i = 0; i < s.owners.Size(); i++)
+                if (s.owners[i]->key == k)
+                {
+                    delete s.owners[i];
+                    s.owners.RemoveAt(i);
+                    break;
+                }
+        }
+
+        // ---------------------------------------------------------------------------- C#'s ImguiContainer
+
+        namespace
+        {
+            // C#'s: runs the onGuiHandler of the container with the key.
+            using ManagedHandler = void (*)(u64 key);
+            ManagedHandler managedHandler = nullptr;
+
+            void CallManaged(void* user)
+            {
+                if (managedHandler)
+                    managedHandler(u64(uintptr_t(user)));
+            }
+
+            void SetCallback(void* function) { managedHandler = std::bit_cast<ManagedHandler>(function); }
+
+            // An event of the container's element: its type, the pointer (the screen's), its move, button, clicks,
+            // modifiers, key and character. 1 when a control used it.
+            i32 SendEvent(u64 key, const f32* rect, i32 type, const f32* position, const f32* delta, i32 button, i32 clicks, i32 modifiers,
+                          i32 keyCode, i32 character)
+            {
+                Event e;
+                e.SetType(EventType(type));
+                e.SetRawType(EventType(type));
+                e.SetMousePosition(Vector2(position[0], position[1]));
+                e.SetDelta(Vector2(delta[0], delta[1]));
+                e.SetButton(button);
+                e.SetClickCount(clicks);
+                e.SetModifiers(EventModifiers(modifiers));
+                e.SetKeyCode(platform::KeyCode(keyCode));
+                e.SetCharacter(char16_t(character));
+                return Run(key, Rect(rect[0], rect[1], rect[2], rect[3]), e, &CallManaged, reinterpret_cast<void*>(uintptr_t(key)), nullptr) ? 1 : 0;
+            }
+
+            // Its Repaint (from its generateVisualContent: the paint context's mesh, its box of a size at the context's
+            // origin).
+            void Repaint(u64 key, u64 paintContext, f32 width, f32 height)
+            {
+                auto* c = reinterpret_cast<ScriptPaintContext*>(uintptr_t(paintContext));
+                if (!c || !c->mesh)
+                    return;
+                Event e;
+                e.SetType(EventType::Repaint);
+                e.SetRawType(EventType::Repaint);
+                e.SetMousePosition(S().screenMouse);
+                Run(key, Rect(c->origin.x, c->origin.y, width, height), e, &CallManaged, reinterpret_cast<void*>(uintptr_t(key)), c->mesh);
+            }
+
+            void RemoveExport(u64 key) { Remove(key); }
+
+            struct ExportRegistrar
+            {
+                ExportRegistrar()
+                {
+                    scripting::RegisterNativeExport("HelixUI.SetGuiContainerCallback", std::bit_cast<const void*>(&SetCallback));
+                    scripting::RegisterNativeExport("HelixUI.GuiContainerEvent", std::bit_cast<const void*>(&SendEvent));
+                    scripting::RegisterNativeExport("HelixUI.GuiContainerRepaint", std::bit_cast<const void*>(&Repaint));
+                    scripting::RegisterNativeExport("HelixUI.GuiContainerRemove", std::bit_cast<const void*>(&RemoveExport));
+                }
+            } registrar;
         }
     }
 }

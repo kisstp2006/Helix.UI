@@ -28,6 +28,7 @@
 #include <Helix/UI/Engine/Gui.h>
 #include <Helix/UI/Engine/ImageAtlas.h>
 #include <Helix/UI/Engine/Implementation/Overlay.h>
+#include <Helix/Engine/Screen/Display.h>
 
 #include <cmath>
 #include <cstring>
@@ -105,6 +106,13 @@ namespace helix::ui
         f32 order() const { return shared_ ? (settings() ? settings()->sortingOrder() : 0.0f) : (views_.Empty() ? 0.0f : views_[0]->sortingOrder()); }
         u64 serial() const { return serial_; }
         engine::RenderTexture* target() const { return !world_ && settings() ? settings()->targetTexture() : nullptr; }
+        // The display a screen panel draws to and takes input from: its settings' targetDisplay while that display is
+        // active, else the main one.
+        i32 display() const
+        {
+            i32 d = !world_ && settings() ? settings()->targetDisplay() : 0;
+            return d > 0 && engine::Displays::Get(d).active ? d : 0;
+        }
         f32 scale() const { return scale_; }
         Vector2 size() const { return size_; }
         Vector2 ToPanel(Vector2 screen) const { return Vector2(screen.x / scale_, screen.y / scale_); }
@@ -266,9 +274,13 @@ namespace helix::ui
         {
             const engine::RenderTarget& screen = engine::Graphics::Target();
             bool onScreen = true;
+            // The display drawn now: its screen panels; panels into textures and the immediate GUI with the main one.
+            i32 display = engine::Displays::Current();
             for (RuntimePanel* p : DrawOrder())
             {
                 if (p->world())
+                    continue;
+                if (p->target() ? display != 0 : p->display() != display)
                     continue;
                 engine::Mesh* mesh = p->mesh();
                 Vector2 size = p->size();
@@ -304,7 +316,7 @@ namespace helix::ui
             if (!onScreen)
                 cmd.SetRenderTarget(engine::RenderTargetIdentifier(engine::BuiltinRenderTextureType::CameraTarget));
             // The immediate GUI over everything (it sets its own view).
-            if (V().gui)
+            if (V().gui && display == 0)
             {
                 cmd.SetViewport(Rect(0, 0, f32(screen.width), f32(screen.height)));
                 V().gui(cmd);
@@ -588,16 +600,26 @@ namespace helix::ui
                 return;
             }
             Span<const engine::InputEvent> events = engine::InputFeed::Frame();
+            Array<RuntimePanel*> ofDisplay;
             for (usize i = 0; i < events.Size(); i++)
             {
                 // What the immediate GUI used is not the panels'.
                 if (gui::system::UsedInput(frame, i))
                     continue;
                 const engine::InputEvent& e = events[i];
+                // An event goes to the panels of its display.
+                i32 display = e.display > 0 && engine::Displays::Get(e.display).active ? e.display : 0;
+                ofDisplay.Clear();
+                for (RuntimePanel* p : order)
+                    if (p->display() == display)
+                        ofDisplay.Push(p);
+                if (ofDisplay.Empty())
+                    continue;
+                PanelOrder mine(ofDisplay.Data(), ofDisplay.Size());
                 for (const InputRoute& r : kInputRoutes)
                     if (r.type == e.event.type)
                     {
-                        r.route(panels, e);
+                        r.route(mine, e);
                         break;
                     }
             }
@@ -1049,8 +1071,10 @@ namespace helix::ui
         UpdateTooltip();
         UIPanelSettings* s = settings();
         engine::RenderTexture* rt = target();
-        f32 w = rt ? f32(rt->width()) : f32(engine::Screen::width());
-        f32 h = rt ? f32(rt->height()) : f32(engine::Screen::height());
+        // A texture's size, else its display's (the main one: the screen's).
+        const engine::DisplayState& shown = engine::Displays::Get(display());
+        f32 w = rt ? f32(rt->width()) : display() > 0 ? f32(shown.systemWidth) : f32(engine::Screen::width());
+        f32 h = rt ? f32(rt->height()) : display() > 0 ? f32(shown.systemHeight) : f32(engine::Screen::height());
         scale_ = s ? s->ResolveScale(w, h, engine::Screen::dpi()) : 1.0f;
         if (!(scale_ > 0))
             scale_ = 1.0f;

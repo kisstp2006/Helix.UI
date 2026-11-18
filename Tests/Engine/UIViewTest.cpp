@@ -1165,6 +1165,40 @@ HX_TEST(UIScripts, CSharpCollectionsMenusAnimationsPaintingAndBindings)
     DestroyImmediate(ui);
 }
 
+HX_TEST(UIScripts, CSharpImguiContainerDrawsAndHearsItsElementsEvents)
+{
+    HX_REQUIRE(ui::testing::StartScripts());
+    ui::testing::Notes().Clear();
+    ManualClock clock;
+    AssetFolder folder;
+    folder.Write("imgui.hxml", R"(<HXML><Element name="page" style="width: 400px; height: 300px;"/></HXML>)");
+    folder.Open();
+    ReportScreen(800, 600);
+    GameObject* ui = GameObject::Create("UI");
+    auto* view = static_cast<UIView*>(ui->AddComponent(scripting::TypeOf<UIView>()));
+    HX_REQUIRE(view != nullptr);
+    view->SetSource(LoadAt<UITemplate>("imgui.hxml"));
+    engine::InputFeed::Reset();
+    auto frame = [&] {
+        clock.now += 0.01;
+        engine::Time::BeginFrame();
+        engine::InputFeed::SetFrame(Span<const engine::InputEvent>(), Span<const u32>());
+        view->Update();
+    };
+    frame();
+    ui->AddComponent(ui::testing::CSharp("CsImguiContainerTests").type);
+    RunScriptPhase(ScriptMessage::Update);
+    HX_CHECK(ui::testing::NotesAre({"class:True"}));
+    for (int i = 0; i < 3; i++)
+    {
+        frame();
+        RunScriptPhase(ScriptMessage::Update);
+    }
+    HX_CHECK(ui::testing::NotesAre({"repainted:True:True", "layout:True:True", "pressed", "disposed"}));
+    engine::InputFeed::Reset();
+    DestroyImmediate(ui);
+}
+
 HX_TEST(UIScripts, CppScriptsBuildControlsAndHearTheirEvents)
 {
     HX_REQUIRE(RegisterModules());

@@ -149,6 +149,8 @@ namespace HelixEngine.UI
         }
 
         public Element element { get; }
+        // The native paint context (what ImguiContainer's Repaint draws into).
+        internal ulong nativeContext => m_Context;
         public Painter2D painter2D => m_Painter ??= new Painter2D(m_Context);
 
         public MeshWriteData Allocate(int vertexCount, int indexCount, Texture2D texture = null)

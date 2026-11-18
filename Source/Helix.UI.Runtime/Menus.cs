@@ -170,29 +170,46 @@ namespace HelixEngine.UI
     }
 
     // A menu over the target's panel: its items in a box under (or at) a rectangle, checked ones marked, a press
-    // outside or Escape closes it; the arrows and Enter pick by the keyboard.
+    // outside or Escape closes it; the arrows and Enter pick by the keyboard. A name with slashes ("Create/Cube") puts
+    // the item in a submenu, opened beside its parent's item as the pointer rests on it (or by the right arrow); a tab
+    // in a name ("Save\tCtrl+S") shows its rest right-aligned as the item's shortcut.
     public class GenericDropdownMenu
     {
         public static readonly string hssClassName = "helix-base-dropdown";
         public static readonly string itemHssClassName = hssClassName + "__item";
         public static readonly string itemContentHssClassName = hssClassName + "__item-content";
         public static readonly string labelHssClassName = hssClassName + "__label";
+        internal static readonly string shortcutHssClassName = hssClassName + "__shortcut";
         public static readonly string containerInnerHssClassName = hssClassName + "__container-inner";
         public static readonly string containerOuterHssClassName = hssClassName + "__container-outer";
         public static readonly string checkmarkHssClassName = hssClassName + "__checkmark";
         public static readonly string separatorHssClassName = hssClassName + "__separator";
+        internal static readonly string submenuHssClassName = hssClassName + "__submenu";
+        internal static readonly string submenuArrowHssClassName = hssClassName + "__submenu-arrow";
         public static readonly string contentWidthHssClassName = hssClassName + "--content-width-menu";
 
-        sealed class Item
+        // The menu's items as a tree: a submenu holds its children, a separator nothing.
+        sealed class Node
         {
-            public Element element;
+            public string name;
+            public List<Node> children;
+            public bool separator, enabled = true, isChecked;
             public Action action;
-            public bool enabled;
+            public bool submenu => children != null;
+        }
+
+        // An open level: the root's box or a submenu's, with the elements of its items.
+        sealed class Level
+        {
+            public Node node;
+            public Element outer, inner, parentItem;
+            public readonly List<(Node node, Element element)> items = new List<(Node, Element)>();
+            public int highlighted = -1;
         }
 
         readonly Element m_Root, m_Outer, m_Inner;
-        readonly List<Item> m_Items = new List<Item>();
-        int m_Highlighted = -1;
+        readonly Node m_Tree = new Node { children = new List<Node>() };
+        readonly List<Level> m_Levels = new List<Level>();
         Element m_Panel;
 
         public event Action onOpen;
@@ -223,12 +240,18 @@ namespace HelixEngine.UI
             m_Root.RegisterCallback<KeyDownEvent>(OnKey);
             m_Root.RegisterCallback<NavigationMoveEvent>(e =>
             {
-                Move(e.direction == NavigationMoveDirection.Up ? -1 : e.direction == NavigationMoveDirection.Down ? 1 : 0);
+                switch (e.direction)
+                {
+                    case NavigationMoveDirection.Up: Move(-1); break;
+                    case NavigationMoveDirection.Down: Move(1); break;
+                    case NavigationMoveDirection.Right: Enter(); break;
+                    case NavigationMoveDirection.Left: Back(); break;
+                }
                 e.StopPropagation();
             });
             m_Root.RegisterCallback<NavigationSubmitEvent>(e =>
             {
-                Pick(m_Highlighted);
+                Submit();
                 e.StopPropagation();
             });
             m_Root.RegisterCallback<NavigationCancelEvent>(e =>
@@ -245,36 +268,42 @@ namespace HelixEngine.UI
         public void AddItem(string itemName, bool isChecked, Action<object> action, object data) => Add(itemName, isChecked, true, () => action?.Invoke(data));
         public void AddDisabledItem(string itemName, bool isChecked) => Add(itemName, isChecked, false, null);
 
+        /// <summary>A separator at the end of the submenu at the path ("" the menu itself).</summary>
         public void AddSeparator(string path)
         {
-            var separator = new Element();
-            separator.AddToClassList(separatorHssClassName);
-            m_Inner.Add(separator);
+            Node parent = SubmenuAt((path ?? "").TrimEnd('/'));
+            parent.children.Add(new Node { separator = true });
+        }
+
+        // The submenu at a path, made as needed.
+        Node SubmenuAt(string path)
+        {
+            Node at = m_Tree;
+            if (string.IsNullOrEmpty(path))
+                return at;
+            foreach (string part in path.Split('/'))
+            {
+                Node next = at.children.Find(n => n.submenu && n.name == part);
+                if (next == null)
+                {
+                    next = new Node { name = part, children = new List<Node>() };
+                    at.children.Add(next);
+                }
+                at = next;
+            }
+            return at;
         }
 
         void Add(string name, bool isChecked, bool enabled, Action action)
         {
-            var element = new Element();
-            element.AddToClassList(itemHssClassName);
-            var check = new Element { pickingMode = PickingMode.Ignore };
-            check.AddToClassList(checkmarkHssClassName);
-            var label = new Label(name) { pickingMode = PickingMode.Ignore };
-            label.AddToClassList(labelHssClassName);
-            element.Add(check);
-            element.Add(label);
-            element.SetEnabled(enabled);
-            if (isChecked)
-                element.AddToClassList(itemHssClassName + "--checked");
-            var item = new Item { element = element, action = action, enabled = enabled };
-            int index = m_Items.Count;
-            element.RegisterCallback<PointerUpEvent>(e =>
-            {
-                Pick(index);
-                e.StopPropagation();
-            });
-            element.RegisterCallback<PointerEnterEvent>(_ => Highlight(index));
-            m_Items.Add(item);
-            m_Inner.Add(element);
+            name ??= "";
+            // The shortcut after a tab is not part of the path.
+            int tab = name.IndexOf('\t');
+            string path = tab >= 0 ? name.Substring(0, tab) : name;
+            int slash = path.LastIndexOf('/');
+            Node parent = SubmenuAt(slash > 0 ? path.Substring(0, slash) : "");
+            string leaf = (slash > 0 ? path.Substring(slash + 1) : path) + (tab >= 0 ? name.Substring(tab) : "");
+            parent.children.Add(new Node { name = leaf, isChecked = isChecked, enabled = enabled, action = action });
         }
 
         // Shown under the rectangle (in the target's panel), or at its position when anchored.
@@ -295,47 +324,183 @@ namespace HelixEngine.UI
                 m_Outer.style.minWidth = position.width;
             else
                 m_Root.AddToClassList(contentWidthHssClassName);
+            m_Levels.Clear();
+            var root = new Level { node = m_Tree, outer = m_Outer, inner = m_Inner };
+            Build(root);
+            m_Levels.Add(root);
             m_Panel.Add(m_Root);
             m_Root.Focus();
             onOpen?.Invoke();
+        }
+
+        // A level's items (after what contentContainer was given).
+        void Build(Level level)
+        {
+            foreach (Node node in level.node.children)
+            {
+                if (node.separator)
+                {
+                    var separator = new Element();
+                    separator.AddToClassList(separatorHssClassName);
+                    level.inner.Add(separator);
+                    continue;
+                }
+                var element = new Element();
+                element.AddToClassList(itemHssClassName);
+                var check = new Element { pickingMode = PickingMode.Ignore };
+                check.AddToClassList(checkmarkHssClassName);
+                element.Add(check);
+                int tab = node.name.IndexOf('\t');
+                var label = new Label(tab >= 0 ? node.name.Substring(0, tab) : node.name) { pickingMode = PickingMode.Ignore };
+                label.AddToClassList(labelHssClassName);
+                element.Add(label);
+                if (tab >= 0)
+                {
+                    var shortcut = new Label(node.name.Substring(tab + 1)) { pickingMode = PickingMode.Ignore };
+                    shortcut.AddToClassList(shortcutHssClassName);
+                    element.Add(shortcut);
+                }
+                if (node.submenu)
+                {
+                    element.AddToClassList(submenuHssClassName);
+                    var arrow = new Element { pickingMode = PickingMode.Ignore };
+                    arrow.AddToClassList(submenuArrowHssClassName);
+                    element.Add(arrow);
+                }
+                element.SetEnabled(node.enabled && (!node.submenu || node.children.Count > 0));
+                if (node.isChecked)
+                    element.AddToClassList(itemHssClassName + "--checked");
+                int index = level.items.Count;
+                element.RegisterCallback<PointerUpEvent>(e =>
+                {
+                    if (!node.submenu)
+                        Pick(node);
+                    e.StopPropagation();
+                });
+                element.RegisterCallback<PointerEnterEvent>(_ =>
+                {
+                    int depth = m_Levels.IndexOf(level);
+                    if (depth < 0)
+                        return;
+                    Highlight(level, index);
+                    CloseFrom(depth + 1);
+                    if (node.submenu)
+                        Open(depth, index);
+                });
+                level.items.Add((node, element));
+                level.inner.Add(element);
+            }
+        }
+
+        // The submenu of an item of an open level, beside it (on its left when the panel has no room on its right).
+        void Open(int depth, int index)
+        {
+            Level parent = m_Levels[depth];
+            var (node, item) = parent.items[index];
+            if (!node.submenu || node.children.Count == 0 || !node.enabled)
+                return;
+            CloseFrom(depth + 1);
+            var level = new Level { node = node, parentItem = item, outer = new Element(), inner = new Element() };
+            level.outer.AddToClassList(containerOuterHssClassName);
+            level.outer.AddToClassList(submenuHssClassName + "-container");
+            level.outer.style.position = Position.Absolute;
+            level.inner.AddToClassList(containerInnerHssClassName);
+            level.outer.Add(level.inner);
+            Rect r = item.worldBound, root = m_Root.worldBound;
+            level.outer.style.left = r.x + r.width - root.x;
+            level.outer.style.top = r.y - root.y;
+            level.outer.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                Rect box = level.outer.worldBound, area = m_Root.worldBound;
+                if (box.x + box.width > area.x + area.width && r.x - box.width >= area.x)
+                    level.outer.style.left = r.x - box.width - area.x;
+                if (box.y + box.height > area.y + area.height)
+                    level.outer.style.top = Math.Max(0, area.height - box.height);
+            });
+            Build(level);
+            m_Levels.Add(level);
+            m_Root.Add(level.outer);
+        }
+
+        void CloseFrom(int depth)
+        {
+            while (m_Levels.Count > Math.Max(1, depth))
+            {
+                Level last = m_Levels[m_Levels.Count - 1];
+                last.outer.RemoveFromHierarchy();
+                m_Levels.RemoveAt(m_Levels.Count - 1);
+            }
         }
 
         void Hide()
         {
             if (m_Root.parent == null)
                 return;
+            CloseFrom(1);
             m_Root.RemoveFromHierarchy();
             targetElement?.Focus();
             onClose?.Invoke();
         }
 
-        void Pick(int index)
+        void Pick(Node node)
         {
-            if (index < 0 || index >= m_Items.Count || !m_Items[index].enabled)
+            if (node == null || node.submenu || !node.enabled)
                 return;
             Hide();
-            m_Items[index].action?.Invoke();
+            node.action?.Invoke();
         }
 
-        void Highlight(int index)
+        static void Highlight(Level level, int index)
         {
-            for (int i = 0; i < m_Items.Count; i++)
-                m_Items[i].element.EnableInClassList(itemHssClassName + "--highlighted", i == index);
-            m_Highlighted = index;
+            for (int i = 0; i < level.items.Count; i++)
+                level.items[i].element.EnableInClassList(itemHssClassName + "--highlighted", i == index);
+            level.highlighted = index;
         }
+
+        Level Deepest => m_Levels.Count > 0 ? m_Levels[m_Levels.Count - 1] : null;
 
         void Move(int step)
         {
-            if (step == 0 || m_Items.Count == 0)
+            Level level = Deepest;
+            if (level == null || step == 0 || level.items.Count == 0)
                 return;
-            int i = m_Highlighted;
-            for (int n = 0; n < m_Items.Count; n++)
+            int i = level.highlighted;
+            for (int n = 0; n < level.items.Count; n++)
             {
-                i = (i + step + m_Items.Count) % m_Items.Count;
-                if (m_Items[i].enabled)
+                i = (i + step + level.items.Count) % level.items.Count;
+                if (level.items[i].node.enabled)
                     break;
             }
-            Highlight(i);
+            Highlight(level, i);
+        }
+
+        // Into the highlighted submenu, its first item highlighted.
+        void Enter()
+        {
+            Level level = Deepest;
+            if (level == null || level.highlighted < 0 || !level.items[level.highlighted].node.submenu)
+                return;
+            Open(m_Levels.Count - 1, level.highlighted);
+            if (Deepest != level)
+                Move(1);
+        }
+
+        void Back()
+        {
+            if (m_Levels.Count > 1)
+                CloseFrom(m_Levels.Count - 1);
+        }
+
+        void Submit()
+        {
+            Level level = Deepest;
+            if (level == null || level.highlighted < 0)
+                return;
+            Node node = level.items[level.highlighted].node;
+            if (node.submenu)
+                Enter();
+            else
+                Pick(node);
         }
 
         void OnKey(KeyDownEvent e)
@@ -343,7 +508,7 @@ namespace HelixEngine.UI
             if (e.keyCode == KeyCode.Escape)
                 Hide();
             else if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
-                Pick(m_Highlighted);
+                Submit();
             else
                 return;
             e.StopPropagation();
@@ -354,8 +519,8 @@ namespace HelixEngine.UI
         {
             var shown = new GenericDropdownMenu();
             foreach (DropdownMenuItem item in menu.MenuItems())
-                if (item is DropdownMenuSeparator)
-                    shown.AddSeparator("");
+                if (item is DropdownMenuSeparator s)
+                    shown.AddSeparator(s.subMenuPath ?? "");
                 else if (item is DropdownMenuAction a)
                 {
                     bool on = (a.status & DropdownMenuAction.Status.Checked) != 0;

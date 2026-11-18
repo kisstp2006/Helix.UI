@@ -128,7 +128,7 @@ namespace helix::ui::gui
             if (l.hasImage)
                 DrawTextureRect(l.image, content.image(), Rect(0, 0, 1, 1), ContentTint(Color(1, 1, 1, 1)));
             bool clip = s.clipping() != TextClipping::Overflow;
-            UIClip saved = S().mesh.Clip();
+            UIClip saved = S().Mesh().Clip();
             if (clip)
             {
                 // The text cut to the content rect (inside the padding) in GUI space.
@@ -141,7 +141,7 @@ namespace helix::ui::gui
                 f32 y1 = gui.y + gui.height < v.y + v.height ? gui.y + gui.height : v.y + v.height;
                 UIClip c = saved;
                 c.rect = Rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0);
-                S().mesh.SetClip(c);
+                S().Mesh().SetClip(c);
             }
             if (l.hasText || cursor >= 0)
             {
@@ -168,7 +168,7 @@ namespace helix::ui::gui
                 }
             }
             if (clip)
-                S().mesh.SetClip(saved);
+                S().Mesh().SetClip(saved);
         }
     }
 
@@ -478,7 +478,7 @@ namespace helix::ui::gui::detail
 
     void DrawText(const TextInfo& info, Vector2 at, f32 opacity)
     {
-        UIMesh& mesh = S().mesh;
+        UIMesh& mesh = S().Mesh();
         for (const TextRect& t : info.rects)
         {
             Color c = t.color;

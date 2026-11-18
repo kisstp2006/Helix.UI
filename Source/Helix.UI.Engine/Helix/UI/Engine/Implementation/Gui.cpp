@@ -79,11 +79,11 @@ namespace helix::ui::gui
             if (s.clips.Empty())
                 return;
             const Clip& c = s.clips.Back();
-            s.mesh.SetTransform(s.toScreen * Affine::Translation(c.origin));
+            s.Mesh().SetTransform(s.toScreen * Affine::Translation(c.origin));
             UIClip clip;
             clip.rect = c.visible;
             clip.toClip = s.toScreen.Inverse();
-            s.mesh.SetClip(clip);
+            s.Mesh().SetClip(clip);
         }
 
         void UpdateMouse()
@@ -205,7 +205,7 @@ namespace helix::ui::gui
                 image.slices[3] = f32(border->bottom());
             }
             const f32 none[4] = {0, 0, 0, 0};
-            S().mesh.Image(rect, image, Vector4(0, 0, 0, 0), none, 1);
+            S().Mesh().Image(rect, image, Vector4(0, 0, 0, 0), none, 1);
         }
 
         void DrawTextureRect(const Rect& rect, engine::Texture2D* texture, const Rect& uv, Color tint)
@@ -216,10 +216,10 @@ namespace helix::ui::gui
             const Vector2 corners[4] = {Vector2(rect.x, rect.y), Vector2(rect.x + rect.width, rect.y), Vector2(rect.x + rect.width, rect.y + rect.height),
                                         Vector2(rect.x, rect.y + rect.height)};
             Rect flipped(uv.x, uv.y + uv.height, uv.width, -uv.height);
-            S().mesh.TexturedQuad(corners, flipped, Color(tint.r * tint.a, tint.g * tint.a, tint.b * tint.a, tint.a), texture, UIVertexKind::Image, 0, 1);
+            S().Mesh().TexturedQuad(corners, flipped, Color(tint.r * tint.a, tint.g * tint.a, tint.b * tint.a, tint.a), texture, UIVertexKind::Image, 0, 1);
         }
 
-        void DrawRectangle(const Rect& rect, Color c) { S().mesh.Rectangle(rect, Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a)); }
+        void DrawRectangle(const Rect& rect, Color c) { S().Mesh().Rectangle(rect, Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a)); }
 
         // ----------------------------------------------------------------------------------------------- text units
 
@@ -1148,7 +1148,7 @@ namespace helix::ui::gui
             img.tint = tint;
             img.uv = uv;
             const f32 borders[4] = {borderWidth, borderWidth, borderWidth, borderWidth};
-            S().mesh.Image(r, img, Vector4(borderRadius, borderRadius, borderRadius, borderRadius), borders, 1);
+            S().Mesh().Image(r, img, Vector4(borderRadius, borderRadius, borderRadius, borderRadius), borders, 1);
             return;
         }
         DrawTextureRect(r, image, uv, tint);

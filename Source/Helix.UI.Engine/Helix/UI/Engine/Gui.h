@@ -489,6 +489,17 @@ namespace helix::ui::gui
         void Draw(engine::CommandBuffer& cmd);
         void ResetForTests();
     }
+
+    // ImguiContainer's GUI: a handler run in a rectangle of the screen (the container's border box), with ids, a
+    // layout and windows of its own (by its key), one event at a time after its Layout pass; its Repaint draws into a
+    // panel's mesh (in the panel's order and clip).
+    namespace container
+    {
+        // True when a control used the event (a mouse event's position is the screen's).
+        bool Run(u64 key, const Rect& rect, const Event& e, void (*handler)(void* user), void* user, UIMesh* mesh);
+        // The container went: its ids, layout and windows go.
+        void Remove(u64 key);
+    }
 }
 
 HX_GUI_OBJECT_HANDLES(GuiLayoutOption)

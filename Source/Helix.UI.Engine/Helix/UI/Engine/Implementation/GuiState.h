@@ -60,6 +60,8 @@ namespace helix::ui::gui::detail
         IdList ids;
         LayoutCache* cache = nullptr;
         bool seen = false;
+        // An ImguiContainer's (kept until the container goes, not by the scripts' collection).
+        bool container = false;
         ~Owner();
     };
 
@@ -128,7 +130,10 @@ namespace helix::ui::gui::detail
         i32 heldButtons = 0;
         Vector2 screenMouse;
         // The frame's drawing.
-        UIMesh mesh;
+        UIMesh ownMesh;
+        // Where the controls draw: the frame's own mesh, or a panel's while a container draws in it.
+        UIMesh* meshTarget = &ownMesh;
+        UIMesh& Mesh() { return *meshTarget; }
         TextGenerator generator;
         Array<TextFont*> fallbacks;
         bool drawerSet = false;
