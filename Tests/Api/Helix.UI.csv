@@ -1431,8 +1431,10 @@ UI.GroupBox,contentContainer,Element contentContainer { get; }
 UI.GroupBox,hssClassName,static string hssClassName
 UI.GroupBox,labelHssClassName,static string labelHssClassName
 UI.GroupBox,text,string text { get; set; }
+UI.HandleDragAndDropArgs,childIndex,int childIndex { get; }
 UI.HandleDragAndDropArgs,dropPosition,DragAndDropPosition dropPosition { get; }
 UI.HandleDragAndDropArgs,insertAtIndex,int insertAtIndex { get; }
+UI.HandleDragAndDropArgs,parentId,int parentId { get; }
 UI.HandleDragAndDropArgs,position,Vector2 position { get; }
 UI.Hash128Field,.ctor,Hash128Field(string) / Hash128Field()
 UI.Hash128Field,contentContainer,Element contentContainer { get; }

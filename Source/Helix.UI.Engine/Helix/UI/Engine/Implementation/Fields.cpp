@@ -6,6 +6,7 @@
 #include <Helix/UI/Engine/Panel.h>
 #include <Helix/UI/Engine/TextInput.h>
 
+#include <charconv>
 #include <cmath>
 #include <limits>
 
@@ -1380,7 +1381,13 @@ namespace helix::ui
         case Long: return helix::Format("{}", integers_[0]);
         case UInt:
         case ULong: return helix::Format("{}", u64(integers_[0]));
-        case Float: return helix::Format("{}", f32(numbers_[0]));
+        case Float:
+        {
+            // The shortest text of the float itself (0.3, not the double 0.30000001192092896 it widens to).
+            char text[48];
+            auto result = std::to_chars(text, text + sizeof(text), f32(numbers_[0]));
+            return String(StringView(text, usize(result.ptr - text)));
+        }
         default: return helix::Format("{}", numbers_[0]);
         }
     }

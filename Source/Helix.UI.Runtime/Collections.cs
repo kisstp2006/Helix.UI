@@ -129,6 +129,8 @@ namespace HelixEngine.UI
         CollectionViewController m_Controller;
         float m_FixedItemHeight = k_DefaultItemHeight;
         int m_Anchor = -1, m_Pointer = -1, m_DragFrom = -1, m_DropAt = -1;
+        DragAndDropPosition m_DropPosition = DragAndDropPosition.BetweenItems;
+        Element m_DropOver;
         Vector2 m_DownAt;
         bool m_Dragging, m_RefreshQueued;
 
@@ -617,20 +619,55 @@ namespace HelixEngine.UI
                 m_Dragging = true;
                 setupDragAndDrop?.Invoke(new SetupDragAndDropArgs(r.container, m_Selected.Select(i => m_Controller.GetIdForIndex(i)), new StartDragArgs("", DragVisualMode.Move)));
             }
-            // The gap the pointer is over: before the row whose middle is below it.
+            // The gap the pointer is over: before the row whose middle is below it; a view that drops onto items
+            // takes a row's middle half as the row itself.
             Vector2 local = m_ScrollView.contentContainer.WorldToLocal(at);
             int count = Count, drop = count;
+            DragAndDropPosition position = count == 0 ? DragAndDropPosition.OutsideItems : DragAndDropPosition.BetweenItems;
             for (int i = 0; i < count; i++)
-                if (local.y < Top(i) + HeightOf(i) * 0.5f)
+            {
+                float top = Top(i), h = HeightOf(i);
+                if (dropsOnItems && local.y >= top + h * 0.25f && local.y < top + h * 0.75f)
+                {
+                    drop = i;
+                    position = DragAndDropPosition.OverItem;
+                    break;
+                }
+                if (local.y < top + h * 0.5f)
                 {
                     drop = i;
                     break;
                 }
+            }
             m_DropAt = drop;
-            var args = new HandleDragAndDropArgs(local, drop, DragAndDropPosition.BetweenItems);
+            m_DropPosition = position;
+            DropTarget(drop, position, out int parentId, out int childIndex);
+            var args = new HandleDragAndDropArgs(local, drop, position, parentId, childIndex);
             DragVisualMode mode = dragAndDropUpdate?.Invoke(args) ?? DragVisualMode.Move;
-            m_DragBar.style.display = mode == DragVisualMode.Rejected || mode == DragVisualMode.None ? DisplayStyle.None : DisplayStyle.Flex;
+            bool shown = mode != DragVisualMode.Rejected && mode != DragVisualMode.None;
+            MarkDropOver(shown && position == DragAndDropPosition.OverItem ? GetRootElementForIndex(drop) : null);
+            m_DragBar.style.display = shown && position != DragAndDropPosition.OverItem ? DisplayStyle.Flex : DisplayStyle.None;
             m_DragBar.style.top = Top(drop) - m_ScrollView.scrollOffset.y;
+        }
+
+        void MarkDropOver(Element row)
+        {
+            Element container = row?.parent;
+            if (m_DropOver == container)
+                return;
+            m_DropOver?.RemoveFromClassList(itemDragHoverHssClassName);
+            m_DropOver = container;
+            m_DropOver?.AddToClassList(itemDragHoverHssClassName);
+        }
+
+        // Whether a drag may end on a row (a tree's: into that item).
+        internal virtual bool dropsOnItems => false;
+
+        // Where a drop goes in a tree (a list: no parent, the index).
+        internal virtual void DropTarget(int insertAtIndex, DragAndDropPosition position, out int parentId, out int childIndex)
+        {
+            parentId = -1;
+            childIndex = insertAtIndex;
         }
 
         void OnRowUp(Row r, PointerUpEvent e)
@@ -640,10 +677,16 @@ namespace HelixEngine.UI
             r.container.ReleasePointer(e.pointerId);
             m_Pointer = -1;
             m_DragBar.style.display = DisplayStyle.None;
-            if (m_Dragging && m_DropAt >= 0 && m_DragFrom >= 0)
+            MarkDropOver(null);
+            if (m_Dragging && m_DropAt >= 0 && m_DragFrom >= 0 && handleDrop != null)
             {
-                var args = new HandleDragAndDropArgs(Vector2.zero, m_DropAt, DragAndDropPosition.BetweenItems);
-                DragVisualMode mode = handleDrop?.Invoke(args) ?? DragVisualMode.Move;
+                // The view's owner moves what it shows.
+                DropTarget(m_DropAt, m_DropPosition, out int parentId, out int childIndex);
+                handleDrop(new HandleDragAndDropArgs(Vector2.zero, m_DropAt, m_DropPosition, parentId, childIndex));
+            }
+            else if (m_Dragging && m_DropAt >= 0 && m_DragFrom >= 0 && m_DropPosition != DragAndDropPosition.OverItem)
+            {
+                DragVisualMode mode = DragVisualMode.Move;
                 if (mode != DragVisualMode.Rejected && mode != DragVisualMode.None)
                 {
                     int to = m_DropAt > m_DragFrom ? m_DropAt - 1 : m_DropAt;
@@ -761,11 +804,16 @@ namespace HelixEngine.UI
         public Vector2 position { get; }
         public int insertAtIndex { get; }
         public DragAndDropPosition dropPosition { get; }
-        internal HandleDragAndDropArgs(Vector2 position, int insertAtIndex, DragAndDropPosition dropPosition)
+        // A tree's drop: the item it goes into (-1: the roots) and its place among that item's children (-1: last).
+        public int parentId { get; }
+        public int childIndex { get; }
+        internal HandleDragAndDropArgs(Vector2 position, int insertAtIndex, DragAndDropPosition dropPosition, int parentId = -1, int childIndex = -1)
         {
             this.position = position;
             this.insertAtIndex = insertAtIndex;
             this.dropPosition = dropPosition;
+            this.parentId = parentId;
+            this.childIndex = childIndex;
         }
     }
 
@@ -1270,6 +1318,37 @@ namespace HelixEngine.UI
         public BaseTreeView() : base() { AddToClassList(hssClassName); }
 
         public new BaseTreeViewController viewController => base.viewController as BaseTreeViewController;
+
+        internal override bool dropsOnItems => true;
+
+        // Into the row's item (last among its children); between rows: beside the row below (in its parent, at its
+        // place), after the last row: the last root.
+        internal override void DropTarget(int insertAtIndex, DragAndDropPosition position, out int parentId, out int childIndex)
+        {
+            int count = viewController?.GetItemsCount() ?? 0;
+            if (position == DragAndDropPosition.OverItem && insertAtIndex < count)
+            {
+                parentId = GetIdForIndex(insertAtIndex);
+                childIndex = -1;
+                return;
+            }
+            if (insertAtIndex >= count)
+            {
+                parentId = -1;
+                childIndex = -1;
+                return;
+            }
+            int id = GetIdForIndex(insertAtIndex);
+            parentId = viewController.GetParentId(id);
+            IEnumerable<int> siblings = parentId < 0 ? viewController.GetRootItemIds() : viewController.GetChildrenIds(parentId);
+            childIndex = 0;
+            foreach (int s in siblings)
+            {
+                if (s == id)
+                    break;
+                childIndex++;
+            }
+        }
 
         [HxmlAttribute]
         public bool autoExpand { get; set; }
