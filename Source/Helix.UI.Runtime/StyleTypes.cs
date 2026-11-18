@@ -251,21 +251,34 @@ namespace HelixEngine.UI
     }
 
     // A background image: a texture (the other kinds of the reference's come with their assets).
+    // An image of a style: a texture, or a render texture a camera draws into.
     public struct Background : IEquatable<Background>
     {
         public Texture2D texture { get; set; }
+        public RenderTexture renderTexture { get; set; }
 
         public static Background FromTexture2D(Texture2D t) => new Background { texture = t };
-        public Object GetSelectedImage() => texture;
-        public bool IsEmpty() => texture == null;
+        public static Background FromRenderTexture(RenderTexture rt) => new Background { renderTexture = rt };
+
+        // The one it holds, as the style holds any texture.
+        internal static Background FromTextureInternal(Texture t) => t switch
+        {
+            Texture2D t2 => FromTexture2D(t2),
+            RenderTexture rt => FromRenderTexture(rt),
+            _ => default,
+        };
+
+        public Object GetSelectedImage() => texture != null ? texture : renderTexture;
+        public bool IsEmpty() => texture == null && renderTexture == null;
+        internal Texture selectedTextureInternal => texture != null ? texture : renderTexture;
 
         public static bool operator ==(Background lhs, Background rhs) => lhs.Equals(rhs);
         public static bool operator !=(Background lhs, Background rhs) => !lhs.Equals(rhs);
         public static implicit operator Background(Texture2D v) => FromTexture2D(v);
-        public bool Equals(Background other) => ReferenceEquals(texture, other.texture);
+        public bool Equals(Background other) => ReferenceEquals(texture, other.texture) && ReferenceEquals(renderTexture, other.renderTexture);
         public override bool Equals(object obj) => obj is Background b && Equals(b);
-        public override int GetHashCode() => texture != null ? texture.GetHashCode() : 0;
-        public override string ToString() => texture != null ? texture.ToString() : "";
+        public override int GetHashCode() => GetSelectedImage() is Object o ? o.GetHashCode() : 0;
+        public override string ToString() => GetSelectedImage()?.ToString() ?? "";
     }
 
     // ------------------------------------------------------------------------------------------- their style values
@@ -528,6 +541,7 @@ namespace HelixEngine.UI
         }
 
         public StyleBackground(Texture2D v) : this(Background.FromTexture2D(v)) { }
+        public StyleBackground(RenderTexture v) : this(Background.FromRenderTexture(v)) { }
 
         public StyleBackground(StyleKeyword keyword)
         {

@@ -243,14 +243,15 @@ namespace helix::ui
         return object ? Intern(Format("{}{}", kEntity, object->GetEntityId().value)) : kNoAtom;
     }
 
-    engine::Texture2D* EntityResourceTexture(StringView resource)
+    engine::Texture* EntityResourceTexture(StringView resource)
     {
         if (!resource.StartsWith(kEntity))
             return nullptr;
         u64 raw = 0;
         for (char c : resource.Substr(kEntity.Size()))
             raw = c >= '0' && c <= '9' ? raw * 10 + u64(c - '0') : raw;
-        return engine::EntityIdToObject<engine::Texture2D>(engine::EntityId::FromULong(raw));
+        // Any texture: an image's, a render texture a camera draws into (a view of a scene).
+        return engine::EntityIdToObject<engine::Texture>(engine::EntityId::FromULong(raw));
     }
 
     namespace

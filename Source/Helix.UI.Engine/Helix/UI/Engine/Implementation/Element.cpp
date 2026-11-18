@@ -1301,7 +1301,8 @@ namespace helix::ui
         StringView inside = t.Substr(open + 1, close - open - 1).Trimmed();
         if (inside.Size() >= 2 && (inside[0] == '"' || inside[0] == '\''))
             inside = inside.Substr(1, inside.Size() - 2);
-        return p->Host()->TextureAt(Intern(inside));
+        engine::Texture* texture = p->Host()->TextureAt(Intern(inside));
+        return texture && texture->Is<engine::Texture2D>() ? static_cast<engine::Texture2D*>(texture) : nullptr;
     }
 
     namespace
@@ -1393,7 +1394,7 @@ namespace helix::ui
         return index >= 0 && u32(index) < n ? WordOf(FindProperty(property), v[index]) : String();
     }
 
-    void Element::SetInlineStyleTexture(StringView property, engine::Texture2D* texture, Vector2 hotspot)
+    void Element::SetInlineStyleTexture(StringView property, engine::Texture* texture, Vector2 hotspot)
     {
         PropertyId id = FindProperty(property);
         if (!alive() || id == kNoProperty)
@@ -1405,17 +1406,17 @@ namespace helix::ui
         world_->styles().SetInlineValues(handle_, id, Span<const StyleValue>(values, count));
     }
 
-    engine::Texture2D* Element::TextureOf(Atom resource) const
+    engine::Texture* Element::TextureOf(Atom resource) const
     {
         if (resource == kNoAtom)
             return nullptr;
-        if (engine::Texture2D* set = EntityResourceTexture(AtomName(resource)))
+        if (engine::Texture* set = EntityResourceTexture(AtomName(resource)))
             return set;
         Panel* p = panel();
         return p && p->Host() ? p->Host()->TextureAt(resource) : nullptr;
     }
 
-    engine::Texture2D* Element::InlineStyleTexture(StringView property) const
+    engine::Texture* Element::InlineStyleTexture(StringView property) const
     {
         Array<StyleValue> v;
         bool initial = false;
@@ -1424,7 +1425,7 @@ namespace helix::ui
         return TextureOf(v[0].resource);
     }
 
-    engine::Texture2D* Element::ResolvedStyleTexture(StringView property) const
+    engine::Texture* Element::ResolvedStyleTexture(StringView property) const
     {
         StyleValue v[kMaxValues];
         u32 n = alive() ? ComputedValues(*world_, handle_, property, v) : 0;

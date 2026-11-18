@@ -692,6 +692,8 @@ UI.Background,IsEmpty,bool IsEmpty()
 UI.Background,ToString,string ToString()
 UI.Background,operators,"Equality(Background, Background) / Inequality(Background, Background) / Implicit(Texture2D)"
 UI.Background,texture,Texture2D texture { get; set; }
+UI.Background,FromRenderTexture,static Background FromRenderTexture(RenderTexture)
+UI.Background,renderTexture,RenderTexture renderTexture { get; set; }
 UI.BackgroundPosition,.ctor,"BackgroundPosition(BackgroundPositionKeyword) / BackgroundPosition(BackgroundPositionKeyword, Length)"
 UI.BackgroundPosition,ToString,string ToString()
 UI.BackgroundPosition,keyword,BackgroundPositionKeyword keyword

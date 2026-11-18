@@ -15,15 +15,19 @@ namespace helix::ui
                 engine::Object::DestroyImmediate(t);
     }
 
-    void ImageAtlas::Place(engine::Texture2D* texture, UIImage& out)
+    void ImageAtlas::Place(engine::Texture* any, UIImage& out)
     {
-        out.texture = texture;
+        out.texture = any;
         out.uv = Rect(0, 0, 1, 1);
         out.rowsUp = true;
-        if (!texture)
+        if (!any)
             return;
-        out.textureWidth = f32(texture->width());
-        out.textureHeight = f32(texture->height());
+        out.textureWidth = f32(any->width());
+        out.textureHeight = f32(any->height());
+        // Only images go into the atlas (a render texture is drawn from itself: a camera draws into it each frame).
+        if (!any->Is<engine::Texture2D>())
+            return;
+        auto* texture = static_cast<engine::Texture2D*>(any);
         u64 id = texture->GetEntityId().value;
         for (u64 r : refused_)
             if (r == id)

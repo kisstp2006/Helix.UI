@@ -59,7 +59,7 @@ namespace helix::ui
         {
             bool world = false;
             const void* textures[UIBatch::kSlots] = {};
-            engine::PPtr<engine::Texture2D> alive[UIBatch::kSlots];
+            engine::PPtr<engine::Texture> alive[UIBatch::kSlots];
             engine::PPtr<engine::Material> material;
         };
 
@@ -106,11 +106,17 @@ namespace helix::ui
         f32 order() const { return shared_ ? (settings() ? settings()->sortingOrder() : 0.0f) : (views_.Empty() ? 0.0f : views_[0]->sortingOrder()); }
         u64 serial() const { return serial_; }
         engine::RenderTexture* target() const { return !world_ && settings() ? settings()->targetTexture() : nullptr; }
+        // The GameObject of its first view (whose content it is: the editor's or the game's).
+        engine::GameObject* owner() const { return views_.Empty() ? nullptr : views_[0]->gameObject(); }
+        // The game's content while the editor keeps it apart (drawn into its display's texture).
+        bool game() const { return engine::Graphics::SeparateEditorContent() && !engine::Graphics::IsEditorObject(owner()); }
         // The display a screen panel draws to and takes input from: its settings' targetDisplay while that display is
-        // active, else the main one.
+        // active, else the main one (the game's: its own, into that display's texture).
         i32 display() const
         {
             i32 d = !world_ && settings() ? settings()->targetDisplay() : 0;
+            if (game())
+                return d > 0 ? d : 0;
             return d > 0 && engine::Displays::Get(d).active ? d : 0;
         }
         f32 scale() const { return scale_; }
@@ -235,9 +241,9 @@ namespace helix::ui
             }
             for (u32 k = 0; k < UIBatch::kSlots; k++)
             {
-                auto* t = static_cast<engine::Texture2D*>(const_cast<void*>(batch.textures[k]));
+                auto* t = static_cast<engine::Texture*>(const_cast<void*>(batch.textures[k]));
                 entry.textures[k] = batch.textures[k];
-                entry.alive[k] = engine::PPtr<engine::Texture2D>(t);
+                entry.alive[k] = engine::PPtr<engine::Texture>(t);
                 if (t)
                     m->SetTexture(kNames[k], t);
             }
@@ -280,7 +286,8 @@ namespace helix::ui
             {
                 if (p->world())
                     continue;
-                if (p->target() ? display != 0 : p->display() != display)
+                if (p->target() ? display != 0 || engine::Graphics::DrawingContent() == engine::DrawnContent::Game
+                                : !engine::Graphics::DrawsNow(p->owner(), p->display()))
                     continue;
                 engine::Mesh* mesh = p->mesh();
                 Vector2 size = p->size();
@@ -733,7 +740,7 @@ namespace helix::ui
 
         bool Image(Atom path, UIImage& out) override
         {
-            engine::Texture2D* texture = TextureAt(path);
+            engine::Texture* texture = TextureAt(path);
             if (!texture)
                 return false;
             Atlas().Place(texture, out);
@@ -741,19 +748,19 @@ namespace helix::ui
         }
 
         // The texture of a path of the markup's styles (loaded once; null when there is none).
-        engine::Texture2D* TextureAt(Atom path) override
+        engine::Texture* TextureAt(Atom path) override
         {
             // A texture a script set is its object's.
-            if (engine::Texture2D* set = EntityResourceTexture(AtomName(path)))
+            if (engine::Texture* set = EntityResourceTexture(AtomName(path)))
                 return set;
             for (const ImageEntry& e : images_)
                 if (e.path == path)
                     return e.texture.Get();
-            engine::Texture2D* texture = nullptr;
+            engine::Texture* texture = nullptr;
             engine::Object* o = Load(path, "texture");
-            if (o && o->Is<engine::Texture2D>())
-                texture = static_cast<engine::Texture2D*>(o);
-            images_.Push({path, engine::PPtr<engine::Texture2D>(texture)});
+            if (o && o->Is<engine::Texture>())
+                texture = static_cast<engine::Texture*>(o);
+            images_.Push({path, engine::PPtr<engine::Texture>(texture)});
             return texture;
         }
 
@@ -802,7 +809,7 @@ namespace helix::ui
         struct ImageEntry
         {
             Atom path;
-            engine::PPtr<engine::Texture2D> texture;
+            engine::PPtr<engine::Texture> texture;
         };
         RuntimePanel& panel_;
         Array<Entry> definitions_;
@@ -811,7 +818,11 @@ namespace helix::ui
 
     namespace
     {
-        engine::Texture2D* CursorTextureOf(RuntimePanel* p, Atom path) { return p->host().TextureAt(path); }
+        engine::Texture2D* CursorTextureOf(RuntimePanel* p, Atom path)
+        {
+            engine::Texture* t = p->host().TextureAt(path);
+            return t && t->Is<engine::Texture2D>() ? static_cast<engine::Texture2D*>(t) : nullptr;
+        }
     }
 
     RuntimePanel::RuntimePanel(UIPanelSettings* settings, u64 serial, bool world)
@@ -894,6 +905,9 @@ namespace helix::ui
             PanelInputConfiguration* config = PanelInputConfiguration::current();
             return !config || config->processWorldSpaceInput();
         }
+        // The game's screen panels take no pointers of the editor's windows (the Game view gives them theirs).
+        if (game() && !target())
+            return false;
         UIPanelSettings* s = settings();
         return !target() || (s && s->screenToPanelKind() != 0);
     }
@@ -1075,6 +1089,13 @@ namespace helix::ui
         const engine::DisplayState& shown = engine::Displays::Get(display());
         f32 w = rt ? f32(rt->width()) : display() > 0 ? f32(shown.systemWidth) : f32(engine::Screen::width());
         f32 h = rt ? f32(rt->height()) : display() > 0 ? f32(shown.systemHeight) : f32(engine::Screen::height());
+        // The game's: its display texture's size in the editor.
+        if (!rt && game())
+        {
+            Vector2 content = engine::Graphics::ContentDisplaySize(owner(), display());
+            w = content.x;
+            h = content.y;
+        }
         scale_ = s ? s->ResolveScale(w, h, engine::Screen::dpi()) : 1.0f;
         if (!(scale_ > 0))
             scale_ = 1.0f;
@@ -1224,7 +1245,11 @@ namespace helix::ui
 
     // ------------------------------------------------------------------------------------------------------- UIView
 
-    engine::Texture2D* UIView::CursorTexture(Atom path) { return runtime_ ? runtime_->host().TextureAt(path) : nullptr; }
+    engine::Texture2D* UIView::CursorTexture(Atom path)
+    {
+        engine::Texture* t = runtime_ ? runtime_->host().TextureAt(path) : nullptr;
+        return t && t->Is<engine::Texture2D>() ? static_cast<engine::Texture2D*>(t) : nullptr;
+    }
 
     UIView::UIView(const UIView& other)
         : engine::GameBehaviour(other), settings_(other.settings_), source_(other.source_), sortingOrder_(other.sortingOrder_), watchFiles_(other.watchFiles_)

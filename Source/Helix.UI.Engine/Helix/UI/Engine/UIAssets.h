@@ -98,7 +98,7 @@ namespace helix::ui
     // A texture a script set as a style's value: its object's id as the value's resource ("entity:<id>"), for
     // properties naming textures by path otherwise. Null for other resources.
     Atom EntityResource(const engine::Object* object);
-    engine::Texture2D* EntityResourceTexture(StringView resource);
+    engine::Texture* EntityResourceTexture(StringView resource);
 
     // Registers the loaders of .hxml, .hss and .tss (once).
     void RegisterUIAssetLoaders();

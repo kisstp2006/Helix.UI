@@ -172,9 +172,9 @@ namespace helix::ui
         HX_FUNCTION(Internal) String ResolvedStyleWordAt(StringView property, i32 index) const;
         // A texture as a property's value (background-image, cursor with its hotspot; null: none), and the texture a
         // value names (a texture set so, or a path found by the element's panel).
-        HX_FUNCTION(Internal) void SetInlineStyleTexture(StringView property, engine::Texture2D* texture, Vector2 hotspot);
-        HX_FUNCTION(Internal) engine::Texture2D* InlineStyleTexture(StringView property) const;
-        HX_FUNCTION(Internal) engine::Texture2D* ResolvedStyleTexture(StringView property) const;
+        HX_FUNCTION(Internal) void SetInlineStyleTexture(StringView property, engine::Texture* texture, Vector2 hotspot);
+        HX_FUNCTION(Internal) engine::Texture* InlineStyleTexture(StringView property) const;
+        HX_FUNCTION(Internal) engine::Texture* ResolvedStyleTexture(StringView property) const;
         // The custom properties (customStyle): whether the element declares one, its text (var() replaced), and the
         // texture its url() or resource() names (as the element's panel finds it; null outside of one).
         HX_FUNCTION(Internal) bool HasCustomStyle(StringView name) const;
@@ -231,7 +231,7 @@ namespace helix::ui
 
     private:
         friend struct scripting::ObjectHandles<CallbackEventHandler>;
-        engine::Texture2D* TextureOf(Atom resource) const;
+        engine::Texture* TextureOf(Atom resource) const;
         ElementTree& tree() const { return world_->tree(); }
         // The C# object held strongly while the element is in a tree, let go when it leaves.
         void UpdateRetain();

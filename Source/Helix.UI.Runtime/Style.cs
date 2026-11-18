@@ -562,12 +562,12 @@ namespace HelixEngine.UI
             get
             {
                 StyleKeyword k = Unset("background-image");
-                return k != StyleKeyword.Undefined ? k : new StyleBackground(m_Element.InlineStyleTexture("background-image"));
+                return k != StyleKeyword.Undefined ? k : new StyleBackground(Background.FromTextureInternal(m_Element.InlineStyleTexture("background-image")));
             }
             set
             {
                 if (Keyword("background-image", value.keyword))
-                    m_Element.SetInlineStyleTexture("background-image", value.keyword == StyleKeyword.None ? null : value.value.texture, default);
+                    m_Element.SetInlineStyleTexture("background-image", value.keyword == StyleKeyword.None ? null : value.value.selectedTextureInternal, default);
             }
         }
 
@@ -660,7 +660,7 @@ namespace HelixEngine.UI
                     return k;
                 return new Cursor
                 {
-                    texture = m_Element.InlineStyleTexture("cursor"),
+                    texture = m_Element.InlineStyleTexture("cursor") as Texture2D,
                     hotspot = new Vector2(m_Element.InlineStyleNumberAt("cursor", 1), m_Element.InlineStyleNumberAt("cursor", 2)),
                 };
             }
@@ -786,7 +786,7 @@ namespace HelixEngine.UI
                 return new Vector3(Pixels("transform-origin", 0, r.width), Pixels("transform-origin", 1, r.height), 0);
             }
         }
-        public Background backgroundImage => Background.FromTexture2D(m_Element.ResolvedStyleTexture("background-image"));
+        public Background backgroundImage => Background.FromTextureInternal(m_Element.ResolvedStyleTexture("background-image"));
         public BackgroundPosition backgroundPositionX => PositionOf("background-position-x");
         public BackgroundPosition backgroundPositionY => PositionOf("background-position-y");
         public BackgroundRepeat backgroundRepeat => new BackgroundRepeat(StyleWords.Parse<Repeat>(m_Element.ResolvedStyleWordAt("background-repeat", 0)),

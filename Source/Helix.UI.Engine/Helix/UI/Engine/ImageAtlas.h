@@ -6,6 +6,7 @@
 
 namespace helix::engine
 {
+    class Texture;
     class Texture2D;
 }
 
@@ -26,7 +27,7 @@ namespace helix::ui
         ImageAtlas& operator=(const ImageAtlas&) = delete;
 
         // Where an image of a texture is drawn from: an atlas page and its rectangle there, or the texture itself.
-        void Place(engine::Texture2D* texture, UIImage& out);
+        void Place(engine::Texture* texture, UIImage& out);
         // Uploads the pages images were added to.
         void Upload();
         u32 PageCount() const { return atlas_.PageCount(); }

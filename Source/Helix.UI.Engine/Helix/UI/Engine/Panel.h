@@ -11,6 +11,7 @@
 
 namespace helix::engine
 {
+    class Texture;
     class Texture2D;
 }
 
@@ -34,7 +35,7 @@ namespace helix::ui
         // A background image by its url or resource: the texture (or an atlas page) with its uv rect and size.
         virtual bool Image(Atom path, UIImage& out) = 0;
         // The texture at a path of the styles (null when there is none).
-        virtual engine::Texture2D* TextureAt(Atom path) = 0;
+        virtual engine::Texture* TextureAt(Atom path) = 0;
     };
 
     class Panel
