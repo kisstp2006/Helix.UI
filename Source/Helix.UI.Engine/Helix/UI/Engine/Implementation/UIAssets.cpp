@@ -168,10 +168,62 @@ namespace helix::ui
         return found ? *found : nullptr;
     }
 
+    namespace
+    {
+        // A sheet's url() paths are relative to the sheet (as the reference's): written from the asset root, so the
+        // views that use the sheet from markup elsewhere find them.
+        String RootedUrls(StringView sheetPath, StringView text)
+        {
+            if (sheetPath.Empty())
+                return String(text);
+            String out;
+            usize i = 0;
+            while (i < text.Size())
+            {
+                usize at = i;
+                bool found = false;
+                for (; at + 4 <= text.Size(); at++)
+                    if (text.Substr(at, 4) == "url(")
+                    {
+                        found = true;
+                        break;
+                    }
+                if (!found)
+                {
+                    out += text.Substr(i);
+                    break;
+                }
+                usize start = at + 4;
+                while (start < text.Size() && (text[start] == ' ' || text[start] == '\t'))
+                    start++;
+                char quote = start < text.Size() && (text[start] == '"' || text[start] == '\'') ? text[start] : 0;
+                usize begin = quote ? start + 1 : start, end = begin;
+                while (end < text.Size() && (quote ? text[end] != quote : (text[end] != ')' && text[end] != ' ')))
+                    end++;
+                StringView ref = text.Substr(begin, end - begin);
+                bool relative = !ref.Empty() && ref[0] != '/' && !ref.StartsWith("entity:");
+                for (usize k = 0; relative && k + 1 < ref.Size(); k++)
+                    if (ref[k] == ':')
+                        relative = false;
+                out += text.Substr(i, begin - i);
+                if (relative)
+                {
+                    out += "/";
+                    out += ResolveAssetPath(sheetPath, ref);
+                }
+                else
+                    out += ref;
+                i = end;
+            }
+            return out;
+        }
+    }
+
     void StyleSheet::SetText(StringView path, StringView text)
     {
         SheetAssets().Remove(sheet_.get());
-        sheet_ = std::make_shared<StyleSheetData>(StyleSheetData::Parse(text));
+        String rooted = RootedUrls(path, text);
+        sheet_ = std::make_shared<StyleSheetData>(StyleSheetData::Parse(rooted.View()));
         SheetAssets().Set(sheet_.get(), this);
         path_ = path;
         // FNV-1a of the text.

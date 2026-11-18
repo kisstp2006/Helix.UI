@@ -269,7 +269,7 @@ namespace
     }
 
     constexpr StringView kShapesPage = R"(<HXML>
-  <Style src="shapes.hss"/>
+  <Style src="Styles/shapes.hss"/>
   <Element name="card"/>
   <Element name="photo"/>
   <TestTriangle name="chart"/>
@@ -280,11 +280,11 @@ namespace
     constexpr StringView kShapesSheet = R"(
 #card { position: absolute; left: 4px; top: 4px; width: 40px; height: 30px; background-color: #0000ff; border-radius: 10px;
         border-width: 2px; border-left-color: #ff0000; border-top-color: #00ff00; border-right-color: #ffffff; border-bottom-color: #ffff00; }
-#photo { position: absolute; left: 48px; top: 4px; width: 40px; height: 30px; border-radius: 15px; background-image: url("Images/quadrants.png"); }
+#photo { position: absolute; left: 48px; top: 4px; width: 40px; height: 30px; border-radius: 15px; background-image: url("../Images/quadrants.png"); }
 #chart { position: absolute; left: 4px; top: 38px; width: 40px; height: 22px; }
 #clip { position: absolute; left: 48px; top: 38px; width: 40px; height: 22px; overflow: hidden; border-radius: 8px; }
 #inside { position: absolute; left: -10px; top: -10px; width: 60px; height: 42px; background-color: #ff00ff; }
-#raw { position: absolute; left: 4px; top: 64px; width: 40px; height: 28px; background-image: url("Images/raw.png"); }
+#raw { position: absolute; left: 4px; top: 64px; width: 40px; height: 28px; background-image: url("../Images/raw.png"); }
 )";
 }
 
@@ -298,7 +298,9 @@ HX_TEST(UIView, ShapesImagesPaintingAndClipsDrawOnEveryDevice)
         devices++;
         AssetFolder folder;
         folder.Write("shapes.hxml", kShapesPage);
-        folder.Write("shapes.hss", kShapesSheet);
+        // The sheet in a folder of its own: its paths are relative to it.
+        folder.Folder("Styles");
+        folder.Write("Styles/shapes.hss", kShapesSheet);
         folder.Folder("Images");
         Array<u8> png = QuadrantsPng();
         folder.Write("Images/quadrants.png", StringView(reinterpret_cast<const char*>(png.Data()), png.Size()));
