@@ -46,4 +46,10 @@ namespace helix::ui
         Array<Placed> placed_;
         bool dirty_ = false;
     };
+
+    // The handle of a texture the UI does not own (a render texture drawn from itself, a GUI image): remembered with the
+    // texture's id, so a mesh built before the texture went resolves its handle to none.
+    const void* ExternalTextureHandle(engine::Texture* texture);
+    // The texture of a mesh's handle: an external one by its id (null once destroyed), the UI's own as it is.
+    engine::Texture* TextureOfHandle(const void* handle);
 }

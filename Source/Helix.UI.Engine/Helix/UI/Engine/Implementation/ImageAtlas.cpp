@@ -1,5 +1,6 @@
 #include <Helix/UI/Engine/ImageAtlas.h>
 
+#include <Helix/Core/Containers/HashMap.h>
 #include <Helix/Engine/Texture/Texture.h>
 
 #include <cstring>
@@ -15,6 +16,38 @@ namespace helix::ui
                 engine::Object::DestroyImmediate(t);
     }
 
+    namespace
+    {
+        HashMap<u64, engine::EntityId>& External()
+        {
+            static HashMap<u64, engine::EntityId> s;
+            return s;
+        }
+    }
+
+    const void* ExternalTextureHandle(engine::Texture* texture)
+    {
+        if (!texture)
+            return nullptr;
+        External().Set(u64(uintptr_t(texture)), texture->GetEntityId());
+        return texture;
+    }
+
+    engine::Texture* TextureOfHandle(const void* handle)
+    {
+        if (!handle)
+            return nullptr;
+        u64 key = u64(uintptr_t(handle));
+        if (const engine::EntityId* id = External().Find(key))
+        {
+            engine::Texture* t = engine::EntityIdToObject<engine::Texture>(*id);
+            if (!t)
+                External().Remove(key);
+            return t;
+        }
+        return static_cast<engine::Texture*>(const_cast<void*>(handle));
+    }
+
     void ImageAtlas::Place(engine::Texture* any, UIImage& out)
     {
         out.texture = any;
@@ -24,9 +57,13 @@ namespace helix::ui
             return;
         out.textureWidth = f32(any->width());
         out.textureHeight = f32(any->height());
-        // Only images go into the atlas (a render texture is drawn from itself: a camera draws into it each frame).
+        // Only images go into the atlas (a render texture is drawn from itself: a camera draws into it each frame; it may
+        // go before the mesh is built again).
         if (!any->Is<engine::Texture2D>())
+        {
+            out.texture = ExternalTextureHandle(any);
             return;
+        }
         auto* texture = static_cast<engine::Texture2D*>(any);
         u64 id = texture->GetEntityId().value;
         for (u64 r : refused_)

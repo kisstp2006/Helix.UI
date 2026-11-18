@@ -1,5 +1,6 @@
 #include <Helix/UI/Engine/Implementation/GuiState.h>
 #include <Helix/UI/Engine/Implementation/Overlay.h>
+#include <Helix/UI/Engine/ImageAtlas.h>
 
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Engine/Input/InputFeed.h>
@@ -1141,7 +1142,7 @@ namespace helix::ui::gui
         {
             // A rounded or bordered texture: an image in a rounded box.
             UIImage img;
-            img.texture = image;
+            img.texture = ExternalTextureHandle(image);
             img.rowsUp = true;
             img.textureWidth = f32(image->width());
             img.textureHeight = f32(image->height());

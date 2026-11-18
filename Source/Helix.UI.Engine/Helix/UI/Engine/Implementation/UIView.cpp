@@ -241,7 +241,7 @@ namespace helix::ui
             }
             for (u32 k = 0; k < UIBatch::kSlots; k++)
             {
-                auto* t = static_cast<engine::Texture*>(const_cast<void*>(batch.textures[k]));
+                engine::Texture* t = TextureOfHandle(batch.textures[k]);
                 entry.textures[k] = batch.textures[k];
                 entry.alive[k] = engine::PPtr<engine::Texture>(t);
                 if (t)
